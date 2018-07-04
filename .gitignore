@@ -1,2 +1,9 @@
+#IDE configurations
 .vscode
-/build
+
+#build & tmp folders
+build
+
+#downloaded project dependencies
+lib/cjson
+lib/paho.mqtt
