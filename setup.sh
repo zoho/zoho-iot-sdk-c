@@ -15,7 +15,7 @@ tar -xvf v1.0.0.tar.gz
 mv paho.mqtt.embedded-c-1.0.0 ../lib/paho.mqtt
 
 echo "Fetching cJSON Library.."
-curl -LO https://github.com/DaveGamble/cJSON/archive/master.zip
+curl -LO https://github.com/DaveGamble/cJSON/archive/v1.7.7.zip
 unzip master.zip
 mv cJSON-master ../lib/cjson
 

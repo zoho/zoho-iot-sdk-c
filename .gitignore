@@ -1,6 +1,6 @@
 #IDE configurations
 .vscode
-
+.idea
 #build & tmp folders
 build
 
