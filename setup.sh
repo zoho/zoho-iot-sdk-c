@@ -21,4 +21,4 @@ mv cJSON-1.7.7 ../lib/cjson
 
 cd ..
 echo "Setup Done!! Cleaning the temp  directory.."
-#rm -rf tmp
+rm -rf tmp
