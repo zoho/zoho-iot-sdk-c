@@ -16,9 +16,9 @@ mv paho.mqtt.embedded-c-1.0.0 ../lib/paho.mqtt
 
 echo "Fetching cJSON Library.."
 curl -LO https://github.com/DaveGamble/cJSON/archive/v1.7.7.zip
-unzip master.zip
-mv cJSON-master ../lib/cjson
+unzip v1.7.7.zip
+mv cJSON-1.7.7 ../lib/cjson
 
 cd ..
 echo "Setup Done!! Cleaning the temp  directory.."
-rm -rf tmp
+#rm -rf tmp
