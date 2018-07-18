@@ -7,7 +7,7 @@ int rc;
 
 //TODO: Remove all debug statements and use logger.
 
-int init_config(IOTclient *iot_client, char *device_id, char *auth_token)
+int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token)
 {
     //TODO:
     // all config.h and device related validations should be done here itself !
@@ -20,50 +20,56 @@ int init_config(IOTclient *iot_client, char *device_id, char *auth_token)
     return SUCCESS;
 }
 
-int iot_connect(IOTclient *client, char *host, int port)
+int zclient_connect(IOTclient *client, char *host, int port)
 {
-    unsigned const int buff_size = 100;
+    unsigned const int buff_size = 1000;
     unsigned char buf[buff_size], readbuf[buff_size];
-    printf("Connecting..");
+    printf("Preparing Network..");
     NewNetwork(&n);
     ConnectNetwork(&n, host, port);
+    printf("Connecting..");
     MQTTClient(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
-    MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
+    MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
     //TODO:
     // remove hardcoded values of username and pwd and get from structure copied from config.h;
-    data.willFlag = 0;
-    data.MQTTVersion = 3;
-    data.clientID.cstring = client->dev_config.device_id;
+    conn_data.MQTTVersion = 3;
+    conn_data.cleansession = 1; //TODO: tobe confirmed with Hub
+    conn_data.keepAliveInterval = 60;
+    conn_data.clientID.cstring = client->dev_config.device_id;
+    conn_data.willFlag = 0;
+
     //TODO: actual values needs tobe passed here.- username,auth token.
-    data.username.cstring = "";
-    data.password.cstring = "";
-    data.keepAliveInterval = 60;
-    data.cleansession = 1; //TODO: tobe confirmed with Hub
+    conn_data.username.cstring = "";
+    conn_data.password.cstring = "";
+
     printf("Connecting to %s on port : %d\n", host, port);
-    rc = MQTTConnect(&client->mqtt_client, &data);
+    rc = MQTTConnect(&client->mqtt_client, &conn_data);
     printf("Connection status: %d\n", rc);
     return rc;
 }
 
-int sendTestMessage(IOTclient *client, char *topic, char *payload)
+int zclient_publish(IOTclient *client, char *topic, char *payload)
 {
+    int status;
     MQTTMessage pubmsg;
     //TODO:
     // remove hardcoded values of id etc and get from structure copied from config.h;
 
     //TODO: confirm the below parameters with Hub
+    pubmsg.id = 1234;
+    pubmsg.dup = '0';
     pubmsg.qos = 0;
     pubmsg.retained = '0';
-    pubmsg.dup = '0';
-    pubmsg.id = 1234;
+
     pubmsg.payload = payload;
     pubmsg.payloadlen = strlen(payload);
-    rc = MQTTPublish(&(client->mqtt_client), topic, &pubmsg);
-    printf("Delivery status:%d\n", rc);
-    return rc;
+    status = MQTTPublish(&(client->mqtt_client), topic, &pubmsg);
+    //TODO: check for connection and retry to send the message once the conn got restroed.
+    printf("Delivery status:%d\n", status);
+    return status;
 }
 
-int iot_disconnect(IOTclient *client)
+int zclient_disconnect(IOTclient *client)
 {
     rc = MQTTDisconnect(&client->mqtt_client);
     linux_disconnect(&n);

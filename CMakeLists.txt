@@ -14,11 +14,14 @@ file(GLOB Z_IOT_SOURCES "src/*.c")
 add_library(zoho_iot_sdk SHARED ${Z_IOT_SOURCES})
 target_link_libraries(zoho_iot_sdk cjson paho-mqtt)
 
-#Tests:
+##Samples:
+add_executable(basic src/samples/basic.c)
+target_link_libraries(basic zoho_iot_sdk)
+
+##Tests:
 #CJSON:
 add_executable(cjson_test test/dependency_tests/cjson_test.c)
 target_link_libraries(cjson_test cjson)
-
 
 #PAHO MQTT:
 add_executable(mqtt_test test/dependency_tests/paho/ping.c test/dependency_tests/paho/transport.c)
