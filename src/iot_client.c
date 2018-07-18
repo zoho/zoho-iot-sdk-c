@@ -6,6 +6,7 @@ Network n;
 int rc;
 
 //TODO: Remove all debug statements and use logger.
+//TODO: Add logging for all important connection scenarios.
 
 int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token)
 {
@@ -16,7 +17,7 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token)
     cloneString(&config.auth_token, auth_token);
     iot_client->dev_config = config;
     //TODO: freeup config.
-    printf("Initialized!");
+    printf("Initialized!\n");
     return SUCCESS;
 }
 
@@ -24,10 +25,11 @@ int zclient_connect(IOTclient *client, char *host, int port)
 {
     unsigned const int buff_size = 1000;
     unsigned char buf[buff_size], readbuf[buff_size];
-    printf("Preparing Network..");
+    printf("Preparing Network..\n");
     NewNetwork(&n);
     ConnectNetwork(&n, host, port);
-    printf("Connecting..");
+    //TODO: Handle the rc of ConnectNetwork().
+    printf("Connecting..\n");
     MQTTClient(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
     //TODO:
@@ -67,6 +69,18 @@ int zclient_publish(IOTclient *client, char *topic, char *payload)
     //TODO: check for connection and retry to send the message once the conn got restroed.
     printf("Delivery status:%d\n", status);
     return status;
+}
+
+int zclient_subscribe(IOTclient *client, char *topic, messageHandler on_message)
+{
+    //TODO: add basic validation & callback method and append it on error logs.
+    rc = MQTTSubscribe(&client->mqtt_client, topic, QOS0, on_message);
+    return rc;
+}
+
+int zclient_yield(IOTclient *client, int time_out)
+{
+    return MQTTYield(&client->mqtt_client, time_out);
 }
 
 int zclient_disconnect(IOTclient *client)
