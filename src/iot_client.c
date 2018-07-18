@@ -1,69 +1,71 @@
-//#include "MQTTClient.h"
 #include "iot_client.h"
 #include "utils.h"
 
+//TODO: read from config file.
+Network n;
+int rc;
+
+//TODO: Remove all debug statements and use logger.
+
 int init_config(IOTclient *iot_client, char *device_id, char *auth_token)
 {
+    //TODO:
+    // all config.h and device related validations should be done here itself !
     Config config = {NULL, NULL};
-    //TODO: Add config validations
-
     cloneString(&config.device_id, device_id);
     cloneString(&config.auth_token, auth_token);
-
     iot_client->dev_config = config;
-
-    //TODO: return values based on the config status.
-    return 1;
+    //TODO: freeup config.
+    printf("Initialized!");
+    return SUCCESS;
 }
 
-int iot_connect(IOTclient *client)
+int iot_connect(IOTclient *client, char *host, int port)
 {
-    /* Connection Manual:
-    https://github.com/eclipse/paho.mqtt.c/blob/master/src/samples/MQTTClient_publish.c
-    */
-    //TODO: move these conn options to header file
-    /*
-    MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
-    MQTTClient_create(&client, ADDRESS, CLIENTID, MQTTCLIENT_PERSISTENCE_NONE, NULL);
-    conn_opts.keepAliveInterval = 20;
-    conn_opts.cleansession = 1;
-
-    //TODO: token needs to be passed.
-    if ((rc = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS)
-    {
-        printf("Failed to connect, return code %d\n", rc);
-        exit(EXIT_FAILURE);
-    }
-    */
-    //TODO: return values based on the conn status.
-    return 1;
-}
-/*
-int sendTestMessage(IOTclient *client, unsigned char *payload)
-{
-    long megTimeout = 10000L;
-    MQTTClient_message pubmsg = MQTTClient_message_initializer;
-    MQTTClient_deliveryToken token;
-    int rc;
-
-    pubmsg.payload = payload;
-    pubmsg.payloadlen = (int)strlen(payload);
-    pubmsg.qos = QOS0;
-    pubmsg.retained = 0;
-    MQTTClient_publishMessage(client, "TEST_TOPIC", &pubmsg, &token);
-
-    printf("Waiting for up to %d seconds for publication of %s\n"
-           "on topic %s\n",
-           (int)(megTimeout / 1000), payload, "TEST_TOPIC");
-    rc = MQTTClient_waitForCompletion(client, token, megTimeout);
-    printf("Message with delivery token %d delivered\n", token);
+    unsigned const int buff_size = 100;
+    unsigned char buf[buff_size], readbuf[buff_size];
+    printf("Connecting..");
+    NewNetwork(&n);
+    ConnectNetwork(&n, host, port);
+    MQTTClient(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
+    MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
+    //TODO:
+    // remove hardcoded values of username and pwd and get from structure copied from config.h;
+    data.willFlag = 0;
+    data.MQTTVersion = 3;
+    data.clientID.cstring = client->dev_config.device_id;
+    //TODO: actual values needs tobe passed here.- username,auth token.
+    data.username.cstring = "";
+    data.password.cstring = "";
+    data.keepAliveInterval = 60;
+    data.cleansession = 1; //TODO: tobe confirmed with Hub
+    printf("Connecting to %s on port : %d\n", host, port);
+    rc = MQTTConnect(&client->mqtt_client, &data);
+    printf("Connection status: %d\n", rc);
     return rc;
 }
-*/
-/*
+
+int sendTestMessage(IOTclient *client, char *topic, char *payload)
+{
+    MQTTMessage pubmsg;
+    //TODO:
+    // remove hardcoded values of id etc and get from structure copied from config.h;
+
+    //TODO: confirm the below parameters with Hub
+    pubmsg.qos = 0;
+    pubmsg.retained = '0';
+    pubmsg.dup = '0';
+    pubmsg.id = 1234;
+    pubmsg.payload = payload;
+    pubmsg.payloadlen = strlen(payload);
+    rc = MQTTPublish(&(client->mqtt_client), topic, &pubmsg);
+    printf("Delivery status:%d\n", rc);
+    return rc;
+}
+
 int iot_disconnect(IOTclient *client)
 {
-    MQTTClient_disconnect(client, 10000);
-    MQTTClient_destroy(&client);
+    rc = MQTTDisconnect(&client->mqtt_client);
+    linux_disconnect(&n);
+    return rc;
 }
-*/

@@ -1,5 +1,5 @@
-// #ifndef IOT_CLIENT_H_
-// #define IOT_CLIENT_H_
+#ifndef IOT_CLIENT_H_
+#define IOT_CLIENT_H_
 
 #include <MQTTClient.h>
 
@@ -16,4 +16,9 @@ typedef struct
 
 } IOTclient;
 
-// #endif //# IOT_CLIENT_H_
+int init_config(IOTclient *iot_client, char *device_id, char *auth_token);
+int iot_connect(IOTclient *client, char *host_name, int port);
+int sendTestMessage(IOTclient *client, char *topic, char *payload);
+int iot_disconnect(IOTclient *client);
+
+#endif //# IOT_CLIENT_H_
