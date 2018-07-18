@@ -1,6 +1,19 @@
 cmake_minimum_required(VERSION 3.10.2)
 project(zoho-iot-sdk-c)
 
+
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    message( FATAL_ERROR "
+                    :::::::::::::::::::::::::
+
+    MAC is not supported at the moment. Pls try from Linux! 
+    
+
+                    :::::::::::::::::::::::::" )
+endif()
+
+
 set(CMAKE_BUILD_TYPE DEBUG)
 include_directories(test include lib/cjson src)
 include_directories(lib/paho.mqtt/MQTTPacket/src lib/paho.mqtt/MQTTClient-C/src lib/paho.mqtt/MQTTClient-C/src/linux)
