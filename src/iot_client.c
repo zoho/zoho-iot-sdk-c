@@ -8,13 +8,15 @@ int rc;
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
 
-int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token)
+int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char *username, char *password)
 {
     //TODO:
     // all config.h and device related validations should be done here itself !
-    Config config = {NULL, NULL};
+    Config config = {NULL, NULL,NULL,NULL};
     cloneString(&config.device_id, device_id);
     cloneString(&config.auth_token, auth_token);
+    cloneString(&config.username, username);
+    cloneString(&config.password, password);
     iot_client->dev_config = config;
     //TODO: freeup config.
     printf("Initialized!\n");
@@ -40,9 +42,8 @@ int zclient_connect(IOTclient *client, char *host, int port)
     conn_data.clientID.cstring = client->dev_config.device_id;
     conn_data.willFlag = 0;
 
-    //TODO: actual values needs tobe passed here.- username,auth token.
-    conn_data.username.cstring = "";
-    conn_data.password.cstring = "";
+    conn_data.username.cstring = client->dev_config.username;
+    conn_data.password.cstring = client->dev_config.password;
 
     printf("Connecting to %s on port : %d\n", host, port);
     rc = MQTTConnect(&client->mqtt_client, &conn_data);

@@ -3,7 +3,7 @@
 .idea
 #build & tmp folders
 build
-
+remake.sh
 #downloaded project dependencies
 lib/cjson
 lib/paho.mqtt
