@@ -7,6 +7,9 @@ typedef struct
 {
     char *device_id;
     char *auth_token;
+    char *username;
+    char *password;
+    
 } Config;
 
 typedef struct
@@ -16,7 +19,7 @@ typedef struct
 
 } IOTclient;
 
-int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token);
+int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char* username ,char* password);
 int zclient_connect(IOTclient *client, char *host_name, int port);
 int zclient_publish(IOTclient *client, char *topic, char *payload);
 int zclient_disconnect(IOTclient *client);

@@ -1,10 +1,9 @@
 #include "utils.h"
 void cloneString(char **clone, char *source)
 {
-    int len = strlen(source);
-
-    if (len > 0)
+    if (source != NULL)
     {
+        int len = strlen(source);
         *clone = (char *)malloc(sizeof(char) * (len + 1));
         strcpy(*clone, source);
     }

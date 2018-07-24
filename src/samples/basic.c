@@ -29,15 +29,16 @@ int main()
     IOTclient client;
     char *pub_topic = "test_topic9876";
     char *sub_topic = "test_topic9877";
-    char *host = "m2m.eclipse.org";
+    //char *host = "m2m.eclipse.org";
     // char *host = "iot.eclipse.org";
-    // char *host = "test.mosquitto.org";
+    char *host = "test.mosquitto.org";
     const int port = 1883;
 
     signal(SIGINT, interruptHandler);
     signal(SIGTERM, interruptHandler);
 
-    rc = zclient_init(&client, "deviceID", "authToken");
+    //rc = zclient_init(&client, "deviceID", "authToken","iot","iot");
+    rc = zclient_init(&client, "deviceID", "authToken",NULL,NULL);
     if (rc != SUCCESS)
     {
         printf("Initialize failed and returned. rc = %d.\n Quitting..", rc);
