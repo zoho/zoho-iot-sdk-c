@@ -2,6 +2,7 @@
 #define IOT_CLIENT_H_
 
 #include <MQTTClient.h>
+#include "log.h"
 
 typedef struct
 {

@@ -12,14 +12,18 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char 
 {
     //TODO:
     // all config.h and device related validations should be done here itself !
-    Config config = {NULL, NULL,NULL,NULL};
+
+    log_initialize();
+    log_info("\n\n\nSDK Initializing..");
+
+    Config config = {NULL, NULL, NULL, NULL};
     cloneString(&config.device_id, device_id);
     cloneString(&config.auth_token, auth_token);
     cloneString(&config.username, username);
     cloneString(&config.password, password);
     iot_client->dev_config = config;
     //TODO: freeup config.
-    printf("Initialized!\n");
+    log_info("SDK Initialized!");
     return SUCCESS;
 }
 
@@ -27,11 +31,11 @@ int zclient_connect(IOTclient *client, char *host, int port)
 {
     unsigned const int buff_size = 1000;
     unsigned char buf[buff_size], readbuf[buff_size];
-    printf("Preparing Network..\n");
+    log_info("Preparing Network..");
     NewNetwork(&n);
     ConnectNetwork(&n, host, port);
     //TODO: Handle the rc of ConnectNetwork().
-    printf("Connecting..\n");
+    log_info("Connecting to \x1b[32m %s : %d \x1b[0m", host, port);
     MQTTClient(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
     //TODO:
@@ -45,15 +49,20 @@ int zclient_connect(IOTclient *client, char *host, int port)
     conn_data.username.cstring = client->dev_config.username;
     conn_data.password.cstring = client->dev_config.password;
 
-    printf("Connecting to %s on port : %d\n", host, port);
     rc = MQTTConnect(&client->mqtt_client, &conn_data);
-    printf("Connection status: %d\n", rc);
+    if (rc == 0)
+    {
+        log_info("Connected!");
+    }
+    else
+    {
+        log_error("Error while establishing connection. Error code: %d", rc);
+    }
     return rc;
 }
 
 int zclient_publish(IOTclient *client, char *topic, char *payload)
 {
-    int status;
     MQTTMessage pubmsg;
     //TODO:
     // remove hardcoded values of id etc and get from structure copied from config.h;
@@ -66,16 +75,32 @@ int zclient_publish(IOTclient *client, char *topic, char *payload)
 
     pubmsg.payload = payload;
     pubmsg.payloadlen = strlen(payload);
-    status = MQTTPublish(&(client->mqtt_client), topic, &pubmsg);
+    rc = MQTTPublish(&(client->mqtt_client), topic, &pubmsg);
     //TODO: check for connection and retry to send the message once the conn got restroed.
-    printf("Delivery status:%d\n", status);
-    return status;
+    if (rc == 0)
+    {
+        log_debug("Published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, topic);
+    }
+    else
+    {
+        log_error("Error on Pubish. Error code: %d", rc);
+    }
+    return rc;
 }
 
 int zclient_subscribe(IOTclient *client, char *topic, messageHandler on_message)
 {
     //TODO: add basic validation & callback method and append it on error logs.
     rc = MQTTSubscribe(&client->mqtt_client, topic, QOS0, on_message);
+    if (rc == 0)
+    {
+        log_info("Subscribed on \x1b[36m '%s' \x1b[0m", topic);
+    }
+    else
+    {
+        log_error("Error on Subscribe. Error code: %d", rc);
+    }
+
     return rc;
 }
 
@@ -88,5 +113,7 @@ int zclient_disconnect(IOTclient *client)
 {
     rc = MQTTDisconnect(&client->mqtt_client);
     linux_disconnect(&n);
+    log_info("Connection Closed!");
+    log_free();
     return rc;
 }

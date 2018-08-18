@@ -1,24 +1,29 @@
 #include "iot_client.h"
 #include <signal.h>
+#include <stdlib.h>
+#include <string.h>
 
 volatile int ctrl_flag = 0;
 
 void message_handler(MessageData *data)
 {
-    printf("\nMessage Received!\n");
+    char payload[data->message->payloadlen];
+    char topic[data->topicName->lenstring.len];
 
-    printf("Topic :%.*s \n", (int)data->topicName->lenstring.len, (char *)data->topicName->lenstring.data);
-    printf("Payload : %.*s \n", (int)data->message->payloadlen, (char *)data->message->payload);
+    strncpy(topic, data->topicName->lenstring.data, data->topicName->lenstring.len);
+    strncpy(payload, data->message->payload, data->message->payloadlen);
+
+    log_debug("Got new message on '%s'\n%s", topic, payload);
 }
 
 void interruptHandler(int signo)
 {
-    printf("\n Interrupt observed!.\n");
+    log_info("Closing connection...\n");
     ctrl_flag += 1;
 
     if (ctrl_flag >= 2)
     {
-        printf("Program is force killed\n");
+        log_fatal("Program is force killed\n");
         exit(0);
     }
 }
@@ -41,26 +46,22 @@ int main()
     rc = zclient_init(&client, "deviceID", "authToken",NULL,NULL);
     if (rc != SUCCESS)
     {
-        printf("Initialize failed and returned. rc = %d.\n Quitting..", rc);
         return 0;
     }
 
     rc = zclient_connect(&client, host, port);
     if (rc != SUCCESS)
     {
-        printf("Connection failed and returned. rc = %d.\n Quitting..\n", rc);
         return 0;
     }
 
     rc = zclient_publish(&client, pub_topic, "hello IOT world!");
     if (rc != SUCCESS)
     {
-        printf("Unable to send message ..%d\n", rc);
         return 0;
     }
 
     rc = zclient_subscribe(&client, sub_topic, message_handler);
-    printf("Subscribed!\n");
     while (ctrl_flag == 0)
     {
         zclient_yield(&client, 500);
