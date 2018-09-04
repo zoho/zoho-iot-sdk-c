@@ -21,7 +21,7 @@ typedef struct
 } IOTclient;
 
 int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char* username ,char* password);
-int zclient_connect(IOTclient *client, char *host_name, int port);
+int zclient_connect(IOTclient *client, char *host_name, int port,char *ca_crt, char* client_cert,char *client_key,char* cert_password);
 int zclient_publish(IOTclient *client, char *topic, char *payload);
 int zclient_disconnect(IOTclient *client);
 int zclient_subscribe(IOTclient *client, char *topic, messageHandler on_message);
