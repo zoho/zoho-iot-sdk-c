@@ -1,5 +1,7 @@
 #include "iot_client.h"
 #include "utils.h"
+#include "sys/socket.h"
+#include "unistd.h"
 
 //TODO: read from config file.
 Network n;
@@ -7,11 +9,12 @@ int rc;
 
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
+//TODO: Add idle methods when socket is busy as in ssl_client_2.
 
 int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char *username, char *password)
 {
     //TODO:
-    // all config.h and device related validations should be done here itself !
+    // All config.h and device related validations should be done here itself !
 
     log_initialize();
     log_info("\n\n\nSDK Initializing..");
@@ -27,13 +30,24 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char 
     return SUCCESS;
 }
 
-int zclient_connect(IOTclient *client, char *host, int port)
+int zclient_connect(IOTclient *client, char *host, int port, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
-    unsigned const int buff_size = 1000;
+    //TODO: verify the buff size on real device. and flush the buffer at end of connection.
+    unsigned const int buff_size = 10000;
     unsigned char buf[buff_size], readbuf[buff_size];
+
     log_info("Preparing Network..");
+
     NewNetwork(&n);
-    ConnectNetwork(&n, host, port);
+    // ConnectNetwork(&n, host, port);
+    rc = TLSConnectNetwork(&n, host, port, ca_crt, client_cert, client_key, cert_password);
+    if (rc != 0)
+    {
+        log_error("Error Connecting Network..");
+        client->mqtt_client.ipstack->disconnect(client->mqtt_client.ipstack);
+        return -1;
+    }
+
     //TODO: Handle the rc of ConnectNetwork().
     log_info("Connecting to \x1b[32m %s : %d \x1b[0m", host, port);
     MQTTClient(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
@@ -91,7 +105,7 @@ int zclient_publish(IOTclient *client, char *topic, char *payload)
 int zclient_subscribe(IOTclient *client, char *topic, messageHandler on_message)
 {
     //TODO: add basic validation & callback method and append it on error logs.
-    rc = MQTTSubscribe(&client->mqtt_client, topic, QOS0, on_message);
+    rc = MQTTSubscribe(&(client->mqtt_client), topic, QOS0, on_message);
     if (rc == 0)
     {
         log_info("Subscribed on \x1b[36m '%s' \x1b[0m", topic);
@@ -112,8 +126,32 @@ int zclient_yield(IOTclient *client, int time_out)
 int zclient_disconnect(IOTclient *client)
 {
     rc = MQTTDisconnect(&client->mqtt_client);
-    linux_disconnect(&n);
-    log_info("Connection Closed!");
+
+    log_trace("connected socket ID :%d", client->mqtt_client.ipstack->my_socket);
+
+    rc = shutdown(client->mqtt_client.ipstack->my_socket, SHUT_RDWR);
+    if (rc)
+    {
+        log_trace("Error in shutdown");
+        return -1;
+    }
+
+    rc = recv(client->mqtt_client.ipstack->my_socket, NULL, (size_t)0, 0);
+    if (rc)
+    {
+        log_trace("Error in recv");
+        return -1;
+    }
+
+    rc = close(client->mqtt_client.ipstack->my_socket);
+    if (rc)
+    {
+        log_trace("Error in close");
+        return -1;
+    }
+
+    client->mqtt_client.ipstack->disconnect(client->mqtt_client.ipstack);
+    log_debug("Connection Closed with status :%d", client->mqtt_client.isconnected);
     log_free();
     return rc;
 }

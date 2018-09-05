@@ -5,5 +5,5 @@
 build
 remake.sh
 #downloaded project dependencies
-lib/cjson
-lib/paho.mqtt
+lib/*
+.DS_Store
