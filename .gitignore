@@ -7,3 +7,4 @@ remake.sh
 #downloaded project dependencies
 lib/*
 .DS_Store
+zoho_sdk.log

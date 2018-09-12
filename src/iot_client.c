@@ -39,8 +39,12 @@ int zclient_connect(IOTclient *client, char *host, int port, char *ca_crt, char 
     log_info("Preparing Network..");
 
     NewNetwork(&n);
-    // ConnectNetwork(&n, host, port);
-    rc = TLSConnectNetwork(&n, host, port, ca_crt, client_cert, client_key, cert_password);
+
+#if defined(SECURE_CONNECTION)
+    rc = ConnectNetwork(&n, host, port, ca_crt, client_cert, client_key, cert_password);
+#else
+    rc = ConnectNetwork(&n, host, port);
+#endif
     if (rc != 0)
     {
         log_error("Error Connecting Network..");

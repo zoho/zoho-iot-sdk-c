@@ -57,9 +57,8 @@ struct Network
 };
 
 void NewNetwork(Network *);
-int ConnectNetwork(Network *, char *, int);
 
-int TLSConnectNetwork(Network *, char *addr, int port, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
+int ConnectNetwork(Network *, char *addr, int port, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
 
 int tls_write(Network *n, unsigned char *buffer, int len, int timeout_ms);
 int tls_read(Network *n, unsigned char *buffer, int len, int timeout_ms);

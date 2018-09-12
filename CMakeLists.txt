@@ -1,49 +1,67 @@
-cmake_minimum_required(VERSION 3.10.2)
-project(zoho-iot-sdk-c)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.10.2)
+PROJECT(zoho-iot-sdk-c)
 
 
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    message( FATAL_ERROR "
+IF (NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    MESSAGE( FATAL_ERROR "
                     :::::::::::::::::::::::::
 
-    MAC is not supported at the moment. Pls try from Linux! 
+    Only build from LINUX is supported at the moment.
     
 
                     :::::::::::::::::::::::::" )
-endif()
+ENDIF()
 
+OPTION(ENABLE_TLS "Enable TLS for Secure connection" ON)
+MESSAGE(STATUS "TLS SUPPORT:" ${ENABLE_TLS})
 
-set(CMAKE_BUILD_TYPE DEBUG)
-include_directories(test include lib/cjson src)
-#include_directories(lib/paho.mqtt/MQTTPacket/src lib/paho.mqtt/MQTTClient-C/src lib/paho.mqtt/MQTTClient-C/src/linux )
-include_directories(lib/paho.mqtt/MQTTPacket/src lib/paho.mqtt/MQTTClient-C/src lib/mbedtls/include/)
-
-set(CJSON_SOURCES lib/cjson/cJSON.c)
-file(GLOB PAHO_SOURCES "lib/paho.mqtt/MQTTPacket/src/*.c"  "lib/paho.mqtt/MQTTClient-C/src/" "lib/paho.mqtt/MQTTClient-C/src/*.c" )
-file(GLOB MBEDTLS_SOURCES "lib/mbedtls/library/*.c")
-file(GLOB Z_IOT_SOURCES "src/*.c")
 #TODO: avoid GLOB
 
-add_library(zoho_iot_sdk STATIC ${Z_IOT_SOURCES} ${CJSON_SOURCES} ${PAHO_SOURCES} ${MBEDTLS_SOURCES})
-target_link_libraries(zoho_iot_sdk)
+SET(CMAKE_BUILD_TYPE DEBUG)
+INCLUDE_DIRECTORIES(test include lib/cjson src)
+INCLUDE_DIRECTORIES(lib/paho.mqtt/MQTTPacket/src lib/paho.mqtt/MQTTClient-C/src)
+
+FILE(GLOB PAHO_SOURCES "lib/paho.mqtt/MQTTPacket/src/*.c"  "lib/paho.mqtt/MQTTClient-C/src/*.c")
+SET(CJSON_SOURCES lib/cjson/cJSON.c)
+
+IF(ENABLE_TLS)
+    INCLUDE_DIRECTORIES(lib/mbedtls/include/)
+    FILE(GLOB MBEDTLS_SOURCES "lib/mbedtls/library/*.c")
+    LIST(APPEND SDK_DEPENDENCIES ${MBEDTLS_SOURCES})
+    LIST(APPEND NETWORK_SOURCES "src/tls_network.c")
+    LIST(APPEND FEATURES "-DSECURE_CONNECTION")
+    SET(CERTS_LOCATION "/mymac/Documents/simple_tls/certs/trail/")
+ELSE()
+    INCLUDE_DIRECTORIES(lib/paho.mqtt/MQTTClient-C/src/linux)
+    LIST(APPEND NETWORK_SOURCES "lib/paho.mqtt/MQTTClient-C/src/linux/MQTTLinux.c" )
+ENDIF(ENABLE_TLS)
+
+LIST(APPEND Z_IOT_SOURCES "src/iot_client.c" "src/log.c" "src/utils.c")
+
+
+LIST(APPEND SDK_DEPENDENCIES ${Z_IOT_SOURCES} ${CJSON_SOURCES} ${PAHO_SOURCES} ${NETWORK_SOURCES} )
+
+#TODO: Add configurable STATIC/DYNAMIC option.
+ADD_LIBRARY(zoho_iot_sdk STATIC ${SDK_DEPENDENCIES})
+
+IF(ENABLE_TLS)
+    TARGET_COMPILE_DEFINITIONS(zoho_iot_sdk PUBLIC ${FEATURES})
+ENDIF()
+
+TARGET_LINK_LIBRARIES(zoho_iot_sdk)
 
 ##Samples:
 
-#Basic:
-#TODO: fix basic sample.
-#add_executable(basic src/samples/basic.c)
-#target_link_libraries(basic zoho_iot_sdk)
-
-#TLS:
-add_executable(basic_tls src/samples/basic_tls.c)
-target_link_libraries(basic_tls zoho_iot_sdk)
+#Basic example with TLS:
+ADD_EXECUTABLE(basic src/samples/basic.c)
+TARGET_LINK_LIBRARIES(basic zoho_iot_sdk)
 
 ##Tests:
 #CJSON:
-add_executable(cjson_test test/dependency_tests/cjson_test.c)
-target_link_libraries(cjson_test zoho_iot_sdk)
+ADD_EXECUTABLE(cjson_test test/dependency_tests/cjson_test.c)
+TARGET_LINK_LIBRARIES(cjson_test zoho_iot_sdk)
 
 #PAHO MQTT:
-add_executable(mqtt_test test/dependency_tests/paho/ping.c test/dependency_tests/paho/transport.c)
-target_link_libraries(mqtt_test zoho_iot_sdk)
+ADD_EXECUTABLE(mqtt_test test/dependency_tests/paho/ping.c test/dependency_tests/paho/transport.c)
+TARGET_LINK_LIBRARIES(mqtt_test zoho_iot_sdk)

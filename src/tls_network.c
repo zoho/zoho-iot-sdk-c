@@ -69,60 +69,6 @@ void NewNetwork(Network *n)
     n->disconnect = tls_disconnect;
 }
 
-int ConnectNetwork(Network *n, char *addr, int port)
-{
-    int type = SOCK_STREAM;
-    int family = AF_INET;
-    struct addrinfo hints = {0, family, type, IPPROTO_TCP, 0, NULL, NULL, NULL};
-
-    int rc = -1;
-    struct sockaddr_in address;
-    struct addrinfo *result = NULL;
-
-    if ((rc = getaddrinfo(addr, NULL, &hints, &result)) == 0)
-    {
-        struct addrinfo *res = result;
-
-        while (res)
-        {
-            if (res->ai_family == family)
-            {
-                result = res;
-                break;
-            }
-            res = res->ai_next;
-        }
-
-        if (result->ai_family == family)
-        {
-            address.sin_port = htons(port);
-            address.sin_family = family;
-            address.sin_addr = ((struct sockaddr_in *)(result->ai_addr))->sin_addr;
-        }
-        else
-            rc = -1;
-
-        freeaddrinfo(result);
-    }
-
-    if (rc == 0)
-    {
-        n->my_socket = socket(family, type, 0);
-        if (n->my_socket < 0)
-            return -2;
-
-        rc = connect(n->my_socket, (struct sockaddr *)&address, sizeof(address));
-        if (rc < 0)
-        {
-
-            close(n->my_socket);
-            return -3;
-        }
-    }
-
-    return rc;
-}
-
 void tls_debug(void *ctx, int level,
                const char *file, int line, const char *str)
 {
@@ -226,7 +172,7 @@ int tls_write(Network *n, unsigned char *buffer, int len, int timeout_ms)
     return writtenLength;
 }
 
-int TLSConnectNetwork(Network *n, char *addr, int port, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
+int ConnectNetwork(Network *n, char *addr, int port, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     int rc = -1;
     char port_char[5]; // max 4 digit port number
