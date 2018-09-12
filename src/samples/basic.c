@@ -30,11 +30,12 @@ void interruptHandler(int signo)
 
 int main()
 {
+    int rc = -1;
     IOTclient client;
 
     signal(SIGINT, interruptHandler);
     signal(SIGTERM, interruptHandler);
-
+    
     char *pub_topic = "test_topic9876";
     char *sub_topic = "test_topic9877";
     //char *host = "m2m.eclipse.org";
