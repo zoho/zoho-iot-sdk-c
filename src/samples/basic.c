@@ -18,12 +18,12 @@ void message_handler(MessageData *data)
 
 void interruptHandler(int signo)
 {
-    log_info("Closing connection...\n");
+    log_info("Closing connection...");
     ctrl_flag += 1;
 
     if (ctrl_flag >= 2)
     {
-        log_fatal("Program is force killed\n");
+        log_fatal("Program is force killed");
         exit(0);
     }
 }
@@ -32,24 +32,35 @@ int main()
 {
     int rc = -1;
     IOTclient client;
+
+    signal(SIGINT, interruptHandler);
+    signal(SIGTERM, interruptHandler);
+    
     char *pub_topic = "test_topic9876";
     char *sub_topic = "test_topic9877";
     //char *host = "m2m.eclipse.org";
     // char *host = "iot.eclipse.org";
-    char *host = "test.mosquitto.org";
-    const int port = 1883;
+    // char *host = "test.mosquitto.org";
+    //TODO: Move host and port into sdk.
+    char *host = "172.22.142.33";
+    int port = 1883;
+    char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "";
+#ifdef SECURE_CONNECTION
+    port = 8883;
+    pRootCACertLocation = "/mymac/Documents/simple_tls/certs/trail/ca.crt";
+    pDeviceCertLocation = "/mymac/Documents/simple_tls/certs/trail/client.crt";
+    pDevicePrivateKeyLocation = "/mymac/Documents/simple_tls/certs/trail/client.key";
+#endif
 
-    signal(SIGINT, interruptHandler);
-    signal(SIGTERM, interruptHandler);
-
-    //rc = zclient_init(&client, "deviceID", "authToken","iot","iot");
-    rc = zclient_init(&client, "deviceID", "authToken",NULL,NULL);
+    //TODO: remove the unused username & password parameters.
+    // rc = zclient_init(&client, "deviceID", "authToken","iot","iot");
+    rc = zclient_init(&client, "deviceID", "authToken", NULL, NULL);
     if (rc != SUCCESS)
     {
         return 0;
     }
 
-    rc = zclient_connect(&client, host, port);
+    rc = zclient_connect(&client, host, port, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, "");
     if (rc != SUCCESS)
     {
         return 0;
@@ -64,7 +75,7 @@ int main()
     rc = zclient_subscribe(&client, sub_topic, message_handler);
     while (ctrl_flag == 0)
     {
-        zclient_yield(&client, 500);
+        zclient_yield(&client, 300);
     }
 
     zclient_disconnect(&client);

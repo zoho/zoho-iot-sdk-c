@@ -18,8 +18,7 @@ unzip v1.0.0.zip
 cd paho.mqtt.embedded-c-1.0.0/MQTTClient-C/src/
 mv MQTTClient.h MQTTClient.swap
 #TODO: platform specific header should be included.
-#sed -e 's/""/"MQTTLinux.h"/' MQTTClient.swap > MQTTClient.h
-sed -e 's/""/"tls_network.h"/' MQTTClient.swap > MQTTClient.h
+sed -e 's/""/"tls_config.h"/' MQTTClient.swap > MQTTClient.h
 rm MQTTClient.swap
 cd -
 mv paho.mqtt.embedded-c-1.0.0 ../lib/paho.mqtt
