@@ -56,8 +56,8 @@ int zclient_connect(IOTclient *client, char *host, int port, char *ca_crt, char 
     log_info("Connecting to \x1b[32m %s : %d \x1b[0m", host, port);
     MQTTClient(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
-    //TODO:
-    // remove hardcoded values of username and pwd and get from structure copied from config.h;
+    //TODO:remove hardcoded values of username and pwd and get from structure copied from config.h;
+
     conn_data.MQTTVersion = 3;
     conn_data.cleansession = 1; //TODO: tobe confirmed with Hub
     conn_data.keepAliveInterval = 60;
@@ -82,10 +82,9 @@ int zclient_connect(IOTclient *client, char *host, int port, char *ca_crt, char 
 int zclient_publish(IOTclient *client, char *topic, char *payload)
 {
     MQTTMessage pubmsg;
-    //TODO:
-    // remove hardcoded values of id etc and get from structure copied from config.h;
-
+    //TODO:remove hardcoded values of id etc and get from structure copied from config.h
     //TODO: confirm the below parameters with Hub
+
     pubmsg.id = 1234;
     pubmsg.dup = '0';
     pubmsg.qos = 0;
@@ -158,4 +157,51 @@ int zclient_disconnect(IOTclient *client)
     log_debug("Connection Closed with status :%d", client->mqtt_client.isconnected);
     log_free();
     return rc;
+}
+
+cJSON *zclient_createJsonObject()
+{
+	return cJSON_CreateObject();
+}
+
+int zclient_addString(cJSON *monitor, char *val_name, char *val_string)
+{
+	int ret = 0;
+	cJSON *temp;
+
+	if (!cJSON_HasObjectItem(monitor, val_name))
+	{
+		if (cJSON_AddStringToObject(monitor, val_name, val_string) == NULL)
+		{
+			printf("Adding string attribute failed\n");
+			ret = -1;
+		}
+	}
+	else
+	{
+		temp = cJSON_CreateString(val_string);
+		cJSON_ReplaceItemInObject(monitor, val_name, temp);
+	}
+	return ret;
+}
+
+int zclient_addNumber(cJSON *monitor, char *val_name, int val_int)
+{
+	int ret = 0;
+	cJSON *temp;
+
+	if (!cJSON_HasObjectItem(monitor, val_name))
+	{
+		if (cJSON_AddNumberToObject(monitor, val_name, val_int) == NULL)
+		{
+			printf("Adding int attribute failed\n");
+			ret = -1;
+		}
+	}
+	else
+	{
+		temp = cJSON_CreateNumber(val_int);
+		cJSON_ReplaceItemInObject(monitor, val_name, temp);
+	}
+	return ret;
 }

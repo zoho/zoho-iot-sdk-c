@@ -54,8 +54,8 @@ TARGET_LINK_LIBRARIES(zoho_iot_sdk)
 ##Samples:
 
 #Basic example with TLS:
-ADD_EXECUTABLE(basic src/samples/basic.c)
-TARGET_LINK_LIBRARIES(basic zoho_iot_sdk)
+ADD_EXECUTABLE(basic_tls src/samples/basic.c)
+TARGET_LINK_LIBRARIES(basic_tls zoho_iot_sdk)
 
 ##Tests:
 #CJSON:

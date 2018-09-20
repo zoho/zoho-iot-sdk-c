@@ -8,3 +8,4 @@ remake.sh
 lib/*
 .DS_Store
 zoho_sdk.log
+src/certs

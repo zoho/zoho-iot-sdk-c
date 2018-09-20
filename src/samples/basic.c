@@ -9,10 +9,10 @@ void message_handler(MessageData *data)
 {
     char payload[data->message->payloadlen];
     char topic[data->topicName->lenstring.len];
-
-    strncpy(topic, data->topicName->lenstring.data, data->topicName->lenstring.len);
-    strncpy(payload, data->message->payload, data->message->payloadlen);
-
+    *topic = '\0';
+    *payload = '\0';
+    strncat(topic, data->topicName->lenstring.data, data->topicName->lenstring.len);
+    strncat(payload, data->message->payload, data->message->payloadlen);
     log_debug("Got new message on '%s'\n%s", topic, payload);
 }
 
@@ -35,21 +35,21 @@ int main()
 
     signal(SIGINT, interruptHandler);
     signal(SIGTERM, interruptHandler);
-    
+
     char *pub_topic = "test_topic9876";
     char *sub_topic = "test_topic9877";
     //char *host = "m2m.eclipse.org";
     // char *host = "iot.eclipse.org";
     // char *host = "test.mosquitto.org";
     //TODO: Move host and port into sdk.
-    char *host = "172.22.142.33";
-    int port = 1883;
+    char *host = "172.22.142.33", *payload;
+    int port = 1883, temperature = 23;
     char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "";
 #ifdef SECURE_CONNECTION
     port = 8883;
-    pRootCACertLocation = "/mymac/Documents/simple_tls/certs/trail/ca.crt";
-    pDeviceCertLocation = "/mymac/Documents/simple_tls/certs/trail/client.crt";
-    pDevicePrivateKeyLocation = "/mymac/Documents/simple_tls/certs/trail/client.key";
+    pRootCACertLocation = "/usr/local/certs/ca.crt";
+    pDeviceCertLocation = "/usr/local/certs/client.crt";
+    pDevicePrivateKeyLocation = "/usr/local/certs/client.key";
 #endif
 
     //TODO: remove the unused username & password parameters.
@@ -65,16 +65,26 @@ int main()
     {
         return 0;
     }
-
-    rc = zclient_publish(&client, pub_topic, "hello IOT world!");
-    if (rc != SUCCESS)
+    cJSON *cJsonPayload = zclient_createJsonObject();
+    if (cJsonPayload == NULL)
     {
-        return 0;
+        log_error("Can't create cJSON object\n");
     }
 
     rc = zclient_subscribe(&client, sub_topic, message_handler);
     while (ctrl_flag == 0)
     {
+        temperature += 2;
+        rc = zclient_addNumber(cJsonPayload, "temperature", temperature);
+        rc = zclient_addString(cJsonPayload, "status", "OK");
+        payload = cJSON_Print(cJsonPayload);
+
+        rc = zclient_publish(&client, pub_topic, payload);
+        if (rc != SUCCESS)
+        {
+            log_error("Can't publish\n");
+            break;
+        }
         zclient_yield(&client, 300);
     }
 
