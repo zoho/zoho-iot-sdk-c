@@ -36,50 +36,42 @@ int main()
     signal(SIGINT, interruptHandler);
     signal(SIGTERM, interruptHandler);
 
-    char *pub_topic = "test_topic9876";
-    char *sub_topic = "test_topic9877";
-    //char *host = "m2m.eclipse.org";
-    // char *host = "iot.eclipse.org";
-    // char *host = "test.mosquitto.org";
-    //TODO: Move host and port into sdk.
-    char *host = "172.22.142.33", *payload;
-    int port = 1883, temperature = 23;
-    char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "";
-#ifdef SECURE_CONNECTION
-    port = 8883;
-    pRootCACertLocation = "/usr/local/certs/ca.crt";
-    pDeviceCertLocation = "/usr/local/certs/client.crt";
-    pDevicePrivateKeyLocation = "/usr/local/certs/client.key";
+    char *payload;
+    int temperature = 23;
+    char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "" , *pDeviceCertParsword = "";
+    
+#if defined(SECURE_CONNECTION)
+    pRootCACertLocation = ROOTCA_CERT_LOCATION;
+    #if defined(USE_CLIENT_CERTS)
+        pDeviceCertLocation = CLIENT_CERT_LOCATION;
+        pDevicePrivateKeyLocation = CLIENT_KEY_LOCATION;
+    #endif
 #endif
 
     //TODO: remove the unused username & password parameters.
     // rc = zclient_init(&client, "deviceID", "authToken","iot","iot");
-    rc = zclient_init(&client, "deviceID", "authToken", NULL, NULL);
+    rc = zclient_init(&client, "deviceID", "authToken", NULL, NULL, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
     if (rc != SUCCESS)
     {
         return 0;
     }
 
-    rc = zclient_connect(&client, host, port, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, "");
+    rc = zclient_connect(&client);
     if (rc != SUCCESS)
     {
         return 0;
     }
-    cJSON *cJsonPayload = zclient_createJsonObject();
-    if (cJsonPayload == NULL)
-    {
-        log_error("Can't create cJSON object\n");
-    }
 
-    rc = zclient_subscribe(&client, sub_topic, message_handler);
+    rc = zclient_subscribe(&client, message_handler);
     while (ctrl_flag == 0)
     {
         temperature += 2;
-        rc = zclient_addNumber(cJsonPayload, "temperature", temperature);
-        rc = zclient_addString(cJsonPayload, "status", "OK");
-        payload = cJSON_Print(cJsonPayload);
+        rc = zclient_addNumber("temperature", temperature);
+        rc = zclient_addString("status", "OK");
 
-        rc = zclient_publish(&client, pub_topic, payload);
+//        payload = zclient_getpayload();
+//        rc = zclient_publish(&client, payload);
+        rc = zclient_dispatch(&client);
         if (rc != SUCCESS)
         {
             log_error("Can't publish\n");

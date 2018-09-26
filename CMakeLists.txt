@@ -14,7 +14,14 @@ IF (NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
 ENDIF()
 
 OPTION(ENABLE_TLS "Enable TLS for Secure connection" ON)
+OPTION(USE_CLIENT_CERTS "Use Client side Certs for Secure connection" ON)
+
+SET(CA_CRT \"/usr/local/certs/ca.crt\")
+SET(CLIENT_CRT \"/usr/local/certs/client.crt\")
+SET(CLIENT_KEY \"/usr/local/certs/client.key\")
+
 MESSAGE(STATUS "TLS SUPPORT:" ${ENABLE_TLS})
+MESSAGE(STATUS "USE CLIENT CERTS :" ${USE_CLIENT_CERTS})
 
 #TODO: avoid GLOB
 
@@ -31,7 +38,13 @@ IF(ENABLE_TLS)
     LIST(APPEND SDK_DEPENDENCIES ${MBEDTLS_SOURCES})
     LIST(APPEND NETWORK_SOURCES "src/tls_network.c")
     LIST(APPEND FEATURES "-DSECURE_CONNECTION")
-    SET(CERTS_LOCATION "/mymac/Documents/simple_tls/certs/trail/")
+
+    LIST(APPEND CERTS_PATH  "-DROOTCA_CERT_LOCATION=${CA_CRT}")
+    IF(USE_CLIENT_CERTS)
+        LIST(APPEND FEATURES "-DUSE_CLIENT_CERTS")
+        LIST(APPEND CERTS_PATH  "-DCLIENT_CERT_LOCATION=${CLIENT_CRT}" 
+                                "-DCLIENT_KEY_LOCATION=${CLIENT_KEY}")
+    ENDIF(USE_CLIENT_CERTS)
 ELSE()
     INCLUDE_DIRECTORIES(lib/paho.mqtt/MQTTClient-C/src/linux)
     LIST(APPEND NETWORK_SOURCES "lib/paho.mqtt/MQTTClient-C/src/linux/MQTTLinux.c" )
@@ -47,6 +60,7 @@ ADD_LIBRARY(zoho_iot_sdk STATIC ${SDK_DEPENDENCIES})
 
 IF(ENABLE_TLS)
     TARGET_COMPILE_DEFINITIONS(zoho_iot_sdk PUBLIC ${FEATURES})
+    TARGET_COMPILE_DEFINITIONS (zoho_iot_sdk PUBLIC ${CERTS_PATH})
 ENDIF()
 
 TARGET_LINK_LIBRARIES(zoho_iot_sdk)
