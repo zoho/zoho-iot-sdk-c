@@ -87,9 +87,10 @@ int init_tls(Network *n, char *ca_crt, char *client_cert, char *client_key, char
     mbedtls_x509_crt_init(&(n->cacert));
     mbedtls_ctr_drbg_init(&(n->ctr_drbg));
     mbedtls_entropy_init(&(n->entropy));
-    mbedtls_x509_crt_init(&(n->clicert));
-    mbedtls_pk_init(&(n->pkey));
-
+    #if defined(USE_CLIENT_CERTS)
+        mbedtls_x509_crt_init(&(n->clicert));
+        mbedtls_pk_init(&(n->pkey));
+    #endif
     if ((rc = mbedtls_ctr_drbg_seed(&n->ctr_drbg, mbedtls_entropy_func, &n->entropy,
                                     (const unsigned char *)clientName,
                                     strlen(clientName))) != 0)
@@ -102,17 +103,20 @@ int init_tls(Network *n, char *ca_crt, char *client_cert, char *client_key, char
         log_trace("mbedtls_x509_crt_parse_file failed for Server CA certificate with return code = 0x%x", -rc);
         return -1;
     }
-    if ((rc = mbedtls_x509_crt_parse_file(&n->clicert, client_cert)) != 0)
-    {
-        log_trace("mbedtls_x509_crt_parse_file failed for Device Certificate  with return code = 0x%x", -rc);
-        return -1;
-    }
 
-    if ((rc = mbedtls_pk_parse_keyfile(&(n->pkey), client_key, cert_password)) != 0)
-    {
-        log_trace("mbedtls_pk_parse_keyfile failed for Device Private Key with return code = 0x%x", -rc);
-        return -1;
-    }
+    #if defined(USE_CLIENT_CERTS)
+        if ((rc = mbedtls_x509_crt_parse_file(&n->clicert, client_cert)) != 0)
+        {
+            log_trace("mbedtls_x509_crt_parse_file failed for Device Certificate  with return code = 0x%x", -rc);
+            return -1;
+        }
+
+        if ((rc = mbedtls_pk_parse_keyfile(&(n->pkey), client_key, cert_password)) != 0)
+        {
+            log_trace("mbedtls_pk_parse_keyfile failed for Device Private Key with return code = 0x%x", -rc);
+            return -1;
+        }
+    #endif
     return 0;
 }
 
@@ -186,18 +190,18 @@ int ConnectNetwork(Network *n, char *addr, int port, char *ca_crt, char *client_
         log_debug("intializing TLS failed\n");
         return -1;
     }
-
-    if ((rc = mbedtls_ssl_conf_own_cert(&n->conf, &n->clicert, &n->pkey)) != 0)
-    {
-        log_trace("mbedtls_ssl_conf_own_cert failed with return code = 0x%x", -rc);
-        return -1;
-    }
-    if ((rc = mbedtls_ssl_set_hostname(&(n->ssl), "keerthi-pt2055")) != 0)
-    {
-        log_trace("mbedtls_ssl_set_hostname failed with rc = 0x%x", -rc);
-        return -1;
-    }
-
+    #if defined(USE_CLIENT_CERTS)
+        if ((rc = mbedtls_ssl_conf_own_cert(&n->conf, &n->clicert, &n->pkey)) != 0)
+        {
+            log_trace("mbedtls_ssl_conf_own_cert failed with return code = 0x%x", -rc);
+            return -1;
+        }
+        if ((rc = mbedtls_ssl_set_hostname(&(n->ssl), "keerthi-pt2055")) != 0)
+        {
+            log_trace("mbedtls_ssl_set_hostname failed with rc = 0x%x", -rc);
+            return -1;
+        }
+    #endif
     if ((rc = mbedtls_net_connect(&n->server_fd, addr, port_char, MBEDTLS_NET_PROTO_TCP)) != 0)
     {
         log_debug("mbedtls_net_connect failed with return code = 0x%x", -rc);
@@ -225,7 +229,6 @@ int ConnectNetwork(Network *n, char *addr, int port, char *ca_crt, char *client_
         log_trace(" failed! mbedtls_ssl_setup returned %d", rc);
         return -1;
     }
-
     while ((rc = mbedtls_ssl_handshake(&n->ssl)) != 0)
     {
         if (rc != MBEDTLS_ERR_SSL_WANT_READ && rc != MBEDTLS_ERR_SSL_WANT_WRITE)
@@ -268,9 +271,10 @@ void tls_disconnect(Network *n)
     mbedtls_ssl_close_notify(&(n->ssl));
     mbedtls_net_free(&(n->server_fd));
     mbedtls_x509_crt_free(&(n->cacert));
-    mbedtls_x509_crt_free(&(n->clicert));
-    mbedtls_pk_free(&(n->pkey));
-
+    #if defined(USE_CLIENT_CERTS)
+        mbedtls_x509_crt_free(&(n->clicert));
+        mbedtls_pk_free(&(n->pkey));
+    #endif
     mbedtls_ssl_free(&(n->ssl));
     mbedtls_ssl_config_free(&(n->conf));
     mbedtls_ctr_drbg_free(&(n->ctr_drbg));

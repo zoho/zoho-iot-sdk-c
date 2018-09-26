@@ -1,17 +1,16 @@
 #include "iot_client.h"
-#include "utils.h"
 #include "sys/socket.h"
 #include "unistd.h"
 
 //TODO: read from config file.
 Network n;
 int rc;
-
+cJSON *cJsonPayload;
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
 
-int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char *username, char *password)
+int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char *username, char *password, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     //TODO:
     // All config.h and device related validations should be done here itself !
@@ -24,13 +23,29 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char 
     cloneString(&config.auth_token, auth_token);
     cloneString(&config.username, username);
     cloneString(&config.password, password);
-    iot_client->dev_config = config;
+    iot_client->config = config;
+
+#if defined(SECURE_CONNECTION)
+    iot_client->certs.ca_crt = ca_crt;
+    #if defined(USE_CLIENT_CERTS)
+    iot_client->certs.client_cert = client_cert;
+    iot_client->certs.client_key = client_key;
+    iot_client->certs.cert_password = cert_password;
+    #endif
+#endif
+
     //TODO: freeup config.
+    cJsonPayload = cJSON_CreateObject();
+    if (cJsonPayload == NULL)
+    {
+        log_error("Can't create cJSON object");
+        return FAILURE;
+    }
     log_info("SDK Initialized!");
     return SUCCESS;
 }
 
-int zclient_connect(IOTclient *client, char *host, int port, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
+int zclient_connect(IOTclient *client)
 {
     //TODO: verify the buff size on real device. and flush the buffer at end of connection.
     unsigned const int buff_size = 10000;
@@ -41,9 +56,9 @@ int zclient_connect(IOTclient *client, char *host, int port, char *ca_crt, char 
     NewNetwork(&n);
 
 #if defined(SECURE_CONNECTION)
-    rc = ConnectNetwork(&n, host, port, ca_crt, client_cert, client_key, cert_password);
+    rc = ConnectNetwork(&n, hostname, port, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
 #else
-    rc = ConnectNetwork(&n, host, port);
+    rc = ConnectNetwork(&n, hostname, port);
 #endif
     if (rc != 0)
     {
@@ -53,19 +68,19 @@ int zclient_connect(IOTclient *client, char *host, int port, char *ca_crt, char 
     }
 
     //TODO: Handle the rc of ConnectNetwork().
-    log_info("Connecting to \x1b[32m %s : %d \x1b[0m", host, port);
+    log_info("Connecting to \x1b[32m %s : %d \x1b[0m", hostname, port);
     MQTTClient(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
-    //TODO:
-    // remove hardcoded values of username and pwd and get from structure copied from config.h;
+    //TODO:remove hardcoded values of username and pwd and get from structure copied from config.h;
+
     conn_data.MQTTVersion = 3;
     conn_data.cleansession = 1; //TODO: tobe confirmed with Hub
     conn_data.keepAliveInterval = 60;
-    conn_data.clientID.cstring = client->dev_config.device_id;
+    conn_data.clientID.cstring = client->config.device_id;
     conn_data.willFlag = 0;
 
-    conn_data.username.cstring = client->dev_config.username;
-    conn_data.password.cstring = client->dev_config.password;
+    conn_data.username.cstring = client->config.username;
+    conn_data.password.cstring = client->config.password;
 
     rc = MQTTConnect(&client->mqtt_client, &conn_data);
     if (rc == 0)
@@ -79,40 +94,60 @@ int zclient_connect(IOTclient *client, char *host, int port, char *ca_crt, char 
     return rc;
 }
 
-int zclient_publish(IOTclient *client, char *topic, char *payload)
+int zclient_reconnect(IOTclient *client)
 {
-    MQTTMessage pubmsg;
-    //TODO:
-    // remove hardcoded values of id etc and get from structure copied from config.h;
-
-    //TODO: confirm the below parameters with Hub
-    pubmsg.id = 1234;
-    pubmsg.dup = '0';
-    pubmsg.qos = 0;
-    pubmsg.retained = '0';
-
-    pubmsg.payload = payload;
-    pubmsg.payloadlen = strlen(payload);
-    rc = MQTTPublish(&(client->mqtt_client), topic, &pubmsg);
-    //TODO: check for connection and retry to send the message once the conn got restroed.
-    if (rc == 0)
+    int rc = -1, delay = 5;
+    while (rc != 0)
     {
-        log_debug("Published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, topic);
-    }
-    else
-    {
-        log_error("Error on Pubish. Error code: %d", rc);
+        log_info("Trying to reconnect in %d sec ", delay);
+        sleep(delay);
+        rc = zclient_connect(client);
     }
     return rc;
 }
 
-int zclient_subscribe(IOTclient *client, char *topic, messageHandler on_message)
+int zclient_publish(IOTclient *client, char *payload)
 {
-    //TODO: add basic validation & callback method and append it on error logs.
-    rc = MQTTSubscribe(&(client->mqtt_client), topic, QOS0, on_message);
+    MQTTMessage pubmsg;
+    //TODO:remove hardcoded values of id etc and get from structure copied from config.h
+    //TODO: confirm the below parameters with Hub
+
+    pubmsg.id = 1234;
+    pubmsg.dup = '0';
+    pubmsg.qos = 2;
+    pubmsg.retained = '0';
+
+    pubmsg.payload = payload;
+    pubmsg.payloadlen = strlen(payload);
+    rc = MQTTPublish(&(client->mqtt_client),data_topic, &pubmsg);
+    //TODO: check for connection and retry to send the message once the conn got restroed.
     if (rc == 0)
     {
-        log_info("Subscribed on \x1b[36m '%s' \x1b[0m", topic);
+        log_debug("Published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload,data_topic);
+    }
+    else
+    {
+        log_error("Error on Pubish. Error code: %d", rc);
+        rc = zclient_reconnect(client);
+    }
+    return rc;
+}
+
+int zclient_dispatch(IOTclient *client)
+{
+    //TODO: Add time stamp, Client ID
+    char *payload = cJSON_Print(cJsonPayload);
+    rc = zclient_publish(client,payload);
+    return rc;
+}
+
+int zclient_subscribe(IOTclient *client, messageHandler on_message)
+{
+    //TODO: add basic validation & callback method and append it on error logs.
+    rc = MQTTSubscribe(&(client->mqtt_client), command_topic, QOS0, on_message);
+    if (rc == 0)
+    {
+        log_info("Subscribed on \x1b[36m '%s' \x1b[0m", command_topic);
     }
     else
     {
@@ -157,5 +192,54 @@ int zclient_disconnect(IOTclient *client)
     client->mqtt_client.ipstack->disconnect(client->mqtt_client.ipstack);
     log_debug("Connection Closed with status :%d", client->mqtt_client.isconnected);
     log_free();
+    cJSON_free(cJsonPayload);
     return rc;
 }
+
+
+int zclient_addString(char *val_name, char *val_string)
+{
+    int ret = 0;
+
+    if (!cJSON_HasObjectItem(cJsonPayload, val_name))
+    {
+        if (cJSON_AddStringToObject(cJsonPayload, val_name, val_string) == NULL)
+        {
+            log_error("Adding string attribute failed\n");
+            ret = -1;
+        }
+    }
+    else
+    {
+        cJSON *temp = cJSON_CreateString(val_string);
+        cJSON_ReplaceItemInObject(cJsonPayload, val_name, temp);
+    }
+    return ret;
+}
+
+int zclient_addNumber(char *val_name, int val_int)
+{
+    int ret = 0;
+
+    if (!cJSON_HasObjectItem(cJsonPayload, val_name))
+    {
+        if (cJSON_AddNumberToObject(cJsonPayload, val_name, val_int) == NULL)
+        {
+            log_error("Adding int attribute failed\n");
+            ret = -1;
+        }
+    }
+    else
+    {
+        cJSON *temp = cJSON_CreateNumber(val_int);
+        cJSON_ReplaceItemInObject(cJsonPayload, val_name, temp);
+    }
+    return ret;
+}
+
+/*
+char *zclient_getpayload()
+{
+    return cJSON_Print(cJsonPayload);
+}
+*/
