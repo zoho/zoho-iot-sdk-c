@@ -5,7 +5,7 @@
 //TODO: read from config file.
 Network n;
 int rc;
-cJSON *cJsonPayload;
+cJSON *cJsonPayload,*data;
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
@@ -36,11 +36,13 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char 
 
     //TODO: freeup config.
     cJsonPayload = cJSON_CreateObject();
-    if (cJsonPayload == NULL)
+    data =cJSON_CreateObject();
+    if (cJsonPayload == NULL || data == NULL)
     {
         log_error("Can't create cJSON object");
         return FAILURE;
     }
+    cJSON_AddStringToObject(cJsonPayload,"ClientID",device_id);
     log_info("SDK Initialized!");
     return SUCCESS;
 }
@@ -136,6 +138,28 @@ int zclient_publish(IOTclient *client, char *payload)
 int zclient_dispatch(IOTclient *client)
 {
     //TODO: Add time stamp, Client ID
+    time_t curtime;
+    time(&curtime);
+    char *time_val = ctime(&curtime); 
+    if (!cJSON_HasObjectItem(cJsonPayload, "time"))
+    {
+        cJSON_AddStringToObject(cJsonPayload,"time",time_val);
+    }
+    else
+    {
+        cJSON *temp = cJSON_CreateString(time_val);
+        cJSON_ReplaceItemInObject(cJsonPayload,"time",temp);
+    }
+
+    if (!cJSON_HasObjectItem(cJsonPayload, "data"))
+    {
+       cJSON_AddItemToObject(cJsonPayload,"data",data); 
+    }
+    else
+    {
+        cJSON_ReplaceItemInObject(cJsonPayload,"data",data);
+    }
+
     char *payload = cJSON_Print(cJsonPayload);
     rc = zclient_publish(client,payload);
     return rc;
@@ -201,9 +225,9 @@ int zclient_addString(char *val_name, char *val_string)
 {
     int ret = 0;
 
-    if (!cJSON_HasObjectItem(cJsonPayload, val_name))
+    if (!cJSON_HasObjectItem(data, val_name))
     {
-        if (cJSON_AddStringToObject(cJsonPayload, val_name, val_string) == NULL)
+        if (cJSON_AddStringToObject(data, val_name, val_string) == NULL)
         {
             log_error("Adding string attribute failed\n");
             ret = -1;
@@ -212,7 +236,7 @@ int zclient_addString(char *val_name, char *val_string)
     else
     {
         cJSON *temp = cJSON_CreateString(val_string);
-        cJSON_ReplaceItemInObject(cJsonPayload, val_name, temp);
+        cJSON_ReplaceItemInObject(data, val_name, temp);
     }
     return ret;
 }
@@ -221,9 +245,9 @@ int zclient_addNumber(char *val_name, int val_int)
 {
     int ret = 0;
 
-    if (!cJSON_HasObjectItem(cJsonPayload, val_name))
+    if (!cJSON_HasObjectItem(data, val_name))
     {
-        if (cJSON_AddNumberToObject(cJsonPayload, val_name, val_int) == NULL)
+        if (cJSON_AddNumberToObject(data, val_name, val_int) == NULL)
         {
             log_error("Adding int attribute failed\n");
             ret = -1;
@@ -232,7 +256,7 @@ int zclient_addNumber(char *val_name, int val_int)
     else
     {
         cJSON *temp = cJSON_CreateNumber(val_int);
-        cJSON_ReplaceItemInObject(cJsonPayload, val_name, temp);
+        cJSON_ReplaceItemInObject(data, val_name, temp);
     }
     return ret;
 }
