@@ -2,13 +2,13 @@
 
 ## Overview
 
-The Zoho IoT SDK for C will let your smart ( gateway ) devices to establish a secure connection with minimal efforts to the Zoho cloud platform. The lightweight MQTT messating protocol is used to exchange the data between the device & cloud in a secured manner by implementing TLS security.
+The Zoho IoT SDK for C will let your smart ( gateway ) devices to establish a secure connection with minimal efforts to the Zoho cloud platform. The lightweight MQTT messaging protocol is used to exchange the data between the device & cloud in a secured manner by implementing TLS security.
 
 ## Features:
 
 ### Connectivity
 
-This SDK will help your device establish a reliable MQTT connection with the server as minimal as much as possible in order to deliver telemetry data from the devce and to receive commands from the cloud.
+This SDK will help your device establish a reliable MQTT connection with the server as minimal as much as possible in order to deliver telemetry data from the device and to receive commands from the cloud.
 
 ### Security
 
@@ -16,11 +16,11 @@ The communication packets between the device & cloud are secured through TLS imp
 
 ### Data Collection
 
-This SDK has inbuilt support for JSON data format. It will allow you to effortlessly generate Telemetry payload based on the polled data from sensors. For the advanced usage, it will provide you the flexibilty to form your own JSON format.
+This SDK has inbuilt support for JSON data format. It will allow you to effortlessly generate Telemetry payload based on the polled data from sensors. For the advanced usage, it will provide you the flexibility to form your own JSON format.
 
 ### Device Portability
 
-This SDK distributed in open sourced form for the effective portablity to support variety of devices that runs on different platform and hardware architecure. It has been already built & well tested for the below devices:
+This SDK distributed in open sourced form for the effective portability to support variety of devices that runs on different platform and hardware architecture. It has been already built & well tested for the below devices:
 
 - Raspberry Pi
 
@@ -47,14 +47,15 @@ git clone https://git.csez.zohocorpin.com/zoho/zoho-iot-sdk-c
 
 ### Configure Build parameters
 
-- #### TLS support
-  To enable TLS support, edit `CMakeList.txt` file and update the value of `Enable TLS for Secure connection` to `ON`.
+- **TLS support**
+
+To enable TLS support, edit `CMakeList.txt` file and update the value of `Enable TLS for Secure connection` to `ON`.
 
 ```
 OPTION(ENABLE_TLS "Enable TLS for Secure connection" ON)
 ```
 
-Configure wheather to use Client side certificates or not.
+Configure whether to use Client side certificates or not.
 
 > Default mode will be Server side certificate if you leave this unchanged (OFF)
 
@@ -70,27 +71,27 @@ SET(CLIENT_KEY "/home/user/mycerts/client.key")
 SET(CLIENT_CRT "/home/user/mycerts/client.crt")
 ```
 
-- #### Cross Compile Options
-  To port this SDK to your custom devices,
-  Refer & clone the cross compile configuration for Raspberry Pi from `cross-compile/raspberry_pi/toolchain.cmake`
+- **Cross Compile Options**
 
-And update your custom toolchain path:
+To port this SDK to your custom devices, Refer & clone the cross compile configuration for Raspberry Pi from `cross-compile/raspberry_pi/toolchain.cmake`
+
+And update your custom tool-chain path:
 
 ```
-#Update your toolchain path below:
+#Update your tool-chain path below:
 SET (TOOLCHAIN_PATH "/home/user/rpi-toolchain")
 
 #Update your compiler name below:
 SET (TOOLCHAIN_COMPILER "arm-bcm2708/arm-linux-gnueabihf/bin/arm-linux-gnueabihf-gcc")
 ```
 
-Configure your new toolchain on `/CMakeLists.txt` as shown below
+Configure your new tool-chain on `/CMakeLists.txt` as shown below
 
 ```
 SET(CMAKE_TOOLCHAIN_FILE "./cross-compile/raspberry_pi/toolchain.cmake")
 ```
 
-> The above line will be commented by default. Update and also uncomment it to enable cross compilation.
+> The above line will be commented by default. Update and also un-comment it to enable cross compilation.
 
 ### Build the Source
 
