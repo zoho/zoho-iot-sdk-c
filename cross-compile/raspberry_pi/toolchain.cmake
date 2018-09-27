@@ -3,9 +3,12 @@ INCLUDE(CMakeForceCompiler)
 SET(CMAKE_SYSTEM_NAME Linux)
 SET(CMAKE_SYSTEM_VERSION 1)
 
-SET(CMAKE_FIND_ROOT_PATH $ENV{RPI_TOOLS_PATH}/arm-bcm2708/arm-linux-gnueabihf)
-SET(CMAKE_C_COMPILER ${CMAKE_FIND_ROOT_PATH}/bin/arm-linux-gnueabihf-gcc)
+#Update your toolchain root path below:
+SET(CMAKE_FIND_ROOT_PATH /home/user/rpi-toolchain/arm-bcm2708/arm-linux-gnueabihf)
+#Update your compiler name below:
+SET (TOOLCHAIN_COMPILER ${CMAKE_FIND_ROOT_PATH}/bin/arm-linux-gnueabihf-gcc)
 
+SET(CMAKE_C_COMPILER ${TOOLCHAIN_PATH}/${TOOLCHAIN_COMPILER})
 SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
