@@ -3,9 +3,10 @@
 # todo: check the existance of curl,tar and unzip commands.
 
 #removing the exising downloaded items on lib folder
-rm -rf lib/paho.mqtt
-rm -rf lib/cjson
-rm -rf lib/mbedtls
+#rm -rf lib/paho.mqtt lib/cjson lib/mbedtls
+rm -rf lib
+mkdir lib
+
 rm -rf tmp
 
 echo "Creating temp  directory"
