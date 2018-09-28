@@ -140,7 +140,7 @@ int zclient_dispatch(IOTclient *client)
     //TODO: Add time stamp, Client ID
     time_t curtime;
     time(&curtime);
-    char *time_val = ctime(&curtime); 
+    char *time_val =strtok(ctime(&curtime),"\n");
     if (!cJSON_HasObjectItem(cJsonPayload, "time"))
     {
         cJSON_AddStringToObject(cJsonPayload,"time",time_val);
