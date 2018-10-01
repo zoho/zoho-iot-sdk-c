@@ -7,7 +7,7 @@
 #include "utils.h"
 #include <time.h>
 
-#define hostname (char *)"172.22.142.33"
+#define hostname (char *)"shahul-6029.csez.zohocorpin.com"
 #if defined(SECURE_CONNECTION)
     #define port (int)8883
 #else

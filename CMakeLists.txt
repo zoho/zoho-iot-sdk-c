@@ -14,8 +14,8 @@ IF (NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
                     :::::::::::::::::::::::::" )
 ENDIF()
 
-OPTION(ENABLE_TLS "Enable TLS for Secure connection" ON)
-OPTION(USE_CLIENT_CERTS "Use Client side Certs for Secure connection" ON)
+OPTION(ENABLE_TLS "Enable TLS for Secure connection" OFF)
+OPTION(USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
 
 SET(CA_CRT \"/usr/local/certs/ca.crt\")
 SET(CLIENT_CRT \"/usr/local/certs/client.crt\")
@@ -73,10 +73,10 @@ ADD_EXECUTABLE(basic_tls src/samples/basic.c)
 TARGET_LINK_LIBRARIES(basic_tls zoho_iot_sdk)
 
 #Demo on Raspberrypi:
-INCLUDE_DIRECTORIES(/usr/local/include)
-ADD_EXECUTABLE(demo src/samples/demo.c)
-TARGET_LINK_LIBRARIES(demo zoho_iot_sdk )
-TARGET_LINK_LIBRARIES(demo "-L/usr/lib/" wiringPi)
+#INCLUDE_DIRECTORIES(/usr/local/include)
+#ADD_EXECUTABLE(demo src/samples/demo.c)
+#TARGET_LINK_LIBRARIES(demo zoho_iot_sdk )
+#TARGET_LINK_LIBRARIES(demo "-L/usr/lib/" wiringPi)
 
 ##Tests:
 #CJSON:

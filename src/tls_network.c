@@ -196,7 +196,7 @@ int ConnectNetwork(Network *n, char *addr, int port, char *ca_crt, char *client_
             log_trace("mbedtls_ssl_conf_own_cert failed with return code = 0x%x", -rc);
             return -1;
         }
-        if ((rc = mbedtls_ssl_set_hostname(&(n->ssl), "keerthi-pt2055")) != 0)
+        if ((rc = mbedtls_ssl_set_hostname(&(n->ssl), addr)) != 0)
         {
             log_trace("mbedtls_ssl_set_hostname failed with rc = 0x%x", -rc);
             return -1;
