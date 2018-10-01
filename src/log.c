@@ -67,7 +67,7 @@ void log_set_quiet(int enable)
 void log_initialize()
 {
   //TODO: make ERROR as default level
-  log_set_level(LOG_DEBUG);
+  log_set_level(LOG_TRACE);
 
   //TODO: disable file logging. it might occupy huge memory on memory constrained devices.
   log_file = fopen("./zoho_sdk.log", "a");
