@@ -20,7 +20,6 @@ void interruptHandler(int signo)
 {
     log_info("Closing connection...");
     ctrl_flag += 1;
-
     if (ctrl_flag >= 2)
     {
         log_fatal("Program is force killed");
@@ -38,19 +37,18 @@ int main()
 
     char *payload;
     int temperature = 23;
-    char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "" , *pDeviceCertParsword = "";
-    
+    char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "", *pDeviceCertParsword = "";
+
 #if defined(SECURE_CONNECTION)
     pRootCACertLocation = ROOTCA_CERT_LOCATION;
-    #if defined(USE_CLIENT_CERTS)
-        pDeviceCertLocation = CLIENT_CERT_LOCATION;
-        pDevicePrivateKeyLocation = CLIENT_KEY_LOCATION;
-    #endif
+#if defined(USE_CLIENT_CERTS)
+    pDeviceCertLocation = CLIENT_CERT_LOCATION;
+    pDevicePrivateKeyLocation = CLIENT_KEY_LOCATION;
 #endif
-
+#endif
     //TODO: remove the unused username & password parameters.
     // rc = zclient_init(&client, "deviceID", "authToken","iot","iot");
-    rc = zclient_init(&client, "deviceID", "authToken", NULL, NULL, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
+    rc = zclient_init(&client, "deviceID", "authToken", NULL, NULL, REFERENCE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
     if (rc != SUCCESS)
     {
         return 0;
@@ -69,8 +67,8 @@ int main()
         rc = zclient_addNumber("temperature", temperature);
         rc = zclient_addString("status", "OK");
 
-//        payload = zclient_getpayload();
-//        rc = zclient_publish(&client, payload);
+        //        payload = zclient_getpayload();
+        //        rc = zclient_publish(&client, payload);
         rc = zclient_dispatch(&client);
         if (rc != SUCCESS)
         {

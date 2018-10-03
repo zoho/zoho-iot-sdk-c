@@ -5,12 +5,13 @@
 //TODO: read from config file.
 Network n;
 int rc;
-cJSON *cJsonPayload,*data;
+cJSON *cJsonPayload, *data;
+certsParseMode parse_mode;
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
 
-int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char *username, char *password, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
+int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char *username, char *password, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     //TODO:
     // All config.h and device related validations should be done here itself !
@@ -24,25 +25,25 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char 
     cloneString(&config.username, username);
     cloneString(&config.password, password);
     iot_client->config = config;
-
+    parse_mode = mode;
 #if defined(SECURE_CONNECTION)
     iot_client->certs.ca_crt = ca_crt;
-    #if defined(USE_CLIENT_CERTS)
+#if defined(USE_CLIENT_CERTS)
     iot_client->certs.client_cert = client_cert;
     iot_client->certs.client_key = client_key;
     iot_client->certs.cert_password = cert_password;
-    #endif
+#endif
 #endif
 
     //TODO: freeup config.
     cJsonPayload = cJSON_CreateObject();
-    data =cJSON_CreateObject();
+    data = cJSON_CreateObject();
     if (cJsonPayload == NULL || data == NULL)
     {
         log_error("Can't create cJSON object");
         return FAILURE;
     }
-    cJSON_AddStringToObject(cJsonPayload,"ClientID",device_id);
+    cJSON_AddStringToObject(cJsonPayload, "ClientID", device_id);
     log_info("SDK Initialized!");
     return SUCCESS;
 }
@@ -58,7 +59,7 @@ int zclient_connect(IOTclient *client)
     NewNetwork(&n);
 
 #if defined(SECURE_CONNECTION)
-    rc = ConnectNetwork(&n, hostname, port, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
+    rc = ConnectNetwork(&n, hostname, port, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
 #else
     rc = ConnectNetwork(&n, hostname, port);
 #endif
@@ -121,11 +122,11 @@ int zclient_publish(IOTclient *client, char *payload)
 
     pubmsg.payload = payload;
     pubmsg.payloadlen = strlen(payload);
-    rc = MQTTPublish(&(client->mqtt_client),data_topic, &pubmsg);
+    rc = MQTTPublish(&(client->mqtt_client), data_topic, &pubmsg);
     //TODO: check for connection and retry to send the message once the conn got restroed.
     if (rc == 0)
     {
-        log_debug("Published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload,data_topic);
+        log_debug("Published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, data_topic);
     }
     else
     {
@@ -140,28 +141,28 @@ int zclient_dispatch(IOTclient *client)
     //TODO: Add time stamp, Client ID
     time_t curtime;
     time(&curtime);
-    char *time_val =strtok(ctime(&curtime),"\n");
+    char *time_val = strtok(ctime(&curtime), "\n");
     if (!cJSON_HasObjectItem(cJsonPayload, "time"))
     {
-        cJSON_AddStringToObject(cJsonPayload,"time",time_val);
+        cJSON_AddStringToObject(cJsonPayload, "time", time_val);
     }
     else
     {
         cJSON *temp = cJSON_CreateString(time_val);
-        cJSON_ReplaceItemInObject(cJsonPayload,"time",temp);
+        cJSON_ReplaceItemInObject(cJsonPayload, "time", temp);
     }
 
     if (!cJSON_HasObjectItem(cJsonPayload, "data"))
     {
-       cJSON_AddItemToObject(cJsonPayload,"data",data); 
+        cJSON_AddItemToObject(cJsonPayload, "data", data);
     }
     else
     {
-        cJSON_ReplaceItemInObject(cJsonPayload,"data",data);
+        cJSON_ReplaceItemInObject(cJsonPayload, "data", data);
     }
 
     char *payload = cJSON_Print(cJsonPayload);
-    rc = zclient_publish(client,payload);
+    rc = zclient_publish(client, payload);
     return rc;
 }
 
