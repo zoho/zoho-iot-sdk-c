@@ -72,12 +72,6 @@ TARGET_LINK_LIBRARIES(zoho_iot_sdk)
 ADD_EXECUTABLE(basic_tls src/samples/basic.c)
 TARGET_LINK_LIBRARIES(basic_tls zoho_iot_sdk)
 
-#Demo on Raspberrypi:
-#INCLUDE_DIRECTORIES(/usr/local/include)
-#ADD_EXECUTABLE(demo src/samples/demo.c)
-#TARGET_LINK_LIBRARIES(demo zoho_iot_sdk )
-#TARGET_LINK_LIBRARIES(demo "-L/usr/lib/" wiringPi)
-
 ##Tests:
 #CJSON:
 ADD_EXECUTABLE(cjson_test test/dependency_tests/cjson_test.c)

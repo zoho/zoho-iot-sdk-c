@@ -9,13 +9,13 @@
 
 #define hostname (char *)"shahul-6029.csez.zohocorpin.com"
 #if defined(SECURE_CONNECTION)
-    #define port (int)8883
+#define port (int)8883
 #else
-    #define port (int)1883
+#define port (int)1883
 #endif
 
-#define data_topic (char*)"test_topic9876" 
-#define command_topic (char*)"test_topic9877"
+#define data_topic (char *)"test_topic9876"
+#define command_topic (char *)"test_topic9877"
 
 typedef struct
 {
@@ -27,7 +27,7 @@ typedef struct
 } Config;
 
 #if defined(SECURE_CONNECTION)
-typedef struct certificates
+typedef struct
 {
     char *ca_crt;
     char *client_cert;
@@ -46,7 +46,7 @@ typedef struct
 
 } IOTclient;
 
-int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char *username, char *password, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
+int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char *username, char *password, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
 int zclient_connect(IOTclient *client);
 int zclient_publish(IOTclient *client, char *payload);
 int zclient_disconnect(IOTclient *client);

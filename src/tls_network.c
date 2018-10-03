@@ -75,7 +75,7 @@ void tls_debug(void *ctx, int level,
     log_debug("TLS_LOG: %s:%04d: %s", file, line, str);
 }
 
-int init_tls(Network *n, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
+int init_tls(Network *n, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     //TODO:1: move it to connect method. it should be configurable by user.
     char *clientName = "dummyDeviceID";
@@ -87,10 +87,10 @@ int init_tls(Network *n, char *ca_crt, char *client_cert, char *client_key, char
     mbedtls_x509_crt_init(&(n->cacert));
     mbedtls_ctr_drbg_init(&(n->ctr_drbg));
     mbedtls_entropy_init(&(n->entropy));
-    #if defined(USE_CLIENT_CERTS)
-        mbedtls_x509_crt_init(&(n->clicert));
-        mbedtls_pk_init(&(n->pkey));
-    #endif
+#if defined(USE_CLIENT_CERTS)
+    mbedtls_x509_crt_init(&(n->clicert));
+    mbedtls_pk_init(&(n->pkey));
+#endif
     if ((rc = mbedtls_ctr_drbg_seed(&n->ctr_drbg, mbedtls_entropy_func, &n->entropy,
                                     (const unsigned char *)clientName,
                                     strlen(clientName))) != 0)
@@ -98,25 +98,32 @@ int init_tls(Network *n, char *ca_crt, char *client_cert, char *client_key, char
         log_trace("mbedtls_ctr_drbg_seed failed with return code = %d \n", rc);
         return -1;
     }
-    if ((rc = mbedtls_x509_crt_parse_file(&(n->cacert), ca_crt)) != 0)
+    rc = (mode == EMBED) ? mbedtls_x509_crt_parse(&(n->cacert), ca_crt, strlen(ca_crt) + 1) : mbedtls_x509_crt_parse_file(&(n->cacert), ca_crt);
+
+    if (rc != 0)
     {
         log_trace("mbedtls_x509_crt_parse_file failed for Server CA certificate with return code = 0x%x", -rc);
         return -1;
     }
 
-    #if defined(USE_CLIENT_CERTS)
-        if ((rc = mbedtls_x509_crt_parse_file(&n->clicert, client_cert)) != 0)
-        {
-            log_trace("mbedtls_x509_crt_parse_file failed for Device Certificate  with return code = 0x%x", -rc);
-            return -1;
-        }
+#if defined(USE_CLIENT_CERTS)
 
-        if ((rc = mbedtls_pk_parse_keyfile(&(n->pkey), client_key, cert_password)) != 0)
-        {
-            log_trace("mbedtls_pk_parse_keyfile failed for Device Private Key with return code = 0x%x", -rc);
-            return -1;
-        }
-    #endif
+    rc = (mode == EMBED) ? mbedtls_x509_crt_parse(&n->clicert, client_cert, strlen(client_cert) + 1) : mbedtls_x509_crt_parse_file(&n->clicert, client_cert);
+
+    if (rc != 0)
+    {
+        log_trace("mbedtls_x509_crt_parse_file failed for Device Certificate  with return code = 0x%x", -rc);
+        return -1;
+    }
+
+    rc = (mode == EMBED) ? mbedtls_pk_parse_key(&(n->pkey), client_key, strlen(client_key) + 1, cert_password, strlen(cert_password)) : mbedtls_pk_parse_keyfile(&(n->pkey), client_key, cert_password);
+
+    if (rc != 0)
+    {
+        log_trace("mbedtls_pk_parse_keyfile failed for Device Private Key with return code = 0x%x", -rc);
+        return -1;
+    }
+#endif
     return 0;
 }
 
@@ -176,7 +183,7 @@ int tls_write(Network *n, unsigned char *buffer, int len, int timeout_ms)
     return writtenLength;
 }
 
-int ConnectNetwork(Network *n, char *addr, int port, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
+int ConnectNetwork(Network *n, char *addr, int port, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     int rc = -1;
     char port_char[5]; // max 4 digit port number
@@ -185,7 +192,7 @@ int ConnectNetwork(Network *n, char *addr, int port, char *ca_crt, char *client_
     //TODO: Hardcode the value of hostname & port.
     sprintf(port_char, "%d", port);
 
-    if (rc = init_tls(n, ca_crt, client_cert, client_key, cert_password) != 0)
+    if (rc = init_tls(n, mode, ca_crt, client_cert, client_key, cert_password) != 0)
     {
         log_debug("intializing TLS failed\n");
         return -1;
@@ -271,10 +278,10 @@ void tls_disconnect(Network *n)
     mbedtls_ssl_close_notify(&(n->ssl));
     mbedtls_net_free(&(n->server_fd));
     mbedtls_x509_crt_free(&(n->cacert));
-    #if defined(USE_CLIENT_CERTS)
-        mbedtls_x509_crt_free(&(n->clicert));
-        mbedtls_pk_free(&(n->pkey));
-    #endif
+#if defined(USE_CLIENT_CERTS)
+    mbedtls_x509_crt_free(&(n->clicert));
+    mbedtls_pk_free(&(n->pkey));
+#endif
     mbedtls_ssl_free(&(n->ssl));
     mbedtls_ssl_config_free(&(n->conf));
     mbedtls_ctr_drbg_free(&(n->ctr_drbg));

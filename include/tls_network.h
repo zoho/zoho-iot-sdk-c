@@ -25,11 +25,16 @@
 #include "mbedtls/ctr_drbg.h"
 #include <sys/time.h>
 
-typedef struct timer Timer;
-struct timer
+typedef enum
+{
+	REFERENCE = 0,
+	EMBED = 1
+} certsParseMode;
+
+typedef struct
 {
 	struct timeval end_time;
-};
+} Timer;
 
 char expired(Timer *);
 void countdown_ms(Timer *, unsigned int);
@@ -58,7 +63,7 @@ struct Network
 
 void NewNetwork(Network *);
 
-int ConnectNetwork(Network *, char *addr, int port, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
+int ConnectNetwork(Network *, char *addr, int port, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
 
 int tls_write(Network *n, unsigned char *buffer, int len, int timeout_ms);
 int tls_read(Network *n, unsigned char *buffer, int len, int timeout_ms);
