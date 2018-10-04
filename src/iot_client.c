@@ -7,6 +7,8 @@ Network n;
 int rc;
 cJSON *cJsonPayload, *data;
 certsParseMode parse_mode;
+
+char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "";
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
@@ -18,6 +20,11 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
 
     log_initialize();
     log_info("\n\n\nSDK Initializing..");
+
+    //Populating dynamic topic names based on its deviceID
+    sprintf(dataTopic, "%s/%s%s", topic_pre, device_id, data_topic);
+    sprintf(commandTopic, "%s/%s%s", topic_pre, device_id, command_topic);
+    sprintf(eventTopic, "%s/%s%s", topic_pre, device_id, event_topic);
 
     Config config = {NULL, NULL};
     cloneString(&config.device_id, device_id);
@@ -41,7 +48,7 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
         log_error("Can't create cJSON object");
         return FAILURE;
     }
-    cJSON_AddStringToObject(cJsonPayload, "ClientID", device_id);
+    cJSON_AddStringToObject(cJsonPayload, "device_id", device_id);
     log_info("SDK Initialized!");
     return SUCCESS;
 }
@@ -120,11 +127,11 @@ int zclient_publish(IOTclient *client, char *payload)
 
     pubmsg.payload = payload;
     pubmsg.payloadlen = strlen(payload);
-    rc = MQTTPublish(&(client->mqtt_client), data_topic, &pubmsg);
+    rc = MQTTPublish(&(client->mqtt_client), dataTopic, &pubmsg);
     //TODO: check for connection and retry to send the message once the conn got restroed.
     if (rc == 0)
     {
-        log_debug("Published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, data_topic);
+        log_debug("Published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, dataTopic);
     }
     else
     {
@@ -167,10 +174,10 @@ int zclient_dispatch(IOTclient *client)
 int zclient_subscribe(IOTclient *client, messageHandler on_message)
 {
     //TODO: add basic validation & callback method and append it on error logs.
-    rc = MQTTSubscribe(&(client->mqtt_client), command_topic, QOS0, on_message);
+    rc = MQTTSubscribe(&(client->mqtt_client), commandTopic, QOS0, on_message);
     if (rc == 0)
     {
-        log_info("Subscribed on \x1b[36m '%s' \x1b[0m", command_topic);
+        log_info("Subscribed on \x1b[36m '%s' \x1b[0m", commandTopic);
     }
     else
     {

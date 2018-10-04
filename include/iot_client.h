@@ -15,8 +15,10 @@
 #define port (int)1883
 #endif
 
-#define data_topic (char *)"test_topic9876"
-#define command_topic (char *)"test_topic9877"
+#define topic_pre (char *)"/devices"
+#define data_topic (char *)"/telemetry"
+#define command_topic (char *)"/command"
+#define event_topic (char *)"/event"
 
 typedef struct
 {
