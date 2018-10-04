@@ -48,7 +48,7 @@ int main()
 #endif
     //TODO: remove the unused username & password parameters.
     // rc = zclient_init(&client, "deviceID", "authToken","iot","iot");
-    rc = zclient_init(&client, "deviceID", "authToken", NULL, NULL, REFERENCE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
+    rc = zclient_init(&client, "deviceID", "authToken", REFERENCE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
     if (rc != SUCCESS)
     {
         return 0;

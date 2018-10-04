@@ -77,8 +77,7 @@ void tls_debug(void *ctx, int level,
 
 int init_tls(Network *n, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
-    //TODO:1: move it to connect method. it should be configurable by user.
-    char *clientName = "dummyDeviceID";
+    char *clientName = "zoho_iot_c_client_tls"; // A constant name for this client.
     int rc = -1;
 
     mbedtls_net_init(&(n->server_fd));
@@ -197,18 +196,18 @@ int ConnectNetwork(Network *n, char *addr, int port, certsParseMode mode, char *
         log_debug("intializing TLS failed\n");
         return -1;
     }
-    #if defined(USE_CLIENT_CERTS)
-        if ((rc = mbedtls_ssl_conf_own_cert(&n->conf, &n->clicert, &n->pkey)) != 0)
-        {
-            log_trace("mbedtls_ssl_conf_own_cert failed with return code = 0x%x", -rc);
-            return -1;
-        }
-        if ((rc = mbedtls_ssl_set_hostname(&(n->ssl), addr)) != 0)
-        {
-            log_trace("mbedtls_ssl_set_hostname failed with rc = 0x%x", -rc);
-            return -1;
-        }
-    #endif
+#if defined(USE_CLIENT_CERTS)
+    if ((rc = mbedtls_ssl_conf_own_cert(&n->conf, &n->clicert, &n->pkey)) != 0)
+    {
+        log_trace("mbedtls_ssl_conf_own_cert failed with return code = 0x%x", -rc);
+        return -1;
+    }
+    if ((rc = mbedtls_ssl_set_hostname(&(n->ssl), addr)) != 0)
+    {
+        log_trace("mbedtls_ssl_set_hostname failed with rc = 0x%x", -rc);
+        return -1;
+    }
+#endif
     if ((rc = mbedtls_net_connect(&n->server_fd, addr, port_char, MBEDTLS_NET_PROTO_TCP)) != 0)
     {
         log_debug("mbedtls_net_connect failed with return code = 0x%x", -rc);

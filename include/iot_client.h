@@ -22,9 +22,6 @@ typedef struct
 {
     char *device_id;
     char *auth_token;
-    char *username;
-    char *password;
-
 } Config;
 
 #if defined(SECURE_CONNECTION)
@@ -47,7 +44,7 @@ typedef struct
 
 } IOTclient;
 
-int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char *username, char *password, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
+int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
 int zclient_connect(IOTclient *client);
 int zclient_publish(IOTclient *client, char *payload);
 int zclient_disconnect(IOTclient *client);

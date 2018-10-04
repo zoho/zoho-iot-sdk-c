@@ -11,7 +11,7 @@ certsParseMode parse_mode;
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
 
-int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char *username, char *password, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
+int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     //TODO:
     // All config.h and device related validations should be done here itself !
@@ -19,11 +19,9 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, char 
     log_initialize();
     log_info("\n\n\nSDK Initializing..");
 
-    Config config = {NULL, NULL, NULL, NULL};
+    Config config = {NULL, NULL};
     cloneString(&config.device_id, device_id);
     cloneString(&config.auth_token, auth_token);
-    cloneString(&config.username, username);
-    cloneString(&config.password, password);
     iot_client->config = config;
     parse_mode = mode;
 #if defined(SECURE_CONNECTION)
@@ -74,7 +72,6 @@ int zclient_connect(IOTclient *client)
     log_info("Connecting to \x1b[32m %s : %d \x1b[0m", hostname, port);
     MQTTClient(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
-    //TODO:remove hardcoded values of username and pwd and get from structure copied from config.h;
 
     conn_data.MQTTVersion = 3;
     conn_data.cleansession = 1; //TODO: tobe confirmed with Hub
@@ -82,8 +79,9 @@ int zclient_connect(IOTclient *client)
     conn_data.clientID.cstring = client->config.device_id;
     conn_data.willFlag = 0;
 
-    conn_data.username.cstring = client->config.username;
-    conn_data.password.cstring = client->config.password;
+    //TODO:2: to be verified with HUB.
+    conn_data.username.cstring = client->config.device_id;
+    conn_data.password.cstring = client->config.auth_token;
 
     rc = MQTTConnect(&client->mqtt_client, &conn_data);
     if (rc == 0)
@@ -220,7 +218,6 @@ int zclient_disconnect(IOTclient *client)
     cJSON_free(cJsonPayload);
     return rc;
 }
-
 
 int zclient_addString(char *val_name, char *val_string)
 {
