@@ -23,13 +23,8 @@
 #include "mbedtls/config.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
+#include "generic.h"
 #include <sys/time.h>
-
-typedef enum
-{
-	REFERENCE = 0,
-	EMBED = 1
-} certsParseMode;
 
 typedef struct
 {

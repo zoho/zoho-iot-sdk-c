@@ -5,6 +5,7 @@
 #include "log.h"
 #include "cJSON.h"
 #include "utils.h"
+#include "generic.h"
 #include <time.h>
 
 #define hostname (char *)"shahul-6029.csez.zohocorpin.com"
