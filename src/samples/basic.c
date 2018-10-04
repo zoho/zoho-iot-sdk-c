@@ -46,9 +46,9 @@ int main()
     pDevicePrivateKeyLocation = CLIENT_KEY_LOCATION;
 #endif
 #endif
-    //TODO: remove the unused username & password parameters.
-    // rc = zclient_init(&client, "deviceID", "authToken","iot","iot");
-    rc = zclient_init(&client, "deviceID", "authToken", REFERENCE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
+
+    //Update your DEVICE_ID AND AUTH_TOKEN below:
+    rc = zclient_init(&client, "12000000042001", "1G8rvZw9uJkexVaMMYu07E4vg9FYaCafwdNKEjh9iVqHvL3f2jBNBs0hYa/K4g1E/Xdrp6rAvXHLO6XiOM0S68tvDOwrRBwGRFdCV48btXTsH68NgPcvr9d1blzMpyo=", REFERENCE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
     if (rc != SUCCESS)
     {
         return 0;
@@ -60,7 +60,7 @@ int main()
         return 0;
     }
 
-    rc = zclient_subscribe(&client, message_handler);
+    // rc = zclient_subscribe(&client, message_handler);
     while (ctrl_flag == 0)
     {
         temperature += 2;

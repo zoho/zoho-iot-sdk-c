@@ -8,7 +8,9 @@
 #include "generic.h"
 #include <time.h>
 
+//#define hostname (char *)"iotdevices.localzoho.com"
 #define hostname (char *)"shahul-6029.csez.zohocorpin.com"
+
 #if defined(SECURE_CONNECTION)
 #define port (int)8883
 #else
@@ -18,7 +20,7 @@
 #define topic_pre (char *)"/devices"
 #define data_topic (char *)"/telemetry"
 #define command_topic (char *)"/command"
-#define event_topic (char *)"/event"
+#define event_topic (char *)"/events"
 
 typedef struct
 {

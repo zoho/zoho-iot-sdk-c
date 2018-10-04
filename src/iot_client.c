@@ -80,7 +80,7 @@ int zclient_connect(IOTclient *client)
     MQTTClient(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
 
-    conn_data.MQTTVersion = 3;
+    conn_data.MQTTVersion = 4;
     conn_data.cleansession = 1; //TODO: tobe confirmed with Hub
     conn_data.keepAliveInterval = 60;
     conn_data.clientID.cstring = client->config.device_id;
@@ -118,11 +118,11 @@ int zclient_publish(IOTclient *client, char *payload)
 {
     MQTTMessage pubmsg;
     //TODO:remove hardcoded values of id etc and get from structure copied from config.h
-    //TODO: confirm the below parameters with Hub
+    //TODO: confirm the below parameters with Hub. Especially the pubmessageID
 
     pubmsg.id = 1234;
     pubmsg.dup = '0';
-    pubmsg.qos = 2;
+    pubmsg.qos = 1;
     pubmsg.retained = '0';
 
     pubmsg.payload = payload;
