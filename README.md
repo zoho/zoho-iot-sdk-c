@@ -93,6 +93,16 @@ SET(CMAKE_TOOLCHAIN_FILE "./cross-compile/raspberry_pi/toolchain.cmake")
 
 > The above line will be commented by default. Update and also un-comment it to enable cross compilation.
 
+- **Tying out the basic Example**
+
+This SDK has some default examples to try a basic connection. Please follow the steps to configure it:
+
+Edit the source of `basic.c` and include your deviceID and Token On line # 52
+
+```
+rc = zclient_init(&client, "<YOUR-DEVICE-ID>", "<YOUR-DEVICE-TOKEN>", REFERENCE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
+```
+
 ### Build the Source
 
 Run the setup file (setup.sh), which download all the dependent libraries paho.mqtt , mbedtls ,cjson.
@@ -116,3 +126,4 @@ make
 ```
 
 > The generated libraries and binary files can be found inside the build folder.
+> make sure you are in `build` folder and run `./basic_tls` command to tryout the basic example.

@@ -8,8 +8,8 @@
 #include "generic.h"
 #include <time.h>
 
-//#define hostname (char *)"iotdevices.localzoho.com"
-#define hostname (char *)"shahul-6029.csez.zohocorpin.com"
+#define hostname (char *)"iotdevices.localzoho.com"
+// #define hostname (char *)"shahul-6029.csez.zohocorpin.com"
 
 #if defined(SECURE_CONNECTION)
 #define port (int)8883
