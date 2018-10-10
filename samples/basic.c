@@ -2,7 +2,9 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
-
+#if defined(EMBEDMODE)
+#include "certificates.h"
+#endif
 volatile int ctrl_flag = 0;
 
 void message_handler(MessageData *data)
@@ -39,6 +41,15 @@ int main()
     int temperature = 23;
     char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "", *pDeviceCertParsword = "";
 
+#if defined(EMBEDMODE)
+#if defined(SECURE_CONNECTION)
+    pRootCACertLocation = _usr_local_certs_ca_crt;
+#if defined(USE_CLIENT_CERTS)
+    pDeviceCertLocation = _usr_local_certs_client_crt;
+    pDevicePrivateKeyLocation = _usr_local_certs_client_key;
+#endif
+#endif
+#elif defined(REFERENCEMODE)
 #if defined(SECURE_CONNECTION)
     pRootCACertLocation = ROOTCA_CERT_LOCATION;
 #if defined(USE_CLIENT_CERTS)
@@ -46,14 +57,14 @@ int main()
     pDevicePrivateKeyLocation = CLIENT_KEY_LOCATION;
 #endif
 #endif
+#endif
 
     //Update your DEVICE_ID AND AUTH_TOKEN below:
-    rc = zclient_init(&client, "12000000042001", "1G8rvZw9uJkexVaMMYu07E4vg9FYaCafwdNKEjh9iVqHvL3f2jBNBs0hYa/K4g1E/Xdrp6rAvXHLO6XiOM0S68tvDOwrRBwGRFdCV48btXTsH68NgPcvr9d1blzMpyo=", REFERENCE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
+    rc = zclient_init(&client, "12000000042001", "1G8rvZw9uJkexVaMMYu07E4vg9FYaCafwdNKEjh9iVqHvL3f2jBNBs0hYa/K4g1E/Xdrp6rAvXHLO6XiOM0S68tvDOwrRBwGRFdCV48btXTsH68NgPcvr9d1blzMpyo=", CRT_PARSE_MODE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
     if (rc != SUCCESS)
     {
         return 0;
     }
-
     rc = zclient_connect(&client);
     if (rc != SUCCESS)
     {

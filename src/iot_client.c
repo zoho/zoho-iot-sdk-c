@@ -32,8 +32,18 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
     iot_client->config = config;
     parse_mode = mode;
 #if defined(SECURE_CONNECTION)
+    if (ca_crt == NULL || (mode == REFERENCE && access(ca_crt, F_OK) == -1))
+    {
+        log_error("RootCA file is not found/can't be accessed");
+        return FAILURE;
+    }
     iot_client->certs.ca_crt = ca_crt;
 #if defined(USE_CLIENT_CERTS)
+    if (client_cert == NULL || client_key == NULL || (mode == REFERENCE && (access(client_cert, F_OK) == -1)) || (mode == REFERENCE && (access(client_key, F_OK) == -1)))
+    {
+        log_error("Client key or Client certificate is not found/can't be accessed");
+        return FAILURE;
+    }
     iot_client->certs.client_cert = client_cert;
     iot_client->certs.client_key = client_key;
     iot_client->certs.cert_password = cert_password;
@@ -71,7 +81,6 @@ int zclient_connect(IOTclient *client)
     if (rc != 0)
     {
         log_error("Error Connecting Network..");
-        client->mqtt_client.ipstack->disconnect(client->mqtt_client.ipstack);
         return -1;
     }
 
@@ -97,7 +106,15 @@ int zclient_connect(IOTclient *client)
     }
     else
     {
-        log_error("Error while establishing connection. Error code: %d", rc);
+        client->mqtt_client.ipstack->disconnect(client->mqtt_client.ipstack);
+        if (rc == 5)
+        {
+            log_error("Error while establishing connection, due to invalid credentials");
+        }
+        else
+        {
+            log_error("Error while establishing connection. Error code: %d", rc);
+        }
     }
     return rc;
 }

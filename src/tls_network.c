@@ -101,6 +101,18 @@ int init_tls(Network *n, certsParseMode mode, char *ca_crt, char *client_cert, c
 
     if (rc != 0)
     {
+        if (rc == MBEDTLS_ERR_X509_INVALID_FORMAT)
+        {
+            log_error("The mbedtls x509 Server certificate format is invalid");
+        }
+        else if (rc == MBEDTLS_ERR_X509_CERT_VERIFY_FAILED)
+        {
+            log_error("The mbedtls x509 Server certificate(CRL, CA) or signature check failed.");
+        }
+        else if (rc == MBEDTLS_ERR_X509_CERT_UNKNOWN_FORMAT)
+        {
+            log_error("The mbedtls x509 Server certificate Format not recognized as DER or PEM.");
+        }
         log_trace("mbedtls_x509_crt_parse_file failed for Server CA certificate with return code = 0x%x", -rc);
         return -1;
     }
@@ -111,6 +123,18 @@ int init_tls(Network *n, certsParseMode mode, char *ca_crt, char *client_cert, c
 
     if (rc != 0)
     {
+        if (rc == MBEDTLS_ERR_X509_INVALID_FORMAT)
+        {
+            log_error("The mbedtls x509 client certificate format is invalid");
+        }
+        else if (rc == MBEDTLS_ERR_X509_CERT_VERIFY_FAILED)
+        {
+            log_error("The mbedtls x509 client certificate (CRL, CA) or signature check failed.");
+        }
+        else if (rc == MBEDTLS_ERR_X509_CERT_UNKNOWN_FORMAT)
+        {
+            log_error("The mbedtls x509 client certificate Format not recognized as DER or PEM.");
+        }
         log_trace("mbedtls_x509_crt_parse_file failed for Device Certificate  with return code = 0x%x", -rc);
         return -1;
     }
@@ -119,6 +143,10 @@ int init_tls(Network *n, certsParseMode mode, char *ca_crt, char *client_cert, c
 
     if (rc != 0)
     {
+        if (rc == MBEDTLS_ERR_PK_PASSWORD_REQUIRED || rc == MBEDTLS_ERR_PK_PASSWORD_MISMATCH)
+        {
+            log_error("The mbedtls_pk_parse_keyfile password is empty/mismatched");
+        }
         log_trace("mbedtls_pk_parse_keyfile failed for Device Private Key with return code = 0x%x", -rc);
         return -1;
     }
@@ -140,11 +168,11 @@ int tls_read(Network *n, unsigned char *buffer, int len, int timeout_ms)
     while (bytes < len)
     {
         rc = mbedtls_ssl_read(&(n->ssl), buffer, len);
-        if (rc == 0 || rc == -76)
+        if (rc == 0 || rc == MBEDTLS_ERR_NET_RECV_FAILED)
             break;
         else if (rc < 0)
         {
-            log_trace("mbedtls_ssl_read failed with rc = %d\n", rc);
+            log_trace("mbedtls_ssl_read failed with rc = 0x%x\n", rc);
             bytes = -1;
             break;
         }
@@ -211,6 +239,14 @@ int ConnectNetwork(Network *n, char *addr, int port, certsParseMode mode, char *
     if ((rc = mbedtls_net_connect(&n->server_fd, addr, port_char, MBEDTLS_NET_PROTO_TCP)) != 0)
     {
         log_debug("mbedtls_net_connect failed with return code = 0x%x", -rc);
+        if (rc == MBEDTLS_ERR_NET_UNKNOWN_HOST)
+        {
+            log_debug("Unable to reach IoT hub due to network issue");
+        }
+        else if (rc == MBEDTLS_ERR_NET_CONNECT_FAILED)
+        {
+            log_debug("Unable to connect to hub");
+        }
         return -1;
     }
 
@@ -245,7 +281,6 @@ int ConnectNetwork(Network *n, char *addr, int port, certsParseMode mode, char *
     }
     if (rc != 0)
     {
-        log_debug("Connection disconnected with rc = %d.\n Quitting..", rc);
         return -1;
     }
 
