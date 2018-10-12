@@ -2,7 +2,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(EMBEDMODE)
+#if defined(EMBED_MODE)
 #include "certificates.h"
 #endif
 volatile int ctrl_flag = 0;
@@ -41,21 +41,11 @@ int main()
     int temperature = 23;
     char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "", *pDeviceCertParsword = "";
 
-#if defined(EMBEDMODE)
 #if defined(SECURE_CONNECTION)
-    pRootCACertLocation = _usr_local_certs_ca_crt;
+    pRootCACertLocation = CA_CRT;
 #if defined(USE_CLIENT_CERTS)
-    pDeviceCertLocation = _usr_local_certs_client_crt;
-    pDevicePrivateKeyLocation = _usr_local_certs_client_key;
-#endif
-#endif
-#elif defined(REFERENCEMODE)
-#if defined(SECURE_CONNECTION)
-    pRootCACertLocation = ROOTCA_CERT_LOCATION;
-#if defined(USE_CLIENT_CERTS)
-    pDeviceCertLocation = CLIENT_CERT_LOCATION;
-    pDevicePrivateKeyLocation = CLIENT_KEY_LOCATION;
-#endif
+    pDeviceCertLocation = CLIENT_CRT;
+    pDevicePrivateKeyLocation = CLIENT_KEY;
 #endif
 #endif
 
