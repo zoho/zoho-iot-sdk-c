@@ -8,7 +8,6 @@ SET(CLIENT_KEY /usr/local/certs/client.key)
 # certificates needs to be copied along with application.
 OPTION(EMBED_CERT_MODE "Embed certificates along with application" ON)
 
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 INCLUDE(InternalFuncs)
 
 IF(EMBED_CERT_MODE)

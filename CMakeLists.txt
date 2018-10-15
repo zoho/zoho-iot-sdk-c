@@ -13,8 +13,19 @@ IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
                     :::::::::::::::::::::::::")
 ENDIF()
 
-OPTION(ENABLE_TLS "Enable TLS for Secure connection" ON)
-OPTION(USE_CLIENT_CERTS "Use Client side Certs for Secure connection" ON)
+IF("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+    MESSAGE(FATAL_ERROR " In-source builds are not allowed. Please reinitiate from build folder. ")
+ENDIF()
+
+# Checking for dependencies, before starting the build.
+FIND_PROGRAM(CURL_FOUND NAMES curl)
+FIND_PROGRAM(UNZIP_FOUND NAMES unzip)
+IF(NOT UNZIP_FOUND AND NOT CURL_FOUND)
+    MESSAGE(FATAL_ERROR "Dependecies curl or unzip are not present, install them and try again.")
+ENDIF()
+
+OPTION(ENABLE_TLS "Enable TLS for Secure connection" OFF)
+OPTION(USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
 
 # Set Log level to LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL.
 SET(Z_LOG_LEVEL LOG_DEBUG)
@@ -23,7 +34,10 @@ MESSAGE(STATUS "TLS SUPPORT : " ${ENABLE_TLS})
 MESSAGE(STATUS "USE CLIENT CERTS : " ${USE_CLIENT_CERTS})
 MESSAGE(STATUS "LOG LEVEL : " ${Z_LOG_LEVEL})
 
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 SET(CMAKE_BUILD_TYPE DEBUG)
+ADD_SUBDIRECTORY(cmake/setup)
+
 INCLUDE_DIRECTORIES(test include lib/cjson src)
 INCLUDE_DIRECTORIES(lib/paho.mqtt/MQTTPacket/src lib/paho.mqtt/MQTTClient-C/src)
 
