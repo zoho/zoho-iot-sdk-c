@@ -1,0 +1,461 @@
+diff -Naur paho-1.3-release-zip/CONTRIBUTING.md paho-1.3-latest-zip/CONTRIBUTING.md
+--- paho-1.3-release-zip/CONTRIBUTING.md	2017-07-14 19:38:15.000000000 +0530
++++ paho-1.3-latest-zip/CONTRIBUTING.md	2018-03-05 21:26:40.000000000 +0530
+@@ -10,12 +10,12 @@
+
+ Please read the [Eclipse Foundation policy on accepting contributions via Git](http://wiki.eclipse.org/Development_Resources/Contributing_via_Git).
+
+-1. Sign the [Eclipse CLA](http://www.eclipse.org/legal/CLA.php)
++1. Sign the [Eclipse ECA](http://www.eclipse.org/legal/ECA.php)
+   1. Register for an Eclipse Foundation User ID. You can register [here](https://dev.eclipse.org/site_login/createaccount.php).
+-  2. Log into the [Projects Portal](https://projects.eclipse.org/), and click on the '[Eclipse CLA](https://projects.eclipse.org/user/sign/cla)' link.
++  2. Log into the [Eclipse projects forge](https://www.eclipse.org/contribute/cla), and click on 'Eclipse Contributor Agreement'.
+ 2. Go to your [account settings](https://dev.eclipse.org/site_login/myaccount.php#open_tab_accountsettings) and add your GitHub username to your account.
+ 3. Make sure that you _sign-off_ your Git commits in the following format:
+-  ``` Signed-off-by: John Smith <johnsmith@nowhere.com> ``` This is usually at the bottom of the commit message. You can automate this by adding the '-s' flag when you make the commits. e.g.   ```git commit -s -m "Adding a cool feature"```
++  ``` Signed-off-by: Alex Smith <alexsmith@nowhere.com> ``` This is usually at the bottom of the commit message. You can automate this by adding the '-s' flag when you make the commits. e.g.   ```git commit -s -m "Adding a cool feature"```
+ 4. Ensure that the email address that you make your commits with is the same one you used to sign up to the Eclipse Foundation website with.
+
+ ## Contributing a change
+diff -Naur paho-1.3-release-zip/MQTTClient/src/MQTTClient.h paho-1.3-latest-zip/MQTTClient/src/MQTTClient.h
+--- paho-1.3-release-zip/MQTTClient/src/MQTTClient.h	2017-07-14 19:38:15.000000000 +0530
++++ paho-1.3-latest-zip/MQTTClient/src/MQTTClient.h	2018-03-05 21:26:40.000000000 +0530
+@@ -382,12 +382,14 @@
+     int rc = FAILURE,
+         sent = 0;
+
+-    while (sent < length && !timer.expired())
++    while (sent < length)
+     {
+         rc = ipstack.write(&sendbuf[sent], length - sent, timer.left_ms());
+         if (rc < 0)  // there was an error writing the data
+             break;
+         sent += rc;
++        if (timer.expired()) // only check expiry after at least one attempt to write
++            break;
+     }
+     if (sent == length)
+     {
+@@ -400,7 +402,8 @@
+
+ #if defined(MQTT_DEBUG)
+     char printbuf[150];
+-    DEBUG("Rc %d from sending packet %s\n", rc, MQTTFormat_toServerString(printbuf, sizeof(printbuf), sendbuf, length));
++    DEBUG("Rc %d from sending packet %s\r\n", rc,
++        MQTTFormat_toServerString(printbuf, sizeof(printbuf), sendbuf, length));
+ #endif
+     return rc;
+ }
+@@ -479,7 +482,7 @@
+     if (rc >= 0)
+     {
+         char printbuf[50];
+-        DEBUG("Rc %d from receiving packet %s\n", rc,
++        DEBUG("Rc %d receiving packet %s\r\n", rc,
+             MQTTFormat_toClientString(printbuf, sizeof(printbuf), readbuf, len));
+     }
+ #endif
+@@ -592,6 +595,7 @@
+         case CONNACK:
+         case PUBACK:
+         case SUBACK:
++        case UNSUBACK:
+             break;
+         case PUBLISH:
+         {
+@@ -676,29 +680,31 @@
+ int MQTT::Client<Network, Timer, MAX_MQTT_PACKET_SIZE, b>::keepalive()
+ {
+     int rc = SUCCESS;
++    static Timer ping_sent;
+
+     if (keepAliveInterval == 0)
+         goto exit;
+
+-    if (last_sent.expired() || last_received.expired())
++    if (ping_outstanding)
+     {
+-        if (ping_outstanding)
++        if (ping_sent.expired())
+         {
+             rc = FAILURE; // session failure
+             #if defined(MQTT_DEBUG)
+-                char printbuf[150];
+-                DEBUG("PINGRESP not received in keepalive interval\n");
++                DEBUG("PINGRESP not received in keepalive interval\r\n");
+             #endif
+         }
+-        else
++    }
++    else if (last_sent.expired() || last_received.expired())
++    {
++        Timer timer(1000);
++        int len = MQTTSerialize_pingreq(sendbuf, MAX_MQTT_PACKET_SIZE);
++        if (len > 0 && (rc = sendPacket(len, timer)) == SUCCESS) // send the ping packet
+         {
+-            Timer timer(1000);
+-            int len = MQTTSerialize_pingreq(sendbuf, MAX_MQTT_PACKET_SIZE);
+-            if (len > 0 && (rc = sendPacket(len, timer)) == SUCCESS) // send the ping packet
+-                ping_outstanding = true;
++            ping_outstanding = true;
++            ping_sent.countdown(this->keepAliveInterval);
+         }
+     }
+-
+ exit:
+     return rc;
+ }
+diff -Naur paho-1.3-release-zip/MQTTClient/src/mbed/MQTTEthernet.h paho-1.3-latest-zip/MQTTClient/src/mbed/MQTTEthernet.h
+--- paho-1.3-release-zip/MQTTClient/src/mbed/MQTTEthernet.h	2017-07-14 19:38:15.000000000 +0530
++++ paho-1.3-latest-zip/MQTTClient/src/mbed/MQTTEthernet.h	2018-03-05 21:26:40.000000000 +0530
+@@ -1,35 +1,24 @@
+-/*******************************************************************************
+- * Copyright (c) 2014 IBM Corp.
+- *
+- * All rights reserved. This program and the accompanying materials
+- * are made available under the terms of the Eclipse Public License v1.0
+- * and Eclipse Distribution License v1.0 which accompany this distribution.
+- *
+- * The Eclipse Public License is available at
+- *    http://www.eclipse.org/legal/epl-v10.html
+- * and the Eclipse Distribution License is available at
+- *   http://www.eclipse.org/org/documents/edl-v10.php.
+- *
+- * Contributors:
+- *    Ian Craggs - initial API and implementation and/or initial documentation
+- *******************************************************************************/
+
+ #if !defined(MQTTETHERNET_H)
+ #define MQTTETHERNET_H
+
+-#include "MQTT_mbed.h"
++#include "MQTTmbed.h"
+ #include "EthernetInterface.h"
+ #include "MQTTSocket.h"
+
+ class MQTTEthernet : public MQTTSocket
+ {
+ public:
+-    MQTTEthernet()
++    MQTTEthernet() : MQTTSocket(&eth)
+     {
+-        eth.init();                          // Use DHCP
+         eth.connect();
+     }
+
++    EthernetInterface& getEth()
++    {
++        return eth;
++    }
++
+ private:
+
+     EthernetInterface eth;
+diff -Naur paho-1.3-release-zip/MQTTClient/src/mbed/MQTTSocket.h paho-1.3-latest-zip/MQTTClient/src/mbed/MQTTSocket.h
+--- paho-1.3-release-zip/MQTTClient/src/mbed/MQTTSocket.h	2017-07-14 19:38:15.000000000 +0530
++++ paho-1.3-latest-zip/MQTTClient/src/mbed/MQTTSocket.h	2018-03-05 21:26:40.000000000 +0530
+@@ -1,57 +1,97 @@
+-/*******************************************************************************
+- * Copyright (c) 2014 IBM Corp.
+- *
+- * All rights reserved. This program and the accompanying materials
+- * are made available under the terms of the Eclipse Public License v1.0
+- * and Eclipse Distribution License v1.0 which accompany this distribution.
+- *
+- * The Eclipse Public License is available at
+- *    http://www.eclipse.org/legal/epl-v10.html
+- * and the Eclipse Distribution License is available at
+- *   http://www.eclipse.org/org/documents/edl-v10.php.
+- *
+- * Contributors:
+- *    Ian Craggs - initial API and implementation and/or initial documentation
+- *******************************************************************************/
+-
+ #if !defined(MQTTSOCKET_H)
+ #define MQTTSOCKET_H
+
+-#include "MQTT_mbed.h"
+-#include "TCPSocketConnection.h"
++#include "MQTTmbed.h"
++#include <EthernetInterface.h>
++#include <Timer.h>
+
+ class MQTTSocket
+ {
+-public:
++public:
++    MQTTSocket(EthernetInterface *anet)
++    {
++        net = anet;
++        open = false;
++    }
++
+     int connect(char* hostname, int port, int timeout=1000)
+     {
+-        mysock.set_blocking(false, timeout);    // 1 second Timeout
+-        return mysock.connect(hostname, port);
++        if (open)
++            disconnect();
++        nsapi_error_t rc = mysock.open(net);
++        open = true;
++        mysock.set_blocking(true);
++        mysock.set_timeout((unsigned int)timeout);
++        rc = mysock.connect(hostname, port);
++        mysock.set_blocking(false);  // blocking timeouts seem not to work
++        return rc;
++    }
++
++    // common read/write routine, avoiding blocking timeouts
++    int common(unsigned char* buffer, int len, int timeout, bool read)
++    {
++        timer.start();
++        mysock.set_blocking(false); // blocking timeouts seem not to work
++        int bytes = 0;
++        bool first = true;
++        do
++        {
++            if (first)
++                first = false;
++            else
++                wait_ms(timeout < 100 ? timeout : 100);
++            int rc;
++            if (read)
++                rc = mysock.recv((char*)buffer, len);
++            else
++                rc = mysock.send((char*)buffer, len);
++            if (rc < 0)
++            {
++                if (rc != NSAPI_ERROR_WOULD_BLOCK)
++                {
++                    bytes = -1;
++                    break;
++                }
++            }
++            else
++                bytes += rc;
++        }
++        while (bytes < len && timer.read_ms() < timeout);
++        timer.stop();
++        return bytes;
+     }
+
++    /* returns the number of bytes read, which could be 0.
++       -1 if there was an error on the socket
++    */
+     int read(unsigned char* buffer, int len, int timeout)
+     {
+-        mysock.set_blocking(false, timeout);
+-        return mysock.receive((char*)buffer, len);
++        return common(buffer, len, timeout, true);
+     }
+-
++
+     int write(unsigned char* buffer, int len, int timeout)
+     {
+-        mysock.set_blocking(false, timeout);
+-        return mysock.send((char*)buffer, len);
++        return common(buffer, len, timeout, false);
+     }
+-
++
+     int disconnect()
+     {
++        open = false;
+         return mysock.close();
+     }
+-
+-private:
+
+-    TCPSocketConnection mysock;
+-
+-};
++    /*bool is_connected()
++    {
++        return mysock.is_connected();
++    }*/
++
++private:
+
++    bool open;
++    TCPSocket mysock;
++    EthernetInterface *net;
++    Timer timer;
+
++};
+
+ #endif
+diff -Naur paho-1.3-release-zip/MQTTClient/src/mbed/MQTTmbed.h paho-1.3-latest-zip/MQTTClient/src/mbed/MQTTmbed.h
+--- paho-1.3-release-zip/MQTTClient/src/mbed/MQTTmbed.h	1970-01-01 05:30:00.000000000 +0530
++++ paho-1.3-latest-zip/MQTTClient/src/mbed/MQTTmbed.h	2018-03-05 21:26:40.000000000 +0530
+@@ -0,0 +1,65 @@
++/*******************************************************************************
++ * Copyright (c) 2014, 2017 IBM Corp.
++ *
++ * All rights reserved. This program and the accompanying materials
++ * are made available under the terms of the Eclipse Public License v1.0
++ * and Eclipse Distribution License v1.0 which accompany this distribution.
++ *
++ * The Eclipse Public License is available at
++ *    http://www.eclipse.org/legal/epl-v10.html
++ * and the Eclipse Distribution License is available at
++ *   http://www.eclipse.org/org/documents/edl-v10.php.
++ *
++ * Contributors:
++ *    Ian Craggs - initial API and implementation and/or initial documentation
++ *    Ian Craggs - change Timer member initialization to avoid copy constructor
++ *******************************************************************************/
++
++#if !defined(MQTT_MBED_H)
++#define MQTT_MBED_H
++
++#include "mbed.h"
++
++class Countdown
++{
++public:
++    Countdown() : t()
++    {
++
++    }
++
++    Countdown(int ms) : t()
++    {
++        countdown_ms(ms);
++    }
++
++
++    bool expired()
++    {
++        return t.read_ms() >= interval_end_ms;
++    }
++
++    void countdown_ms(unsigned long ms)
++    {
++        t.stop();
++        interval_end_ms = ms;
++        t.reset();
++        t.start();
++    }
++
++    void countdown(int seconds)
++    {
++        countdown_ms((unsigned long)seconds * 1000L);
++    }
++
++    int left_ms()
++    {
++        return interval_end_ms - t.read_ms();
++    }
++
++private:
++    Timer t;
++    unsigned long interval_end_ms;
++};
++
++#endif
+diff -Naur paho-1.3-release-zip/MQTTClient-C/src/MQTTClient.c paho-1.3-latest-zip/MQTTClient-C/src/MQTTClient.c
+--- paho-1.3-release-zip/MQTTClient-C/src/MQTTClient.c	2017-07-14 19:38:15.000000000 +0530
++++ paho-1.3-latest-zip/MQTTClient-C/src/MQTTClient.c	2018-03-05 21:26:40.000000000 +0530
+@@ -17,6 +17,9 @@
+  *******************************************************************************/
+ #include "MQTTClient.h"
+
++#include <stdio.h>
++#include <string.h>
++
+ static void NewMessageData(MessageData* md, MQTTString* aTopicName, MQTTMessage* aMessage) {
+     md->topicName = aTopicName;
+     md->message = aMessage;
+@@ -269,6 +272,7 @@
+         case CONNACK:
+         case PUBACK:
+         case SUBACK:
++        case UNSUBACK:
+             break;
+         case PUBLISH:
+         {
+@@ -354,6 +358,10 @@
+     return rc;
+ }
+
++int MQTTIsConnected(MQTTClient* client)
++{
++  return client->isconnected;
++}
+
+ void MQTTRun(void* parm)
+ {
+diff -Naur paho-1.3-release-zip/MQTTClient-C/src/MQTTClient.h paho-1.3-latest-zip/MQTTClient-C/src/MQTTClient.h
+--- paho-1.3-release-zip/MQTTClient-C/src/MQTTClient.h	2017-07-14 19:38:15.000000000 +0530
++++ paho-1.3-latest-zip/MQTTClient-C/src/MQTTClient.h	2018-03-05 21:26:40.000000000 +0530
+@@ -16,8 +16,8 @@
+  *    Ian Craggs - add setMessageHandler function
+  *******************************************************************************/
+
+-#if !defined(__MQTT_CLIENT_C_)
+-#define __MQTT_CLIENT_C_
++#if !defined(MQTT_CLIENT_H)
++#define MQTT_CLIENT_H
+
+ #if defined(__cplusplus)
+  extern "C" {
+@@ -35,7 +35,6 @@
+ #endif
+
+ #include "MQTTPacket.h"
+-#include "stdio.h"
+
+ #if defined(MQTTCLIENT_PLATFORM_HEADER)
+ /* The following sequence of macros converts the MQTTCLIENT_PLATFORM_HEADER value
+@@ -217,10 +216,7 @@
+  *  @param client - the client object to use
+  *  @return truth value indicating whether the client is connected to the server
+  */
+-DLLExport int MQTTIsConnected(MQTTClient* client)
+-{
+-  return client->isconnected;
+-}
++DLLExport int MQTTIsConnected(MQTTClient* client);
+
+ #if defined(MQTT_TASK)
+ /** MQTT start background thread for a client.  After this, MQTTYield should not be called.
+diff -Naur paho-1.3-release-zip/MQTTClient-C/src/linux/MQTTLinux.c paho-1.3-latest-zip/MQTTClient-C/src/linux/MQTTLinux.c
+--- paho-1.3-release-zip/MQTTClient-C/src/linux/MQTTLinux.c	2017-07-14 19:38:15.000000000 +0530
++++ paho-1.3-latest-zip/MQTTClient-C/src/linux/MQTTLinux.c	2018-03-05 21:26:40.000000000 +0530
+@@ -154,6 +154,8 @@
+ 		n->my_socket = socket(family, type, 0);
+ 		if (n->my_socket != -1)
+ 			rc = connect(n->my_socket, (struct sockaddr*)&address, sizeof(address));
++		else
++			rc = -1;
+ 	}
+
+ 	return rc;
+diff -Naur paho-1.3-release-zip/MQTTPacket/src/MQTTConnect.h paho-1.3-latest-zip/MQTTPacket/src/MQTTConnect.h
+--- paho-1.3-release-zip/MQTTPacket/src/MQTTConnect.h	2017-07-14 19:38:15.000000000 +0530
++++ paho-1.3-latest-zip/MQTTPacket/src/MQTTConnect.h	2018-03-05 21:26:40.000000000 +0530
+@@ -12,6 +12,7 @@
+  *
+  * Contributors:
+  *    Ian Craggs - initial API and implementation and/or initial documentation
++ *    Ian Craggs - add connack return code definitions
+  *    Xiang Rong - 442039 Add makefile to Embedded C client
+  *    Ian Craggs - fix for issue #64, bit order in connack response
+  *******************************************************************************/
+@@ -19,6 +20,16 @@
+ #ifndef MQTTCONNECT_H_
+ #define MQTTCONNECT_H_
+
++enum connack_return_codes
++{
++    MQTT_CONNECTION_ACCEPTED = 0,
++    MQTT_UNNACCEPTABLE_PROTOCOL = 1,
++    MQTT_CLIENTID_REJECTED = 2,
++    MQTT_SERVER_UNAVAILABLE = 3,
++    MQTT_BAD_USERNAME_OR_PASSWORD = 4,
++    MQTT_NOT_AUTHORIZED = 5,
++};
++
+ #if !defined(DLLImport)
+   #define DLLImport
+ #endif
