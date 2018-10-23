@@ -2,9 +2,9 @@ diff -Naur paho-1.3-release-zip/CONTRIBUTING.md paho-1.3-latest-zip/CONTRIBUTING
 --- paho-1.3-release-zip/CONTRIBUTING.md	2017-07-14 19:38:15.000000000 +0530
 +++ paho-1.3-latest-zip/CONTRIBUTING.md	2018-03-05 21:26:40.000000000 +0530
 @@ -10,12 +10,12 @@
-
+ 
  Please read the [Eclipse Foundation policy on accepting contributions via Git](http://wiki.eclipse.org/Development_Resources/Contributing_via_Git).
-
+ 
 -1. Sign the [Eclipse CLA](http://www.eclipse.org/legal/CLA.php)
 +1. Sign the [Eclipse ECA](http://www.eclipse.org/legal/ECA.php)
    1. Register for an Eclipse Foundation User ID. You can register [here](https://dev.eclipse.org/site_login/createaccount.php).
@@ -15,7 +15,7 @@ diff -Naur paho-1.3-release-zip/CONTRIBUTING.md paho-1.3-latest-zip/CONTRIBUTING
 -  ``` Signed-off-by: John Smith <johnsmith@nowhere.com> ``` This is usually at the bottom of the commit message. You can automate this by adding the '-s' flag when you make the commits. e.g.   ```git commit -s -m "Adding a cool feature"```
 +  ``` Signed-off-by: Alex Smith <alexsmith@nowhere.com> ``` This is usually at the bottom of the commit message. You can automate this by adding the '-s' flag when you make the commits. e.g.   ```git commit -s -m "Adding a cool feature"```
  4. Ensure that the email address that you make your commits with is the same one you used to sign up to the Eclipse Foundation website with.
-
+ 
  ## Contributing a change
 diff -Naur paho-1.3-release-zip/MQTTClient/src/MQTTClient.h paho-1.3-latest-zip/MQTTClient/src/MQTTClient.h
 --- paho-1.3-release-zip/MQTTClient/src/MQTTClient.h	2017-07-14 19:38:15.000000000 +0530
@@ -23,7 +23,7 @@ diff -Naur paho-1.3-release-zip/MQTTClient/src/MQTTClient.h paho-1.3-latest-zip/
 @@ -382,12 +382,14 @@
      int rc = FAILURE,
          sent = 0;
-
+ 
 -    while (sent < length && !timer.expired())
 +    while (sent < length)
      {
@@ -37,7 +37,7 @@ diff -Naur paho-1.3-release-zip/MQTTClient/src/MQTTClient.h paho-1.3-latest-zip/
      if (sent == length)
      {
 @@ -400,7 +402,8 @@
-
+ 
  #if defined(MQTT_DEBUG)
      char printbuf[150];
 -    DEBUG("Rc %d from sending packet %s\n", rc, MQTTFormat_toServerString(printbuf, sizeof(printbuf), sendbuf, length));
@@ -68,10 +68,10 @@ diff -Naur paho-1.3-release-zip/MQTTClient/src/MQTTClient.h paho-1.3-latest-zip/
  {
      int rc = SUCCESS;
 +    static Timer ping_sent;
-
+ 
      if (keepAliveInterval == 0)
          goto exit;
-
+ 
 -    if (last_sent.expired() || last_received.expired())
 +    if (ping_outstanding)
      {
@@ -124,32 +124,32 @@ diff -Naur paho-1.3-release-zip/MQTTClient/src/mbed/MQTTEthernet.h paho-1.3-late
 - * Contributors:
 - *    Ian Craggs - initial API and implementation and/or initial documentation
 - *******************************************************************************/
-
+ 
  #if !defined(MQTTETHERNET_H)
  #define MQTTETHERNET_H
-
+ 
 -#include "MQTT_mbed.h"
 +#include "MQTTmbed.h"
  #include "EthernetInterface.h"
  #include "MQTTSocket.h"
-
+ 
  class MQTTEthernet : public MQTTSocket
  {
- public:
+ public:    
 -    MQTTEthernet()
 +    MQTTEthernet() : MQTTSocket(&eth)
      {
 -        eth.init();                          // Use DHCP
          eth.connect();
      }
-
+     
 +    EthernetInterface& getEth()
 +    {
 +        return eth;
 +    }
-+
++    
  private:
-
+ 
      EthernetInterface eth;
 diff -Naur paho-1.3-release-zip/MQTTClient/src/mbed/MQTTSocket.h paho-1.3-latest-zip/MQTTClient/src/mbed/MQTTSocket.h
 --- paho-1.3-release-zip/MQTTClient/src/mbed/MQTTSocket.h	2017-07-14 19:38:15.000000000 +0530
@@ -173,33 +173,33 @@ diff -Naur paho-1.3-release-zip/MQTTClient/src/mbed/MQTTSocket.h paho-1.3-latest
 -
  #if !defined(MQTTSOCKET_H)
  #define MQTTSOCKET_H
-
+ 
 -#include "MQTT_mbed.h"
 -#include "TCPSocketConnection.h"
 +#include "MQTTmbed.h"
 +#include <EthernetInterface.h>
 +#include <Timer.h>
-
+ 
  class MQTTSocket
  {
--public:
+-public:    
 +public:
 +    MQTTSocket(EthernetInterface *anet)
 +    {
 +        net = anet;
 +        open = false;
 +    }
-+
++    
      int connect(char* hostname, int port, int timeout=1000)
      {
--        mysock.set_blocking(false, timeout);    // 1 second Timeout
+-        mysock.set_blocking(false, timeout);    // 1 second Timeout 
 -        return mysock.connect(hostname, port);
 +        if (open)
 +            disconnect();
 +        nsapi_error_t rc = mysock.open(net);
 +        open = true;
 +        mysock.set_blocking(true);
-+        mysock.set_timeout((unsigned int)timeout);
++        mysock.set_timeout((unsigned int)timeout);  
 +        rc = mysock.connect(hostname, port);
 +        mysock.set_blocking(false);  // blocking timeouts seem not to work
 +        return rc;
@@ -212,7 +212,7 @@ diff -Naur paho-1.3-release-zip/MQTTClient/src/mbed/MQTTSocket.h paho-1.3-latest
 +        mysock.set_blocking(false); // blocking timeouts seem not to work
 +        int bytes = 0;
 +        bool first = true;
-+        do
++        do 
 +        {
 +            if (first)
 +                first = false;
@@ -230,7 +230,7 @@ diff -Naur paho-1.3-release-zip/MQTTClient/src/mbed/MQTTSocket.h paho-1.3-latest
 +                    bytes = -1;
 +                    break;
 +                }
-+            }
++            } 
 +            else
 +                bytes += rc;
 +        }
@@ -238,36 +238,36 @@ diff -Naur paho-1.3-release-zip/MQTTClient/src/mbed/MQTTSocket.h paho-1.3-latest
 +        timer.stop();
 +        return bytes;
      }
-
+ 
 +    /* returns the number of bytes read, which could be 0.
 +       -1 if there was an error on the socket
 +    */
      int read(unsigned char* buffer, int len, int timeout)
      {
--        mysock.set_blocking(false, timeout);
+-        mysock.set_blocking(false, timeout);  
 -        return mysock.receive((char*)buffer, len);
 +        return common(buffer, len, timeout, true);
      }
--
+-    
 +
      int write(unsigned char* buffer, int len, int timeout)
      {
--        mysock.set_blocking(false, timeout);
+-        mysock.set_blocking(false, timeout);  
 -        return mysock.send((char*)buffer, len);
 +        return common(buffer, len, timeout, false);
      }
--
+-    
 +
      int disconnect()
      {
 +        open = false;
          return mysock.close();
      }
--
+-    
 -private:
-
--    TCPSocketConnection mysock;
--
+ 
+-    TCPSocketConnection mysock; 
+-    
 -};
 +    /*bool is_connected()
 +    {
@@ -275,14 +275,14 @@ diff -Naur paho-1.3-release-zip/MQTTClient/src/mbed/MQTTSocket.h paho-1.3-latest
 +    }*/
 +
 +private:
-
+ 
 +    bool open;
 +    TCPSocket mysock;
 +    EthernetInterface *net;
 +    Timer timer;
-
+ 
 +};
-
+ 
  #endif
 diff -Naur paho-1.3-release-zip/MQTTClient/src/mbed/MQTTmbed.h paho-1.3-latest-zip/MQTTClient/src/mbed/MQTTmbed.h
 --- paho-1.3-release-zip/MQTTClient/src/mbed/MQTTmbed.h	1970-01-01 05:30:00.000000000 +0530
@@ -359,7 +359,7 @@ diff -Naur paho-1.3-release-zip/MQTTClient-C/src/MQTTClient.c paho-1.3-latest-zi
 @@ -17,6 +17,9 @@
   *******************************************************************************/
  #include "MQTTClient.h"
-
+ 
 +#include <stdio.h>
 +#include <string.h>
 +
@@ -377,12 +377,12 @@ diff -Naur paho-1.3-release-zip/MQTTClient-C/src/MQTTClient.c paho-1.3-latest-zi
 @@ -354,6 +358,10 @@
      return rc;
  }
-
+ 
 +int MQTTIsConnected(MQTTClient* client)
 +{
 +  return client->isconnected;
 +}
-
+ 
  void MQTTRun(void* parm)
  {
 diff -Naur paho-1.3-release-zip/MQTTClient-C/src/MQTTClient.h paho-1.3-latest-zip/MQTTClient-C/src/MQTTClient.h
@@ -391,20 +391,20 @@ diff -Naur paho-1.3-release-zip/MQTTClient-C/src/MQTTClient.h paho-1.3-latest-zi
 @@ -16,8 +16,8 @@
   *    Ian Craggs - add setMessageHandler function
   *******************************************************************************/
-
+ 
 -#if !defined(__MQTT_CLIENT_C_)
 -#define __MQTT_CLIENT_C_
 +#if !defined(MQTT_CLIENT_H)
 +#define MQTT_CLIENT_H
-
+ 
  #if defined(__cplusplus)
   extern "C" {
 @@ -35,7 +35,6 @@
  #endif
-
+ 
  #include "MQTTPacket.h"
 -#include "stdio.h"
-
+ 
  #if defined(MQTTCLIENT_PLATFORM_HEADER)
  /* The following sequence of macros converts the MQTTCLIENT_PLATFORM_HEADER value
 @@ -217,10 +216,7 @@
@@ -416,7 +416,7 @@ diff -Naur paho-1.3-release-zip/MQTTClient-C/src/MQTTClient.h paho-1.3-latest-zi
 -  return client->isconnected;
 -}
 +DLLExport int MQTTIsConnected(MQTTClient* client);
-
+ 
  #if defined(MQTT_TASK)
  /** MQTT start background thread for a client.  After this, MQTTYield should not be called.
 diff -Naur paho-1.3-release-zip/MQTTClient-C/src/linux/MQTTLinux.c paho-1.3-latest-zip/MQTTClient-C/src/linux/MQTTLinux.c
@@ -429,7 +429,7 @@ diff -Naur paho-1.3-release-zip/MQTTClient-C/src/linux/MQTTLinux.c paho-1.3-late
 +		else
 +			rc = -1;
  	}
-
+ 
  	return rc;
 diff -Naur paho-1.3-release-zip/MQTTPacket/src/MQTTConnect.h paho-1.3-latest-zip/MQTTPacket/src/MQTTConnect.h
 --- paho-1.3-release-zip/MQTTPacket/src/MQTTConnect.h	2017-07-14 19:38:15.000000000 +0530
@@ -438,14 +438,14 @@ diff -Naur paho-1.3-release-zip/MQTTPacket/src/MQTTConnect.h paho-1.3-latest-zip
   *
   * Contributors:
   *    Ian Craggs - initial API and implementation and/or initial documentation
-+ *    Ian Craggs - add connack return code definitions
++ *    Ian Craggs - add connack return code definitions 
   *    Xiang Rong - 442039 Add makefile to Embedded C client
   *    Ian Craggs - fix for issue #64, bit order in connack response
   *******************************************************************************/
 @@ -19,6 +20,16 @@
  #ifndef MQTTCONNECT_H_
  #define MQTTCONNECT_H_
-
+ 
 +enum connack_return_codes
 +{
 +    MQTT_CONNECTION_ACCEPTED = 0,
