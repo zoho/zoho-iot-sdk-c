@@ -71,12 +71,12 @@ int zclient_connect(IOTclient *client)
 
     log_info("Preparing Network..");
 
-    NewNetwork(&n);
+    NetworkInit(&n);
 
 #if defined(SECURE_CONNECTION)
-    rc = ConnectNetwork(&n, hostname, port, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
+    rc = NetworkConnect(&n, hostname, port, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
 #else
-    rc = ConnectNetwork(&n, hostname, port);
+    rc = NetworkConnect(&n, hostname, port);
 #endif
     if (rc != 0)
     {
@@ -86,7 +86,7 @@ int zclient_connect(IOTclient *client)
 
     //TODO: Handle the rc of ConnectNetwork().
     log_info("Connecting to \x1b[32m %s : %d \x1b[0m", hostname, port);
-    MQTTClient(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
+    MQTTClientInit(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
 
     conn_data.MQTTVersion = 4;
@@ -106,7 +106,7 @@ int zclient_connect(IOTclient *client)
     }
     else
     {
-        client->mqtt_client.ipstack->disconnect(client->mqtt_client.ipstack);
+        NetworkDisconnect(client->mqtt_client.ipstack);
         if (rc == 5)
         {
             log_error("Error while establishing connection, due to invalid credentials");
@@ -236,7 +236,7 @@ int zclient_disconnect(IOTclient *client)
         return -1;
     }
 
-    client->mqtt_client.ipstack->disconnect(client->mqtt_client.ipstack);
+    NetworkDisconnect(client->mqtt_client.ipstack);
     log_debug("Connection Closed with status :%d", client->mqtt_client.isconnected);
     log_free();
     cJSON_free(cJsonPayload);

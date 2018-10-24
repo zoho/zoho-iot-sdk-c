@@ -31,11 +31,11 @@ typedef struct
 	struct timeval end_time;
 } Timer;
 
-char expired(Timer *);
-void countdown_ms(Timer *, unsigned int);
-void countdown(Timer *, unsigned int);
-int left_ms(Timer *);
-void InitTimer(Timer *);
+char TimerIsExpired(Timer *);
+void TimerCountdownMS(Timer *, unsigned int);
+void TimerCountdown(Timer *, unsigned int);
+int TimerLeftMS(Timer *);
+void TimerInit(Timer *);
 
 typedef struct Network Network;
 
@@ -44,7 +44,6 @@ struct Network
 	int my_socket;
 	int (*mqttread)(Network *, unsigned char *, int, int);
 	int (*mqttwrite)(Network *, unsigned char *, int, int);
-	void (*disconnect)(Network *);
 
 	mbedtls_ssl_context ssl;
 	mbedtls_net_context server_fd;
@@ -56,11 +55,11 @@ struct Network
 	mbedtls_ctr_drbg_context ctr_drbg;
 };
 
-void NewNetwork(Network *);
+void NetworkInit(Network *);
 
-int ConnectNetwork(Network *, char *addr, int port, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
+int NetworkConnect(Network *, char *addr, int port, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
 
 int tls_write(Network *n, unsigned char *buffer, int len, int timeout_ms);
 int tls_read(Network *n, unsigned char *buffer, int len, int timeout_ms);
-void tls_disconnect(Network *n);
+void NetworkDisconnect(Network *n);
 #endif

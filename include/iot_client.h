@@ -40,7 +40,7 @@ typedef struct
 
 typedef struct
 {
-    Client mqtt_client;
+    MQTTClient mqtt_client;
     Config config;
 #if defined(SECURE_CONNECTION)
     Certificates certs;

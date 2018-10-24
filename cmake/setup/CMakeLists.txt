@@ -1,6 +1,6 @@
 # PAHO MQTT LIBRARY :
 IF(NOT EXISTS ${PROJECT_SOURCE_DIR}/lib/paho.mqtt)
-    SET(PAHO_MQTT_VERSOION v1.0.0)
+    SET(PAHO_MQTT_VERSOION v1.1.0)
     MESSAGE("\nDownloading paho.mqtt.embedded-c-${PAHO_MQTT_VERSOION}\n")
     EXECUTE_PROCESS(
         COMMAND curl -LO
@@ -11,17 +11,20 @@ IF(NOT EXISTS ${PROJECT_SOURCE_DIR}/lib/paho.mqtt)
     IF(NOT ${STATUS} EQUAL 0)
         MESSAGE(
             FATAL_ERROR
-                "Can't fetch paho.mqtt.embedded-c library,mention appropriate version or Download manually to lib folder."
+                "Failed to fetch paho.mqtt.embedded-c library,mention appropriate version or Download manually to lib folder."
             )
     ENDIF()
 
     EXECUTE_PROCESS(COMMAND unzip -q ${PAHO_MQTT_VERSOION}.zip -d ${PROJECT_SOURCE_DIR}/lib)
     FILE(REMOVE ${PROJECT_BINARY_DIR}/${PAHO_MQTT_VERSOION}.zip)
-    EXECUTE_PROCESS(
-        COMMAND sed -i s/""/"tls_config.h"/
-                ${PROJECT_SOURCE_DIR}/lib/paho.mqtt.embedded-c-1.0.0/MQTTClient-C/src/MQTTClient.h)
-    FILE(RENAME ${PROJECT_SOURCE_DIR}/lib/paho.mqtt.embedded-c-1.0.0
+    FILE(RENAME ${PROJECT_SOURCE_DIR}/lib/paho.mqtt.embedded-c-1.1.0
                 ${PROJECT_SOURCE_DIR}/lib/paho.mqtt)
+    EXECUTE_PROCESS(COMMAND patch -p1 -i ${PROJECT_SOURCE_DIR}/cmake/patches/paho_1.3.patch -d
+                            ${PROJECT_SOURCE_DIR}/lib/paho.mqtt
+                    RESULT_VARIABLE PATCH_STATUS)
+    IF(NOT ${PATCH_STATUS} EQUAL 0)
+        MESSAGE(FATAL_ERROR "Failed to apply patch on paho.mqtt.embedded-c library.")
+    ENDIF()
 ENDIF()
 
 # ----------------------------------------------
@@ -37,7 +40,7 @@ IF(NOT EXISTS ${PROJECT_SOURCE_DIR}/lib/cjson)
     IF(NOT ${STATUS} EQUAL 0)
         MESSAGE(
             FATAL_ERROR
-                "Can't fetch cjson library,mention appropriate version or Download manually to lib folder."
+                "Failed to fetch cjson library,mention appropriate version or Download manually to lib folder."
             )
     ENDIF()
 
@@ -59,7 +62,7 @@ IF(NOT EXISTS ${PROJECT_SOURCE_DIR}/lib/mbedtls)
     IF(NOT ${STATUS} EQUAL 0)
         MESSAGE(
             FATAL_ERROR
-                "Can't fetch mbedtls library,mention appropriate version or Download manually to lib folder."
+                "Failed to fetch mbedtls library,mention appropriate version or Download manually to lib folder."
             )
     ENDIF()
 
