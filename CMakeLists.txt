@@ -20,12 +20,16 @@ ENDIF()
 # Checking for dependencies, before starting the build.
 FIND_PROGRAM(CURL_FOUND NAMES curl)
 FIND_PROGRAM(UNZIP_FOUND NAMES unzip)
-IF(NOT UNZIP_FOUND AND NOT CURL_FOUND)
-    MESSAGE(FATAL_ERROR "Dependecies curl or unzip are not present, install them and try again.")
+FIND_PROGRAM(PATCH_FOUND NAMES patch)
+IF(NOT UNZIP_FOUND AND NOT CURL_FOUND AND NOT PATCH_FOUND)
+    MESSAGE(
+        FATAL_ERROR
+            "Check if dependecies curl,unzip & patch are pre-installed, if not install them and try again."
+        )
 ENDIF()
 
 OPTION(ENABLE_TLS "Enable TLS for Secure connection" OFF)
-OPTION(USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
+OPTION(USE_CLIENT_CERTS "Use Client side Certs for Secure connection" ON)
 
 # Set Log level to LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL.
 SET(Z_LOG_LEVEL LOG_DEBUG)
@@ -35,6 +39,7 @@ MESSAGE(STATUS "USE CLIENT CERTS : " ${USE_CLIENT_CERTS})
 MESSAGE(STATUS "LOG LEVEL : " ${Z_LOG_LEVEL})
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
+# Debug mode to be disabled on Production build.
 SET(CMAKE_BUILD_TYPE DEBUG)
 ADD_SUBDIRECTORY(cmake/setup)
 
@@ -42,6 +47,7 @@ INCLUDE_DIRECTORIES(test include lib/cjson src)
 INCLUDE_DIRECTORIES(lib/paho.mqtt/MQTTPacket/src lib/paho.mqtt/MQTTClient-C/src)
 
 FILE(GLOB PAHO_SOURCES "lib/paho.mqtt/MQTTPacket/src/*.c" "lib/paho.mqtt/MQTTClient-C/src/*.c")
+LIST(APPEND FEATURES "-DMQTTCLIENT_PLATFORM_HEADER=tls_config.h")
 SET(CJSON_SOURCES lib/cjson/cJSON.c)
 
 LIST(APPEND FEATURES "-DZ_LOG_LEVEL=${Z_LOG_LEVEL}")

@@ -104,12 +104,7 @@ rc = zclient_init(&client, "<YOUR-DEVICE-ID>", "<YOUR-DEVICE-TOKEN>", REFERENCE,
 ```
 
 ### Build the Source
-
-Run the setup file (setup.sh), which download all the dependent libraries paho.mqtt , mbedtls ,cjson.
-
-```
-sh setup.sh
-```
+All the dependent libraries would be automatically downloaded during build .To redownload any dependent library, clear lib folder.
 
 Create a build folder to keep all the temporary build configurations
 
