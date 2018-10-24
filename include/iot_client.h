@@ -10,6 +10,7 @@
 
 #define hostname (char *)"iotdevices.localzoho.com"
 // #define hostname (char *)"shahul-6029.csez.zohocorpin.com"
+// #define hostname (char *)"keerthi-pt2055"
 
 #if defined(SECURE_CONNECTION)
 #define port (int)8883
@@ -38,14 +39,21 @@ typedef struct
 } Certificates;
 #endif
 
+typedef enum
+{
+    Initialized = 1,
+    Connected = 2,
+    Disconnected = 3
+} ConnectionState;
+
 typedef struct
 {
     MQTTClient mqtt_client;
     Config config;
+    ConnectionState current_state;
 #if defined(SECURE_CONNECTION)
     Certificates certs;
 #endif
-
 } IOTclient;
 
 int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);

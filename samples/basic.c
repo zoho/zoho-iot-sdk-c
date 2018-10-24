@@ -2,8 +2,10 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(SECURE_CONNECTION)
 #if defined(EMBED_MODE)
 #include "certificates.h"
+#endif
 #endif
 volatile int ctrl_flag = 0;
 
@@ -56,9 +58,10 @@ int main()
         return 0;
     }
     rc = zclient_connect(&client);
-    if (rc != SUCCESS)
+    while (rc != SUCCESS && ctrl_flag == 0)
     {
-        return 0;
+        //Endless reconnection on start. No data collection happens during connection error.
+        rc = zclient_reconnect(&client);
     }
 
     // rc = zclient_subscribe(&client, message_handler);
@@ -68,14 +71,9 @@ int main()
         rc = zclient_addNumber("temperature", temperature);
         rc = zclient_addString("status", "OK");
 
-        //        payload = zclient_getpayload();
-        //        rc = zclient_publish(&client, payload);
+        //payload = zclient_getpayload();
+        //rc = zclient_publish(&client, payload);
         rc = zclient_dispatch(&client);
-        if (rc != SUCCESS)
-        {
-            log_error("Can't publish\n");
-            break;
-        }
         zclient_yield(&client, 300);
     }
 
