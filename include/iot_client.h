@@ -22,6 +22,8 @@
 #define data_topic (char *)"/telemetry"
 #define command_topic (char *)"/command"
 #define event_topic (char *)"/events"
+#define retry_limit 5
+#define CONNECTION_ERROR -3
 
 typedef struct
 {

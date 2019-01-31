@@ -74,7 +74,11 @@ int main()
         //payload = zclient_getpayload();
         //rc = zclient_publish(&client, payload);
         rc = zclient_dispatch(&client);
-        zclient_yield(&client, 300);
+        rc = zclient_yield(&client, 300);
+        if(rc == CONNECTION_ERROR)
+        {
+            break;
+        }
     }
 
     zclient_disconnect(&client);

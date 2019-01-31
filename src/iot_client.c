@@ -7,7 +7,7 @@ Network n;
 int rc;
 cJSON *cJsonPayload, *data;
 certsParseMode parse_mode;
-
+int retryCount = 0;
 char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "";
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
@@ -222,6 +222,12 @@ int zclient_yield(IOTclient *client, int time_out)
 {
     if (client->current_state == Disconnected)
     {
+        retryCount++;
+        if(retryCount > retry_limit)
+        {
+            log_info("Retry limit Exceeded");
+            return CONNECTION_ERROR;
+        }
         rc = zclient_reconnect(client);
         return rc;
     }
