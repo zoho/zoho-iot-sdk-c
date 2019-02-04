@@ -35,14 +35,14 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
     if (ca_crt == NULL || (mode == REFERENCE && access(ca_crt, F_OK) == -1))
     {
         log_error("RootCA file is not found/can't be accessed");
-        return FAILURE;
+        return ZFAILURE;
     }
     iot_client->certs.ca_crt = ca_crt;
 #if defined(USE_CLIENT_CERTS)
     if (client_cert == NULL || client_key == NULL || (mode == REFERENCE && (access(client_cert, F_OK) == -1)) || (mode == REFERENCE && (access(client_key, F_OK) == -1)))
     {
         log_error("Client key or Client certificate is not found/can't be accessed");
-        return FAILURE;
+        return ZFAILURE;
     }
     iot_client->certs.client_cert = client_cert;
     iot_client->certs.client_key = client_key;
@@ -56,12 +56,12 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
     if (cJsonPayload == NULL || data == NULL)
     {
         log_error("Can't create cJSON object");
-        return FAILURE;
+        return ZFAILURE;
     }
     cJSON_AddStringToObject(cJsonPayload, "device_id", device_id);
     iot_client->current_state = Initialized;
     log_info("Client Initialized!");
-    return SUCCESS;
+    return ZSUCCESS;
 }
 
 int zclient_connect(IOTclient *client)
@@ -87,7 +87,7 @@ int zclient_connect(IOTclient *client)
     if (rc != 0)
     {
         log_error("Error Connecting Network.. %d ", rc);
-        return -1;
+        return ZFAILURE;
     }
 
     //TODO: Handle the rc of ConnectNetwork().
@@ -135,6 +135,15 @@ int zclient_reconnect(IOTclient *client)
     if (rc == 0)
     {
         client->current_state = Connected;
+        retryCount = 0;
+        return ZSUCCESS;
+    }
+    retryCount++;
+    log_info("retryCount :%d",retryCount);
+    if(retryCount > retry_limit)
+    {
+        log_info("Retry limit Exceeded");
+        return ZCONNECTION_ERROR;
     }
     return rc;
 }
@@ -222,22 +231,16 @@ int zclient_yield(IOTclient *client, int time_out)
 {
     if (client->current_state == Disconnected)
     {
-        retryCount++;
-        if(retryCount > retry_limit)
-        {
-            log_info("Retry limit Exceeded");
-            return CONNECTION_ERROR;
-        }
         rc = zclient_reconnect(client);
         return rc;
     }
 
     rc = MQTTYield(&client->mqtt_client, time_out);
 
-    if (rc != SUCCESS)
+    if (rc == FAILURE)
     {
         client->current_state = Disconnected;
-        return FAILURE;
+        return ZFAILURE;
     }
     return rc;
 }

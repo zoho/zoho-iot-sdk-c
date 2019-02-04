@@ -53,12 +53,12 @@ int main()
 
     //Update your DEVICE_ID AND AUTH_TOKEN below:
     rc = zclient_init(&client, "12000000042001", "1G8rvZw9uJkexVaMMYu07E4vg9FYaCafwdNKEjh9iVqHvL3f2jBNBs0hYa/K4g1E/Xdrp6rAvXHLO6XiOM0S68tvDOwrRBwGRFdCV48btXTsH68NgPcvr9d1blzMpyo=", CRT_PARSE_MODE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
-    if (rc != SUCCESS)
+    if (rc != ZSUCCESS)
     {
         return 0;
     }
     rc = zclient_connect(&client);
-    while (rc != SUCCESS && ctrl_flag == 0)
+    while (rc != ZSUCCESS && ctrl_flag == 0)
     {
         //Endless reconnection on start. No data collection happens during connection error.
         rc = zclient_reconnect(&client);
@@ -75,7 +75,7 @@ int main()
         //rc = zclient_publish(&client, payload);
         rc = zclient_dispatch(&client);
         rc = zclient_yield(&client, 300);
-        if(rc == CONNECTION_ERROR)
+        if(rc == ZCONNECTION_ERROR)
         {
             break;
         }
