@@ -31,17 +31,22 @@ ENDIF()
 OPTION(ENABLE_TLS "Enable TLS for Secure connection" OFF)
 OPTION(USE_CLIENT_CERTS "Use Client side Certs for Secure connection" ON)
 
+#For unit test cases:
+OPTION(RUN_TESTS "Run unit tests" ON)
+
 # Set Log level to LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL.
 SET(Z_LOG_LEVEL LOG_DEBUG)
+
+# Build mode, should be disabled on Production build.
+SET(CMAKE_BUILD_TYPE DEBUG)
 
 MESSAGE(STATUS "TLS SUPPORT : " ${ENABLE_TLS})
 MESSAGE(STATUS "USE CLIENT CERTS : " ${USE_CLIENT_CERTS})
 MESSAGE(STATUS "LOG LEVEL : " ${Z_LOG_LEVEL})
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
-# Debug mode to be disabled on Production build.
-SET(CMAKE_BUILD_TYPE DEBUG)
 ADD_SUBDIRECTORY(cmake/setup)
+include(CodeCoverage)
 
 INCLUDE_DIRECTORIES(test include lib/cjson src)
 INCLUDE_DIRECTORIES(lib/paho.mqtt/MQTTPacket/src lib/paho.mqtt/MQTTClient-C/src)
@@ -86,6 +91,11 @@ TARGET_LINK_LIBRARIES(zoho_iot_sdk)
 
 # Basic example with TLS:
 ADD_SUBDIRECTORY(samples)
+
+#Unit Test cases:
+IF(RUN_TESTS)
+    add_subdirectory(test/unit)
+ENDIF(RUN_TESTS)
 
 # Tests: CJSON:
 ADD_EXECUTABLE(cjson_test test/dependency_tests/cjson_test.c)

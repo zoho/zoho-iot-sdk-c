@@ -67,7 +67,7 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
 int zclient_connect(IOTclient *client)
 {
     //TODO: verify the buff size on real device. and flush the buffer at end of connection.
-    if (client->current_state < 1)
+    if (client->current_state != Initialized || client->current_state != Connected || client->current_state != Disconnected)
     {
         log_error("Client should be initialized before connection");
         return -2; //just to differentiate with network error.
