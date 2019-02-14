@@ -21,7 +21,7 @@ ENDIF()
 FIND_PROGRAM(CURL_FOUND NAMES curl)
 FIND_PROGRAM(UNZIP_FOUND NAMES unzip)
 FIND_PROGRAM(PATCH_FOUND NAMES patch)
-IF(NOT UNZIP_FOUND AND NOT CURL_FOUND AND NOT PATCH_FOUND)
+IF(NOT UNZIP_FOUND OR NOT CURL_FOUND OR NOT PATCH_FOUND)
     MESSAGE(
         FATAL_ERROR
             "Check if dependecies curl,unzip & patch are pre-installed, if not install them and try again."
