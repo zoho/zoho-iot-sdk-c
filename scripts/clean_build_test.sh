@@ -9,4 +9,6 @@ cmake ..
 make -j8
 echo "\n\n\nRunning Tests:\n"
 ctest -V
-echo "Done!"
+echo "\nSuccess! Generating Report:\n"
+lcov -c -d CMakeFiles/zoho_iot_sdk.dir/src/ -o coverage.info
+genhtml coverage.info -o report
