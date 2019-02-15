@@ -20,6 +20,16 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
 
     log_initialize();
     log_info("\n\n\nSDK Initializing..");
+    if(iot_client == NULL)
+    {
+        log_error("Client object is NULL");
+        return ZFAILURE;
+    }
+    if(device_id == NULL || auth_token == NULL)
+    {
+        log_error("Device Credentials can't be NULL");
+        return ZFAILURE;
+    }
 
     //Populating dynamic topic names based on its deviceID
     sprintf(dataTopic, "%s/%s%s", topic_pre, device_id, data_topic);
@@ -66,6 +76,11 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
 
 int zclient_connect(IOTclient *client)
 {
+    if(client == NULL)
+    {
+        log_error("Client object can't be NULL");
+        return ZFAILURE;
+    }
     //TODO: verify the buff size on real device. and flush the buffer at end of connection.
     if (client->current_state != Initialized || client->current_state != Connected || client->current_state != Disconnected)
     {
@@ -128,6 +143,11 @@ int zclient_connect(IOTclient *client)
 
 int zclient_reconnect(IOTclient *client)
 {
+    if(client==NULL)
+    {
+        log_error("Client object can't be NULL");
+        return ZFAILURE;
+    }
     int rc = -1, delay = 5;
     log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", hostname, port, delay);
     sleep(delay);
@@ -150,10 +170,15 @@ int zclient_reconnect(IOTclient *client)
 
 int zclient_publish(IOTclient *client, char *payload)
 {
+    if(client == NULL)
+    {
+        log_error("Client object can't be NULL");
+        return ZFAILURE;
+    }
     if (client->current_state != Connected)
     {
-        log_debug("Failed to publish, since connection is lost");
-        return -1;
+        log_debug("Failed to publish, since connection is lost/not established");
+        return ZFAILURE;
     }
     MQTTMessage pubmsg;
     //TODO:remove hardcoded values of id etc and get from structure copied from config.h
@@ -168,7 +193,7 @@ int zclient_publish(IOTclient *client, char *payload)
     pubmsg.payloadlen = strlen(payload);
     rc = MQTTPublish(&(client->mqtt_client), dataTopic, &pubmsg);
     //TODO: check for connection and retry to send the message once the conn got restroed.
-    if (rc == 0)
+    if (rc == ZSUCCESS)
     {
         log_debug("Published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, dataTopic);
     }
@@ -182,6 +207,11 @@ int zclient_publish(IOTclient *client, char *payload)
 
 int zclient_dispatch(IOTclient *client)
 {
+    if(client == NULL)
+    {
+        log_error("Client object can't be NULL");
+        return ZFAILURE;
+    }
     //TODO: Add time stamp, Client ID
     time_t curtime;
     time(&curtime);
@@ -212,9 +242,14 @@ int zclient_dispatch(IOTclient *client)
 
 int zclient_subscribe(IOTclient *client, messageHandler on_message)
 {
+    if(client == NULL)
+    {
+        log_error("Client object can't be NULL");
+        return ZFAILURE;
+    }
     //TODO: add basic validation & callback method and append it on error logs.
     rc = MQTTSubscribe(&(client->mqtt_client), commandTopic, QOS0, on_message);
-    if (rc == 0)
+    if (rc == ZSUCCESS)
     {
         log_info("Subscribed on \x1b[36m '%s' \x1b[0m", commandTopic);
     }
@@ -229,6 +264,12 @@ int zclient_subscribe(IOTclient *client, messageHandler on_message)
 
 int zclient_yield(IOTclient *client, int time_out)
 {
+    if(client == NULL)
+    {
+        log_error("Client object can't be NULL");
+        return ZFAILURE;
+    }
+
     if (client->current_state == Disconnected)
     {
         rc = zclient_reconnect(client);
@@ -237,7 +278,7 @@ int zclient_yield(IOTclient *client, int time_out)
 
     rc = MQTTYield(&client->mqtt_client, time_out);
 
-    if (rc == FAILURE)
+    if (rc == ZFAILURE)
     {
         client->current_state = Disconnected;
         return ZFAILURE;
@@ -247,6 +288,11 @@ int zclient_yield(IOTclient *client, int time_out)
 
 int zclient_disconnect(IOTclient *client)
 {
+    if(client == NULL)
+    {
+        log_error("Client object can't be NULL");
+        return ZFAILURE;
+    }
     if (client->current_state == Connected)
     {
         rc = MQTTDisconnect(&client->mqtt_client);
@@ -268,7 +314,7 @@ int zclient_addString(char *val_name, char *val_string)
         if (cJSON_AddStringToObject(data, val_name, val_string) == NULL)
         {
             log_error("Adding string attribute failed\n");
-            ret = -1;
+            ret = ZFAILURE;
         }
     }
     else
@@ -288,7 +334,7 @@ int zclient_addNumber(char *val_name, int val_int)
         if (cJSON_AddNumberToObject(data, val_name, val_int) == NULL)
         {
             log_error("Adding int attribute failed\n");
-            ret = -1;
+            ret = ZFAILURE;
         }
     }
     else
