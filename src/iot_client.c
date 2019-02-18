@@ -82,7 +82,7 @@ int zclient_connect(IOTclient *client)
         return ZFAILURE;
     }
     //TODO: verify the buff size on real device. and flush the buffer at end of connection.
-    if(client->current_state != Initialized || client->current_state != Connected || client->current_state != Disconnected)
+    if(client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
     {
         log_error("Client should be initialized before connection");
         return -2; //just to differentiate with network error.
@@ -223,7 +223,7 @@ int zclient_dispatch(IOTclient *client)
         log_error("Client object can't be NULL");
         return ZFAILURE;
     }
-    if (client->current_state != Initialized || client->current_state != Connected || client->current_state != Disconnected)
+    if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
     {
         log_error("Client should be initialized");
         return -2; 
@@ -263,7 +263,7 @@ int zclient_subscribe(IOTclient *client, messageHandler on_message)
         log_error("Client object can't be NULL");
         return ZFAILURE;
     }
-    if (client->current_state != Initialized || client->current_state != Connected || client->current_state != Disconnected)
+    if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
     {
         log_error("Client should be initialized");
         return -2; 
@@ -295,7 +295,7 @@ int zclient_yield(IOTclient *client, int time_out)
         log_error("timeout can't be Zero or Negative");
         return ZFAILURE;
     }
-    if (client->current_state != Initialized || client->current_state != Connected || client->current_state != Disconnected)
+    if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
     {
         log_error("Client should be initialized");
         return -2; 
