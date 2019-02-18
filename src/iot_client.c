@@ -82,16 +82,20 @@ int zclient_connect(IOTclient *client)
         return ZFAILURE;
     }
     //TODO: verify the buff size on real device. and flush the buffer at end of connection.
-    if (client->current_state != Initialized || client->current_state != Connected || client->current_state != Disconnected)
+    if(client->current_state != Initialized || client->current_state != Connected || client->current_state != Disconnected)
     {
         log_error("Client should be initialized before connection");
         return -2; //just to differentiate with network error.
+    }
+    if(client->current_state == Connected)
+    {
+        log_info("Client already Connected");
+        return ZSUCCESS;
     }
     unsigned const int buff_size = 10000;
     unsigned char buf[buff_size], readbuf[buff_size];
 
     log_info("Preparing Network..");
-
     NetworkInit(&n);
 
 #if defined(SECURE_CONNECTION)
@@ -99,7 +103,7 @@ int zclient_connect(IOTclient *client)
 #else
     rc = NetworkConnect(&n, hostname, port);
 #endif
-    if (rc != 0)
+    if (rc != ZSUCCESS)
     {
         log_error("Error Connecting Network.. %d ", rc);
         return ZFAILURE;
@@ -148,11 +152,18 @@ int zclient_reconnect(IOTclient *client)
         log_error("Client object can't be NULL");
         return ZFAILURE;
     }
+
+    if(client->current_state == Connected)
+    {
+        log_info("Client already Connected");
+        return ZSUCCESS;
+    }
+
     int rc = -1, delay = 5;
     log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", hostname, port, delay);
     sleep(delay);
     rc = zclient_connect(client);
-    if (rc == 0)
+    if (rc == ZSUCCESS)
     {
         client->current_state = Connected;
         retryCount = 0;
@@ -212,6 +223,11 @@ int zclient_dispatch(IOTclient *client)
         log_error("Client object can't be NULL");
         return ZFAILURE;
     }
+    if (client->current_state != Initialized || client->current_state != Connected || client->current_state != Disconnected)
+    {
+        log_error("Client should be initialized");
+        return -2; 
+    }
     //TODO: Add time stamp, Client ID
     time_t curtime;
     time(&curtime);
@@ -247,6 +263,11 @@ int zclient_subscribe(IOTclient *client, messageHandler on_message)
         log_error("Client object can't be NULL");
         return ZFAILURE;
     }
+    if (client->current_state != Initialized || client->current_state != Connected || client->current_state != Disconnected)
+    {
+        log_error("Client should be initialized");
+        return -2; 
+    }
     //TODO: add basic validation & callback method and append it on error logs.
     rc = MQTTSubscribe(&(client->mqtt_client), commandTopic, QOS0, on_message);
     if (rc == ZSUCCESS)
@@ -269,7 +290,16 @@ int zclient_yield(IOTclient *client, int time_out)
         log_error("Client object can't be NULL");
         return ZFAILURE;
     }
-
+    if(time_out<=0)
+    {
+        log_error("timeout can't be Zero or Negative");
+        return ZFAILURE;
+    }
+    if (client->current_state != Initialized || client->current_state != Connected || client->current_state != Disconnected)
+    {
+        log_error("Client should be initialized");
+        return -2; 
+    }
     if (client->current_state == Disconnected)
     {
         rc = zclient_reconnect(client);
