@@ -1,8 +1,9 @@
 #!/bin/bash
 pwd
+rm -rf build
+
 set -e
 
-rm -rf build
 mkdir build && cd build
 cmake ..
 make -j8
@@ -12,6 +13,11 @@ export CMOCKA_MESSAGE_OUTPUT=XML
 export CMOCKA_XML_FILE=unit-test-report.xml
 ctest -V
 
-echo "\nSuccess! Generating Report:\n"
+echo "\nSuccess! Generating Reports:\n"
 lcov -c -d CMakeFiles/zoho_iot_sdk.dir/src/ -o coverage.info
 genhtml coverage.info -o report
+
+#Cobertura Coverage Report
+gcovr -x -r ../ -e ../lib -e ../samples -e ../test -o coverage.xml
+
+cd -
