@@ -2,14 +2,10 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
-
-#include <stdarg.h>
-#include <stddef.h>
 #include <limits.h>
-#include <setjmp.h>
-#include <cmocka.h>
 #include "iot_client.h"
 #include "generic.h"
+#include "wrap_functions.h"
 
 static void InitMethod_OnNullArguments_ShouldFail(void **state)
 {
@@ -51,7 +47,7 @@ static void ConnectMethod_OnConnectOverExistingConnetion_ShouldSucceed(void **st
 {
     // connect returns SUCCESS for connect called on existing connection.
     IOTclient client;
-    assert_int_equal(zclient_init(&client, "device_id", "token", EMBED, "", "", "", ""),ZSUCCESS);
+    assert_int_equal(zclient_init(&client, "device_id", "token", EMBED, "", "", "", ""), ZSUCCESS);
     client.current_state = Connected;
     assert_int_equal(zclient_connect(&client), ZSUCCESS);
 }
@@ -123,10 +119,9 @@ static void DisconnectMethod_OnUnEstablishedConnetion_ShouldSucceed(void **state
 {
     // connect returns SUCCESS for connect called on existing connection.
     IOTclient client;
-    assert_int_equal(zclient_init(&client, "device_id", "token", EMBED, "", "", "", ""),ZSUCCESS);
+    assert_int_equal(zclient_init(&client, "device_id", "token", EMBED, "", "", "", ""), ZSUCCESS);
     assert_int_equal(zclient_disconnect(&client), ZSUCCESS);
 }
-
 
 static void ReconnectMethod_WithExistingConnection_ShouldSucceed(void **state)
 {
@@ -135,9 +130,10 @@ static void ReconnectMethod_WithExistingConnection_ShouldSucceed(void **state)
     client.current_state = Connected;
     assert_int_equal(zclient_reconnect(&client), ZSUCCESS);
 }
+
 static void ReconnectMethod_OnNullArguments_ShouldFail(void **state)
 {
-    //Reconnect returns Failure on NULL client object 
+    //Reconnect returns Failure on NULL client object
     assert_int_equal(zclient_reconnect(NULL), ZFAILURE);
 }
 
@@ -167,12 +163,11 @@ static void AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void
     assert_int_equal(zclient_addNumber("key1", 2), 0);
 }
 
-
 static void PublishMethod_OnCallingBeforeInitialization_ShouldFail()
 {
     // connecting to HUB with out initializing client would return FAILURE
     IOTclient client;
-    assert_int_equal(zclient_publish(&client,"hello"), ZFAILURE);
+    assert_int_equal(zclient_publish(&client, "hello"), ZFAILURE);
 }
 
 static void PublishMethod_OnNUllArguments_ShouldFail(void **state)
@@ -182,7 +177,56 @@ static void PublishMethod_OnNUllArguments_ShouldFail(void **state)
     assert_int_equal(zclient_publish(NULL, "hello"), ZFAILURE);
 }
 
+int __wrap_MQTTConnect(MQTTClient *c, MQTTPacket_connectData *options)
+{
+    return mock_type(int);
+}
 
+int __wrap_NetworkConnect(Network *n, char *host, int pt)
+{
+    return mock_type(int);
+}
+
+int __wrap_MQTTSubscribe(MQTTClient *c, const char* topicFilter, enum QoS qos,messageHandler messageHandler)
+{
+    return mock_type(int);
+}
+
+static void ConnectMethod_WithNonNUllArguments_ShouldSucceed(void **state)
+{
+    // Connect method returns SUCCEDD with proper device credentials
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    assert_int_equal(zclient_connect(&client), ZSUCCESS);
+}
+
+void message_handler(MessageData *data){}
+
+static void SubscribeMethod_WithNonNUllArguments_ShouldSucceed(void **state)
+{
+    // Subscribe method returns success with appropriate connection.
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTSubscribe,ZSUCCESS);
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_subscribe(&client,message_handler),ZSUCCESS);
+}
+
+static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
+{
+    // Reconnect method with lost connection can Retry connection and succeed.
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    client.current_state = Disconnected;
+    assert_int_equal(zclient_reconnect(&client),ZSUCCESS);
+}
 
 int main(void)
 {
@@ -207,7 +251,10 @@ int main(void)
             cmocka_unit_test(AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
             cmocka_unit_test(InitMethod_WithTls_NullCertificates_ShouldFail),
             cmocka_unit_test(PublishMethod_OnNUllArguments_ShouldFail),
-            cmocka_unit_test(PublishMethod_OnCallingBeforeInitialization_ShouldFail)
+            cmocka_unit_test(PublishMethod_OnCallingBeforeInitialization_ShouldFail),
+            cmocka_unit_test(ConnectMethod_WithNonNUllArguments_ShouldSucceed),
+            cmocka_unit_test(SubscribeMethod_WithNonNUllArguments_ShouldSucceed),
+            cmocka_unit_test(ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed)
             };
 
     cmocka_set_message_output(CM_OUTPUT_XML);

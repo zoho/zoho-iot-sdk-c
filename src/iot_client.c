@@ -49,7 +49,7 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
     }
     iot_client->certs.ca_crt = ca_crt;
 #if defined(USE_CLIENT_CERTS)
-    if (client_cert == NULL || client_key == NULL || (mode == REFERENCE && (access(client_cert, F_OK) == -1)) || (mode == REFERENCE && (access(client_key, F_OK) == -1)))
+    if (client_cert == NULL || client_key == NULL || cert_password == NULL ||(mode == REFERENCE && (access(client_cert, F_OK) == -1)) || (mode == REFERENCE && (access(client_key, F_OK) == -1)))
     {
         log_error("Client key or Client certificate is not found/can't be accessed");
         return ZFAILURE;
@@ -227,6 +227,11 @@ int zclient_dispatch(IOTclient *client)
     {
         log_error("Client should be initialized");
         return -2; 
+    }
+    if (client->current_state != Connected)
+    {
+        log_debug("Failed to subscribe, since connection is lost/not established");
+        return ZFAILURE;
     }
     //TODO: Add time stamp, Client ID
     time_t curtime;
