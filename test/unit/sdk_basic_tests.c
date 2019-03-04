@@ -187,12 +187,27 @@ int __wrap_NetworkConnect(Network *n, char *host, int pt)
     return mock_type(int);
 }
 
-int __wrap_MQTTSubscribe(MQTTClient *c, const char* topicFilter, enum QoS qos,messageHandler messageHandler)
+int __wrap_MQTTSubscribe(MQTTClient *c, const char *topicFilter, enum QoS qos, messageHandler messageHandler)
 {
     return mock_type(int);
 }
 
-static void ConnectMethod_WithNonNUllArguments_ShouldSucceed(void **state)
+int __wrap_MQTTPublish(MQTTClient *c, const char *topicName, MQTTMessage *message)
+{
+    return mock_type(int);
+}
+
+int __wrap_MQTTDisconnect(MQTTClient *client)
+{
+    return mock_type(int);
+}
+
+int __wrap_MQTTYield(MQTTClient *c, int time_out)
+{
+    return mock_type(int);
+}
+
+static void ConnectMethod_WithNonNullArguments_ShouldSucceed(void **state)
 {
     // Connect method returns SUCCEDD with proper device credentials
     will_return(__wrap_NetworkConnect, ZSUCCESS);
@@ -203,18 +218,81 @@ static void ConnectMethod_WithNonNUllArguments_ShouldSucceed(void **state)
     assert_int_equal(zclient_connect(&client), ZSUCCESS);
 }
 
-void message_handler(MessageData *data){}
+static void ConnectMethod_WithLostNetworkConnection_ShouldFail(void **state)
+{
+    // Connect method returns failure as Network connection is not available.
+    will_return(__wrap_NetworkConnect, ZFAILURE);
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    assert_int_equal(zclient_connect(&client), ZFAILURE);
+}
+static void ConnectMethod_WithWrongCredentials_ShouldFail(void **state)
+{
+    // connect method returns failure as credentials for network connection are incorrect.
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, 5);
 
-static void SubscribeMethod_WithNonNUllArguments_ShouldSucceed(void **state)
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    assert_int_equal(zclient_connect(&client), 5);
+}
+
+void message_handler(MessageData *data) {}
+
+static void SubscribeMethod_WithNonNullArguments_ShouldSucceed(void **state)
 {
     // Subscribe method returns success with appropriate connection.
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTSubscribe,ZSUCCESS);
+    will_return(__wrap_MQTTSubscribe, ZSUCCESS);
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
     zclient_connect(&client);
-    assert_int_equal(zclient_subscribe(&client,message_handler),ZSUCCESS);
+    assert_int_equal(zclient_subscribe(&client, message_handler), ZSUCCESS);
+}
+
+static void SubscribeMethod_WithLostConnection_ShouldFail(void **state)
+{
+    // Subscribe with lost connection should Fail
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTSubscribe, ZFAILURE);
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_subscribe(&client, message_handler), ZFAILURE);
+
+}
+static void PublishMethod_WithNonNullArguments_ShouldSucceed(void **state)
+{
+    // Publish method with appropriate arguments should succeed.
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTPublish, ZSUCCESS);
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_publish(&client, "payload"), ZSUCCESS);
+}
+
+static void DispatchMethod_WithNoConnection_ShouldFail(void **state)
+{
+    // Dispatch with out establishing connection should Fail
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    assert_int_equal(zclient_dispatch(&client), ZFAILURE);
+}
+
+static void DispatchMethod_WithProperConnection_ShouldSucceed(void **state)
+{
+    // Dispatch with Active connection should succeed.
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTPublish, ZSUCCESS);
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_dispatch(&client), ZSUCCESS);
 }
 
 static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
@@ -225,7 +303,31 @@ static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
     client.current_state = Disconnected;
-    assert_int_equal(zclient_reconnect(&client),ZSUCCESS);
+    assert_int_equal(zclient_reconnect(&client), ZSUCCESS);
+}
+
+static void DisconnectMethod_WithActiveConnection_ShouldDisconnectAndReturnSuccess(void **state)
+{
+    // Disconnect method with active connection get disconnected properly from HUB and return success.
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTDisconnect, ZSUCCESS);
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_disconnect(&client), ZSUCCESS);
+}
+
+static void YieldMethod_OnNonNullArguments_ShouldSucceed(void **state)
+{
+    // yield method with appropriate arguments should succeed.
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTYield,ZSUCCESS);
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_yield(&client,300),ZSUCCESS);
 }
 
 int main(void)
@@ -252,11 +354,17 @@ int main(void)
             cmocka_unit_test(InitMethod_WithTls_NullCertificates_ShouldFail),
             cmocka_unit_test(PublishMethod_OnNUllArguments_ShouldFail),
             cmocka_unit_test(PublishMethod_OnCallingBeforeInitialization_ShouldFail),
-            cmocka_unit_test(ConnectMethod_WithNonNUllArguments_ShouldSucceed),
-            cmocka_unit_test(SubscribeMethod_WithNonNUllArguments_ShouldSucceed),
-            cmocka_unit_test(ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed)
-            };
-
+            cmocka_unit_test(ConnectMethod_WithNonNullArguments_ShouldSucceed),
+            cmocka_unit_test(ConnectMethod_WithLostNetworkConnection_ShouldFail),
+            cmocka_unit_test(ConnectMethod_WithWrongCredentials_ShouldFail),
+            cmocka_unit_test(SubscribeMethod_WithNonNullArguments_ShouldSucceed),
+            cmocka_unit_test(SubscribeMethod_WithLostConnection_ShouldFail),
+            cmocka_unit_test(PublishMethod_WithNonNullArguments_ShouldSucceed),
+            cmocka_unit_test(DispatchMethod_WithNoConnection_ShouldFail),
+            cmocka_unit_test(DispatchMethod_WithProperConnection_ShouldSucceed),
+            cmocka_unit_test(ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed),
+            cmocka_unit_test(YieldMethod_OnNonNullArguments_ShouldSucceed),
+            cmocka_unit_test(DisconnectMethod_WithActiveConnection_ShouldDisconnectAndReturnSuccess)};
     cmocka_set_message_output(CM_OUTPUT_XML);
     return cmocka_run_group_tests(sdk_basic_tests, NULL, NULL);
 }
