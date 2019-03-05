@@ -22,12 +22,12 @@
 #define data_topic (char *)"/telemetry"
 #define command_topic (char *)"/command"
 #define event_topic (char *)"/events"
-#define retry_limit 5
 
 typedef struct
 {
     char *device_id;
     char *auth_token;
+    int retry_limit;
 } Config;
 
 #if defined(SECURE_CONNECTION)
@@ -76,5 +76,6 @@ int zclient_dispatch(IOTclient *client);
 
 int zclient_addString(IOTclient *client,char *val_name, char *val_string);
 int zclient_addNumber(IOTclient *client,char *val_name, int val_int);
+int zclient_setRetrycount(IOTclient *client,int count);
 //char *zclient_getpayload();
 #endif //# IOT_CLIENT_H_

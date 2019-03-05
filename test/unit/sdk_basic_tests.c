@@ -137,6 +137,14 @@ static void ReconnectMethod_OnNullArguments_ShouldFail(void **state)
     assert_int_equal(zclient_reconnect(NULL), ZFAILURE);
 }
 
+static void ReconnectMethod_OnCallingBeforeInitialization_ShouldFail()
+{
+    //  Reconnecting with out initializing client would return FAILURE
+    IOTclient client;
+    assert_int_equal(zclient_reconnect(&client),-2);
+}
+
+
 static void AddString_OnNullArguments_ShouldFail(void **state)
 {
     // AddString with null key/value returns FAILURE
@@ -346,6 +354,7 @@ static void YieldMethod_OnNonNullArguments_ShouldSucceed(void **state)
 
 static void YieldMethod_WithLostConnection_ShouldFail(void **state)
 {
+    // Yield method wehn connection lost returns failure
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTYield,ZFAILURE);
@@ -353,6 +362,27 @@ static void YieldMethod_WithLostConnection_ShouldFail(void **state)
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
     zclient_connect(&client);
     assert_int_equal(zclient_yield(&client,300),ZFAILURE);
+}
+
+static void SetRetryCountMethod_CalledWithoutInitializingClient_ShouldFail(void **state)
+{
+    // retry count method returns failure as client must be initialized .
+    IOTclient client;
+    assert_int_equal(zclient_setRetrycount(&client,10),-2);
+}
+
+static void SetRetryCountMethod_WithNullArguments_ShouldFail(void **state)
+{
+    // set Retry count method fails since client object is NULL.
+    assert_int_equal(zclient_setRetrycount(NULL,10),ZFAILURE);
+}
+
+static void SetRetryCountMethod_WithNegativeCount_ShouldFail_DefaultValueIsUnchanged(void **state)
+{
+    // Retry count is set to default when negative value is set.
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    assert_int_equal(zclient_setRetrycount(&client,-10),ZFAILURE);
 }
 
 int main(void)
@@ -374,6 +404,7 @@ int main(void)
             cmocka_unit_test(AddString_OnNullArguments_ShouldFail),
             cmocka_unit_test(ReconnectMethod_WithExistingConnection_ShouldSucceed),
             cmocka_unit_test(ReconnectMethod_OnNullArguments_ShouldFail),
+            cmocka_unit_test(ReconnectMethod_OnCallingBeforeInitialization_ShouldFail),
             cmocka_unit_test(AddStringMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
             cmocka_unit_test(AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
             cmocka_unit_test(InitMethod_WithTls_NullCertificates_ShouldFail),
@@ -391,6 +422,9 @@ int main(void)
             cmocka_unit_test(ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed),
             cmocka_unit_test(YieldMethod_OnNonNullArguments_ShouldSucceed),
             cmocka_unit_test(YieldMethod_WithLostConnection_ShouldFail),
+            cmocka_unit_test(SetRetryCountMethod_CalledWithoutInitializingClient_ShouldFail),
+            cmocka_unit_test(SetRetryCountMethod_WithNullArguments_ShouldFail),
+            cmocka_unit_test(SetRetryCountMethod_WithNegativeCount_ShouldFail_DefaultValueIsUnchanged),
             cmocka_unit_test(DisconnectMethod_WithActiveConnection_ShouldDisconnectAndReturnSuccess)};
     cmocka_set_message_output(CM_OUTPUT_XML);
     return cmocka_run_group_tests(sdk_basic_tests, NULL, NULL);
