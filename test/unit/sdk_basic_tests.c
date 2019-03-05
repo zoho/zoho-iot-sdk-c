@@ -151,7 +151,7 @@ static void AddStringMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
     zclient_addString("str_key", "str_val1");
-    assert_int_equal(zclient_addString("str_key", "str_val2"), 0);
+    assert_int_equal(zclient_addString("str_key", "str_val2"), ZSUCCESS);
 }
 
 static void AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void **state)
@@ -263,6 +263,7 @@ static void SubscribeMethod_WithLostConnection_ShouldFail(void **state)
     assert_int_equal(zclient_subscribe(&client, message_handler), ZFAILURE);
 
 }
+
 static void PublishMethod_WithNonNullArguments_ShouldSucceed(void **state)
 {
     // Publish method with appropriate arguments should succeed.
@@ -273,6 +274,17 @@ static void PublishMethod_WithNonNullArguments_ShouldSucceed(void **state)
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
     zclient_connect(&client);
     assert_int_equal(zclient_publish(&client, "payload"), ZSUCCESS);
+}
+
+static void PublishMethod_WithLostConnection_ShouldFail(void **state)
+{
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTPublish, ZFAILURE);
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_publish(&client, "payload"), ZFAILURE);
 }
 
 static void DispatchMethod_WithNoConnection_ShouldFail(void **state)
@@ -292,6 +304,8 @@ static void DispatchMethod_WithProperConnection_ShouldSucceed(void **state)
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
     zclient_connect(&client);
+    zclient_addNumber("key1",10);
+    zclient_addString("key2","value");
     assert_int_equal(zclient_dispatch(&client), ZSUCCESS);
 }
 
@@ -330,6 +344,17 @@ static void YieldMethod_OnNonNullArguments_ShouldSucceed(void **state)
     assert_int_equal(zclient_yield(&client,300),ZSUCCESS);
 }
 
+static void YieldMethod_WithLostConnection_ShouldFail(void **state)
+{
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTYield,ZFAILURE);
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_yield(&client,300),ZFAILURE);
+}
+
 int main(void)
 {
     const struct CMUnitTest sdk_basic_tests[] =
@@ -354,6 +379,7 @@ int main(void)
             cmocka_unit_test(InitMethod_WithTls_NullCertificates_ShouldFail),
             cmocka_unit_test(PublishMethod_OnNUllArguments_ShouldFail),
             cmocka_unit_test(PublishMethod_OnCallingBeforeInitialization_ShouldFail),
+            cmocka_unit_test(PublishMethod_WithLostConnection_ShouldFail),
             cmocka_unit_test(ConnectMethod_WithNonNullArguments_ShouldSucceed),
             cmocka_unit_test(ConnectMethod_WithLostNetworkConnection_ShouldFail),
             cmocka_unit_test(ConnectMethod_WithWrongCredentials_ShouldFail),
@@ -364,6 +390,7 @@ int main(void)
             cmocka_unit_test(DispatchMethod_WithProperConnection_ShouldSucceed),
             cmocka_unit_test(ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed),
             cmocka_unit_test(YieldMethod_OnNonNullArguments_ShouldSucceed),
+            cmocka_unit_test(YieldMethod_WithLostConnection_ShouldFail),
             cmocka_unit_test(DisconnectMethod_WithActiveConnection_ShouldDisconnectAndReturnSuccess)};
     cmocka_set_message_output(CM_OUTPUT_XML);
     return cmocka_run_group_tests(sdk_basic_tests, NULL, NULL);
