@@ -40,6 +40,12 @@ typedef struct
 } Certificates;
 #endif
 
+typedef struct
+{
+    cJSON *cJsonPayload;
+    cJSON *data;
+} Payload;
+
 typedef enum
 {
     Initialized = 1,
@@ -52,6 +58,7 @@ typedef struct
     MQTTClient mqtt_client;
     Config config;
     ConnectionState current_state;
+    Payload message;
 #if defined(SECURE_CONNECTION)
     Certificates certs;
 #endif
@@ -67,7 +74,7 @@ int zclient_yield(IOTclient *client, int time_out);
 int zclient_reconnect(IOTclient *client);
 int zclient_dispatch(IOTclient *client);
 
-int zclient_addString(char *val_name, char *val_string);
-int zclient_addNumber(char *val_name, int val_int);
+int zclient_addString(IOTclient *client,char *val_name, char *val_string);
+int zclient_addNumber(IOTclient *client,char *val_name, int val_int);
 //char *zclient_getpayload();
 #endif //# IOT_CLIENT_H_

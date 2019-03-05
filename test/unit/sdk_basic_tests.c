@@ -142,7 +142,7 @@ static void AddString_OnNullArguments_ShouldFail(void **state)
     // AddString with null key/value returns FAILURE
     IOTclient client;
     int rc = zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
-    assert_int_equal(zclient_addString("Key", NULL), ZFAILURE);
+    assert_int_equal(zclient_addString(&client,"Key", NULL), ZFAILURE);
 }
 
 static void AddStringMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void **state)
@@ -150,8 +150,8 @@ static void AddStringMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void
     // AddString with same key returns SUCCESS , old value gets replaced.
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
-    zclient_addString("str_key", "str_val1");
-    assert_int_equal(zclient_addString("str_key", "str_val2"), ZSUCCESS);
+    zclient_addString(&client,"str_key", "str_val1");
+    assert_int_equal(zclient_addString(&client,"str_key", "str_val2"), ZSUCCESS);
 }
 
 static void AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void **state)
@@ -159,8 +159,8 @@ static void AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void
     // AddNumber with same key returns SUCCESS , old value gets replaced.
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
-    zclient_addNumber("key1", 1);
-    assert_int_equal(zclient_addNumber("key1", 2), 0);
+    zclient_addNumber(&client,"key1", 1);
+    assert_int_equal(zclient_addNumber(&client,"key1", 2), 0);
 }
 
 static void PublishMethod_OnCallingBeforeInitialization_ShouldFail()
@@ -304,8 +304,8 @@ static void DispatchMethod_WithProperConnection_ShouldSucceed(void **state)
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
     zclient_connect(&client);
-    zclient_addNumber("key1",10);
-    zclient_addString("key2","value");
+    zclient_addNumber(&client,"key1",10);
+    zclient_addString(&client,"key2","value");
     assert_int_equal(zclient_dispatch(&client), ZSUCCESS);
 }
 

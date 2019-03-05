@@ -68,8 +68,8 @@ int main()
     while (ctrl_flag == 0)
     {
         temperature += 2;
-        rc = zclient_addNumber("temperature", temperature);
-        rc = zclient_addString("status", "OK");
+        rc = zclient_addNumber(&client,"temperature", temperature);
+        rc = zclient_addString(&client,"status", "OK");
 
         //payload = zclient_getpayload();
         //rc = zclient_publish(&client, payload);

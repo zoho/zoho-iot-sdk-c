@@ -5,7 +5,6 @@
 //TODO: read from config file.
 Network n;
 int rc;
-cJSON *cJsonPayload, *data;
 certsParseMode parse_mode;
 int retryCount = 0;
 char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "";
@@ -61,14 +60,14 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
 #endif
 
     //TODO: freeup config.
-    cJsonPayload = cJSON_CreateObject();
-    data = cJSON_CreateObject();
-    if (cJsonPayload == NULL || data == NULL)
+    iot_client->message.cJsonPayload = cJSON_CreateObject();
+    iot_client->message.data = cJSON_CreateObject();
+    if (iot_client->message.cJsonPayload == NULL || iot_client->message.data == NULL)
     {
         log_error("Can't create cJSON object");
         return ZFAILURE;
     }
-    cJSON_AddStringToObject(cJsonPayload, "device_id", device_id);
+    cJSON_AddStringToObject(iot_client->message.cJsonPayload, "device_id", device_id);
     iot_client->current_state = Initialized;
     log_info("Client Initialized!");
     return ZSUCCESS;
@@ -237,26 +236,26 @@ int zclient_dispatch(IOTclient *client)
     time_t curtime;
     time(&curtime);
     char *time_val = strtok(ctime(&curtime), "\n");
-    if (!cJSON_HasObjectItem(cJsonPayload, "time"))
+    if (!cJSON_HasObjectItem(client->message.cJsonPayload, "time"))
     {
-        cJSON_AddStringToObject(cJsonPayload, "time", time_val);
+        cJSON_AddStringToObject(client->message.cJsonPayload, "time", time_val);
     }
     else
     {
         cJSON *temp = cJSON_CreateString(time_val);
-        cJSON_ReplaceItemInObject(cJsonPayload, "time", temp);
+        cJSON_ReplaceItemInObject(client->message.cJsonPayload, "time", temp);
     }
 
-    if (!cJSON_HasObjectItem(cJsonPayload, "data"))
+    if (!cJSON_HasObjectItem(client->message.cJsonPayload, "data"))
     {
-        cJSON_AddItemToObject(cJsonPayload, "data", data);
+        cJSON_AddItemToObject(client->message.cJsonPayload, "data", client->message.data);
     }
     else
     {
-        cJSON_ReplaceItemInObject(cJsonPayload, "data", data);
+        cJSON_ReplaceItemInObject(client->message.cJsonPayload, "data", client->message.data);
     }
 
-    char *payload = cJSON_Print(cJsonPayload);
+    char *payload = cJSON_Print(client->message.cJsonPayload);
     rc = zclient_publish(client, payload);
     return rc;
 }
@@ -336,17 +335,17 @@ int zclient_disconnect(IOTclient *client)
     client->current_state = Disconnected;
     log_info("Disconnected.");
     log_free();
-    cJSON_free(cJsonPayload);
+    cJSON_free(client->message.cJsonPayload);
     return rc;
 }
 
-int zclient_addString(char *val_name, char *val_string)
+int zclient_addString(IOTclient *client,char *val_name, char *val_string)
 {
     int ret = 0;
 
-    if (!cJSON_HasObjectItem(data, val_name))
+    if (!cJSON_HasObjectItem(client->message.data, val_name))
     {
-        if (cJSON_AddStringToObject(data, val_name, val_string) == NULL)
+        if (cJSON_AddStringToObject(client->message.data, val_name, val_string) == NULL)
         {
             log_error("Adding string attribute failed\n");
             ret = ZFAILURE;
@@ -355,18 +354,18 @@ int zclient_addString(char *val_name, char *val_string)
     else
     {
         cJSON *temp = cJSON_CreateString(val_string);
-        cJSON_ReplaceItemInObject(data, val_name, temp);
+        cJSON_ReplaceItemInObject(client->message.data, val_name, temp);
     }
     return ret;
 }
 
-int zclient_addNumber(char *val_name, int val_int)
+int zclient_addNumber(IOTclient *client,char *val_name, int val_int)
 {
     int ret = 0;
 
-    if (!cJSON_HasObjectItem(data, val_name))
+    if (!cJSON_HasObjectItem(client->message.data, val_name))
     {
-        if (cJSON_AddNumberToObject(data, val_name, val_int) == NULL)
+        if (cJSON_AddNumberToObject(client->message.data, val_name, val_int) == NULL)
         {
             log_error("Adding int attribute failed\n");
             ret = ZFAILURE;
@@ -375,7 +374,7 @@ int zclient_addNumber(char *val_name, int val_int)
     else
     {
         cJSON *temp = cJSON_CreateNumber(val_int);
-        cJSON_ReplaceItemInObject(data, val_name, temp);
+        cJSON_ReplaceItemInObject(client->message.data, val_name, temp);
     }
     return ret;
 }
