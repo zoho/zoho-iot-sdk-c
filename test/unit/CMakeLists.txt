@@ -4,6 +4,7 @@ IF(RUN_TESTS)
 
     add_executable(sdk_basic_tests sdk_basic_tests.c)
     add_test(sdk_basic_tests sdk_basic_tests)
+   
+    set_property(TARGET sdk_basic_tests PROPERTY LINK_FLAGS "${DEFAULT_LINK_FLAGS} -Wl,--wrap=NetworkConnect,--wrap=MQTTConnect,--wrap=MQTTSubscribe,--wrap=MQTTPublish,--wrap=MQTTDisconnect,--wrap=MQTTYield")
     target_link_libraries(sdk_basic_tests ${CMOCKA_LIB} zoho_iot_sdk)
-
 ENDIF(RUN_TESTS)
