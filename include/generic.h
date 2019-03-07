@@ -7,7 +7,8 @@ typedef enum
     EMBED = 1
 } certsParseMode;
 
-typedef enum{
+typedef enum
+{
     ZSUCCESS = 0,
     ZFAILURE = -1,
     ZCONNECTION_ERROR = -2

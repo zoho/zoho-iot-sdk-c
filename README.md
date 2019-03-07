@@ -104,6 +104,7 @@ rc = zclient_init(&client, "<YOUR-DEVICE-ID>", "<YOUR-DEVICE-TOKEN>", REFERENCE,
 ```
 
 ### Build the Source
+
 All the dependent libraries would be automatically downloaded during build .To redownload any dependent library, clear lib folder.
 
 Create a build folder to keep all the temporary build configurations

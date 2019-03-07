@@ -68,14 +68,14 @@ int main()
     while (ctrl_flag == 0)
     {
         temperature += 2;
-        rc = zclient_addNumber(&client,"temperature", temperature);
-        rc = zclient_addString(&client,"status", "OK");
+        rc = zclient_addNumber(&client, "temperature", temperature);
+        rc = zclient_addString(&client, "status", "OK");
 
         //payload = zclient_getpayload();
         //rc = zclient_publish(&client, payload);
         rc = zclient_dispatch(&client);
         rc = zclient_yield(&client, 300);
-        if(rc == ZCONNECTION_ERROR)
+        if (rc == ZCONNECTION_ERROR)
         {
             break;
         }

@@ -2,9 +2,9 @@
 #define __TLS_CONFIG_
 
 #if defined(SECURE_CONNECTION)
-    #include "tls_network.h"
+#include "tls_network.h"
 #else
-     #include "MQTTLinux.h"
+#include "MQTTLinux.h"
 #endif
 
 #endif

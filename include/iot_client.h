@@ -74,8 +74,8 @@ int zclient_yield(IOTclient *client, int time_out);
 int zclient_reconnect(IOTclient *client);
 int zclient_dispatch(IOTclient *client);
 
-int zclient_addString(IOTclient *client,char *val_name, char *val_string);
-int zclient_addNumber(IOTclient *client,char *val_name, int val_int);
-int zclient_setRetrycount(IOTclient *client,int count);
+int zclient_addString(IOTclient *client, char *val_name, char *val_string);
+int zclient_addNumber(IOTclient *client, char *val_name, int val_int);
+int zclient_setRetrycount(IOTclient *client, int count);
 //char *zclient_getpayload();
 #endif //# IOT_CLIENT_H_

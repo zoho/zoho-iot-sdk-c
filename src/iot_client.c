@@ -177,7 +177,7 @@ int zclient_reconnect(IOTclient *client)
     }
     retryCount++;
     log_info("retryCount :%d", retryCount);
-    if (retryCount > client->config.retry_limit && client->current_state!=Initialized)
+    if (retryCount > client->config.retry_limit && client->current_state != Initialized)
     {
         log_info("Retry limit Exceeded");
         return ZCONNECTION_ERROR;
@@ -349,7 +349,7 @@ int zclient_disconnect(IOTclient *client)
 int zclient_addString(IOTclient *client, char *val_name, char *val_string)
 {
     int ret = 0;
-    
+
     if (client == NULL)
     {
         log_error("Client object can't be NULL");
@@ -384,13 +384,13 @@ int zclient_setRetrycount(IOTclient *client, int count)
     {
         return ZFAILURE;
     }
-    
+
     if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
     {
         log_error("Client should be initialized");
         return -2;
     }
-    
+
     if (count < 0)
     {
         log_info("Retry limit value given is < 0 , so set to default value :%d", client->config.retry_limit);

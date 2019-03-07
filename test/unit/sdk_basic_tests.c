@@ -141,17 +141,16 @@ static void ReconnectMethod_OnCallingBeforeInitialization_ShouldFail()
 {
     //  Reconnecting with out initializing client would return FAILURE .
     IOTclient client;
-    assert_int_equal(zclient_reconnect(&client),-2);
+    assert_int_equal(zclient_reconnect(&client), -2);
 }
-
 
 static void AddString_OnNullArguments_ShouldFail(void **state)
 {
     // AddString with null key/value returns FAILURE
     IOTclient client;
     int rc = zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
-    zclient_addString(NULL,"Key", "value");
-    assert_int_equal(zclient_addString(&client,"Key", NULL), ZFAILURE);
+    zclient_addString(NULL, "Key", "value");
+    assert_int_equal(zclient_addString(&client, "Key", NULL), ZFAILURE);
 }
 
 static void AddStringMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void **state)
@@ -159,9 +158,9 @@ static void AddStringMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void
     // AddString with same key returns SUCCESS , old value gets replaced.
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
-    zclient_addString(&client,"str_key", "str_val1");
-    zclient_addString(&client,"str_key", "str_val2");    
-    assert_int_equal(strcmp("str_val2" ,cJSON_GetObjectItem(client.message.data,"str_key")->valuestring),0) ;
+    zclient_addString(&client, "str_key", "str_val1");
+    zclient_addString(&client, "str_key", "str_val2");
+    assert_int_equal(strcmp("str_val2", cJSON_GetObjectItem(client.message.data, "str_key")->valuestring), 0);
 }
 
 static void AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void **state)
@@ -169,9 +168,9 @@ static void AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void
     // AddNumber with same key returns SUCCESS , old value gets replaced.
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
-    zclient_addNumber(&client,"key1", 1);
-    zclient_addNumber(&client,"key1", 2);
-    assert_int_equal(2,cJSON_GetObjectItem(client.message.data,"key1")->valueint);
+    zclient_addNumber(&client, "key1", 1);
+    zclient_addNumber(&client, "key1", 2);
+    assert_int_equal(2, cJSON_GetObjectItem(client.message.data, "key1")->valueint);
 }
 
 static void PublishMethod_OnCallingBeforeInitialization_ShouldFail()
@@ -272,7 +271,6 @@ static void SubscribeMethod_WithLostConnection_ShouldFail(void **state)
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
     zclient_connect(&client);
     assert_int_equal(zclient_subscribe(&client, message_handler), ZFAILURE);
-
 }
 
 static void PublishMethod_WithNonNullArguments_ShouldSucceed(void **state)
@@ -316,8 +314,8 @@ static void DispatchMethod_WithProperConnection_ShouldSucceed(void **state)
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
     zclient_connect(&client);
-    zclient_addNumber(&client,"key1",10);
-    zclient_addString(&client,"key2","value");
+    zclient_addNumber(&client, "key1", 10);
+    zclient_addString(&client, "key2", "value");
     assert_int_equal(zclient_dispatch(&client), ZSUCCESS);
 }
 
@@ -349,11 +347,11 @@ static void YieldMethod_OnNonNullArguments_ShouldSucceed(void **state)
     // yield method with appropriate arguments should succeed.
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTYield,ZSUCCESS);
+    will_return(__wrap_MQTTYield, ZSUCCESS);
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
     zclient_connect(&client);
-    assert_int_equal(zclient_yield(&client,300),ZSUCCESS);
+    assert_int_equal(zclient_yield(&client, 300), ZSUCCESS);
 }
 
 static void YieldMethod_WithLostConnection_ShouldFail(void **state)
@@ -361,24 +359,24 @@ static void YieldMethod_WithLostConnection_ShouldFail(void **state)
     // Yield method wehn connection lost returns failure
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTYield,ZFAILURE);
+    will_return(__wrap_MQTTYield, ZFAILURE);
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
     zclient_connect(&client);
-    assert_int_equal(zclient_yield(&client,300),ZFAILURE);
+    assert_int_equal(zclient_yield(&client, 300), ZFAILURE);
 }
 
 static void SetRetryCountMethod_CalledWithoutInitializingClient_ShouldFail(void **state)
 {
     // retry count method returns failure as client must be initialized .
     IOTclient client;
-    assert_int_equal(zclient_setRetrycount(&client,10),-2);
+    assert_int_equal(zclient_setRetrycount(&client, 10), -2);
 }
 
 static void SetRetryCountMethod_WithNullArguments_ShouldFail(void **state)
 {
     // set Retry count method fails since client is NULL.
-    assert_int_equal(zclient_setRetrycount(NULL,10),ZFAILURE);
+    assert_int_equal(zclient_setRetrycount(NULL, 10), ZFAILURE);
 }
 
 static void SetRetryCountMethod_WithNegativeCount_ShouldFail_DefaultValueIsUnchanged(void **state)
@@ -386,7 +384,7 @@ static void SetRetryCountMethod_WithNegativeCount_ShouldFail_DefaultValueIsUncha
     // Retry count is set to default when negative value is set.
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
-    assert_int_equal(zclient_setRetrycount(&client,-10),ZFAILURE);
+    assert_int_equal(zclient_setRetrycount(&client, -10), ZFAILURE);
 }
 
 static void SetRetryCountMethod_WithAppropriateArguments_ShouldSucceed(void **state)
@@ -394,30 +392,30 @@ static void SetRetryCountMethod_WithAppropriateArguments_ShouldSucceed(void **st
     // Setting retry count with appropriate arguments succced.
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
-    zclient_setRetrycount(&client,10);
-    assert_int_equal(client.config.retry_limit,10);
+    zclient_setRetrycount(&client, 10);
+    assert_int_equal(client.config.retry_limit, 10);
 }
 static void AddNumber_WithNullArguments_ShouldFail(void **state)
 {
     // Adding Number will null key  or client would fail.
     IOTclient client;
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
-    zclient_addNumber(NULL,"key1", 2);
-    assert_int_equal(zclient_addNumber(&client,NULL,10),ZFAILURE);
+    zclient_addNumber(NULL, "key1", 2);
+    assert_int_equal(zclient_addNumber(&client, NULL, 10), ZFAILURE);
 }
 
 static void AddNumber_CalledWithoutInitialization_ShouldFail(void **state)
 {
     // Client must be initialized to add number to cjson payload.
     IOTclient client;
-    assert_int_equal(zclient_addNumber(&client,"key1", 2),-2);
+    assert_int_equal(zclient_addNumber(&client, "key1", 2), -2);
 }
 
 static void AddString_CalledWithoutInitialization_ShouldFail(void **state)
 {
     // Client must be initialized to add string to cjson payload.
     IOTclient client;
-    assert_int_equal(zclient_addString(&client,"key1", "value1"),-2);
+    assert_int_equal(zclient_addString(&client, "key1", "value1"), -2);
 }
 
 int main(void)
@@ -464,8 +462,7 @@ int main(void)
             cmocka_unit_test(SetRetryCountMethod_WithNullArguments_ShouldFail),
             cmocka_unit_test(SetRetryCountMethod_WithNegativeCount_ShouldFail_DefaultValueIsUnchanged),
             cmocka_unit_test(SetRetryCountMethod_WithAppropriateArguments_ShouldSucceed),
-            cmocka_unit_test(DisconnectMethod_WithActiveConnection_ShouldDisconnectAndReturnSuccess)
-            };
+            cmocka_unit_test(DisconnectMethod_WithActiveConnection_ShouldDisconnectAndReturnSuccess)};
     cmocka_set_message_output(CM_OUTPUT_XML);
     return cmocka_run_group_tests(sdk_basic_tests, NULL, NULL);
 }

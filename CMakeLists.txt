@@ -96,11 +96,3 @@ ADD_SUBDIRECTORY(samples)
 IF(RUN_TESTS)
     add_subdirectory(test/unit)
 ENDIF(RUN_TESTS)
-
-# Tests: CJSON:
-ADD_EXECUTABLE(cjson_test test/dependency_tests/cjson_test.c)
-TARGET_LINK_LIBRARIES(cjson_test zoho_iot_sdk)
-
-# PAHO MQTT:
-ADD_EXECUTABLE(mqtt_test test/dependency_tests/paho/ping.c test/dependency_tests/paho/transport.c)
-TARGET_LINK_LIBRARIES(mqtt_test zoho_iot_sdk)
