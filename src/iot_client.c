@@ -236,7 +236,7 @@ int zclient_dispatch(IOTclient *client)
     }
     if (client->current_state != Connected)
     {
-        log_debug("Failed to subscribe, since connection is lost/not established");
+        log_debug("Failed to Publish, since connection is lost/not established");
         return ZFAILURE;
     }
     //TODO: Add time stamp, Client ID
@@ -296,6 +296,7 @@ int zclient_subscribe(IOTclient *client, messageHandler on_message)
 
 int zclient_yield(IOTclient *client, int time_out)
 {
+    rc = ZSUCCESS;
     if (client == NULL)
     {
         log_error("Client object can't be NULL");
@@ -329,6 +330,7 @@ int zclient_yield(IOTclient *client, int time_out)
 
 int zclient_disconnect(IOTclient *client)
 {
+    rc = ZSUCCESS;
     if (client == NULL)
     {
         log_error("Client object can't be NULL");
