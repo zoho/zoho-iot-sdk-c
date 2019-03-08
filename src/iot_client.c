@@ -38,7 +38,7 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
     Config config = {NULL, NULL, 0};
     cloneString(&config.device_id, device_id);
     cloneString(&config.auth_token, auth_token);
-    config.retry_limit = 0;
+    config.retry_limit = 5;
     iot_client->config = config;
     parse_mode = mode;
 #if defined(SECURE_CONNECTION)
@@ -177,7 +177,13 @@ int zclient_reconnect(IOTclient *client)
     }
     retryCount++;
     log_info("retryCount :%d", retryCount);
-    if (retryCount > client->config.retry_limit && client->current_state != Initialized)
+    if (client->current_state != Disconnected && client->current_state != Connected)
+    {
+        log_info("Retrying indefinetely");
+        return ZCONNECTION_ERROR;
+    }
+
+    if (retryCount > client->config.retry_limit)
     {
         log_info("Retry limit Exceeded");
         return ZCONNECTION_ERROR;
@@ -214,9 +220,13 @@ int zclient_publish(IOTclient *client, char *payload)
     {
         log_debug("Published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, dataTopic);
     }
-    else
+    else if (MQTTIsConnected(&client->mqtt_client) == 0)
     {
         client->current_state = Disconnected;
+        log_error("Error on Pubish due to lost connection. Error code: %d", rc);
+    }
+    else
+    {
         log_error("Error on Pubish. Error code: %d", rc);
     }
     return rc;
@@ -285,9 +295,13 @@ int zclient_subscribe(IOTclient *client, messageHandler on_message)
     {
         log_info("Subscribed on \x1b[36m '%s' \x1b[0m", commandTopic);
     }
-    else
+    else if (MQTTIsConnected(&client->mqtt_client) == 0)
     {
         client->current_state = Disconnected;
+        log_error("Error on Subscribe due to lost connection. Error code: %d", rc);
+    }
+    else
+    {
         log_error("Error on Subscribe. Error code: %d", rc);
     }
 
@@ -319,11 +333,19 @@ int zclient_yield(IOTclient *client, int time_out)
     }
 
     rc = MQTTYield(&client->mqtt_client, time_out);
-
     if (rc == ZFAILURE)
     {
-        client->current_state = Disconnected;
-        return ZFAILURE;
+        if(MQTTIsConnected(&client->mqtt_client) == 0)
+        {
+            client->current_state = Disconnected;
+            log_error("Error on Yielding due to lost connection. Error code: %d", rc);
+            return ZFAILURE;
+        }
+    }
+    else
+    {
+        log_error("Error on Yield. Error code: %d", rc);
+        return rc;
     }
     return rc;
 }
@@ -351,7 +373,6 @@ int zclient_disconnect(IOTclient *client)
 int zclient_addString(IOTclient *client, char *val_name, char *val_string)
 {
     int ret = 0;
-
     if (client == NULL)
     {
         log_error("Client object can't be NULL");
