@@ -333,9 +333,13 @@ int zclient_yield(IOTclient *client, int time_out)
     }
 
     rc = MQTTYield(&client->mqtt_client, time_out);
-    if (rc == ZFAILURE)
+    if (rc == ZSUCCESS)
     {
-        if(MQTTIsConnected(&client->mqtt_client) == 0)
+        return rc;
+    }
+    else if (rc == ZFAILURE)
+    {
+        if (MQTTIsConnected(&client->mqtt_client) == 0)
         {
             client->current_state = Disconnected;
             log_error("Error on Yielding due to lost connection. Error code: %d", rc);
