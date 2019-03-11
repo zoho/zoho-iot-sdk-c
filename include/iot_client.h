@@ -10,7 +10,8 @@
 
 #define hostname (char *)"iotdevices.localzoho.com"
 // #define hostname (char *)"shahul-6029.csez.zohocorpin.com"
-// #define hostname (char *)"keerthi-pt2055"
+// #define hostname (char *)"keerthi-7285"
+// #define hostname (char *)"172.22.142.33"
 
 #if defined(SECURE_CONNECTION)
 #define port (int)8883
