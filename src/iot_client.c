@@ -4,7 +4,6 @@
 
 //TODO: read from config file.
 Network n;
-int rc;
 certsParseMode parse_mode;
 int retryCount = 0;
 char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "";
@@ -76,6 +75,7 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
 
 int zclient_connect(IOTclient *client)
 {
+    int rc = ZFAILURE;
     if (client == NULL)
     {
         log_error("Client object can't be NULL");
@@ -165,7 +165,7 @@ int zclient_reconnect(IOTclient *client)
         return ZSUCCESS;
     }
 
-    int rc = -1, delay = 5;
+    int rc = ZFAILURE, delay = 5;
     log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", hostname, port, delay);
     sleep(delay);
     rc = zclient_connect(client);
@@ -203,6 +203,7 @@ int zclient_publish(IOTclient *client, char *payload)
         log_debug("Failed to publish, since connection is lost/not established");
         return ZFAILURE;
     }
+    int rc = ZFAILURE;
     MQTTMessage pubmsg;
     //TODO:remove hardcoded values of id etc and get from structure copied from config.h
     //TODO: confirm the below parameters with Hub. Especially the pubmessageID
@@ -250,6 +251,7 @@ int zclient_dispatch(IOTclient *client)
         return ZFAILURE;
     }
     //TODO: Add time stamp, Client ID
+    int rc = ZSUCCESS;
     time_t curtime;
     time(&curtime);
     char *time_val = strtok(ctime(&curtime), "\n");
@@ -279,6 +281,7 @@ int zclient_dispatch(IOTclient *client)
 
 int zclient_subscribe(IOTclient *client, messageHandler on_message)
 {
+    int rc = ZSUCCESS;
     if (client == NULL)
     {
         log_error("Client object can't be NULL");
@@ -310,7 +313,7 @@ int zclient_subscribe(IOTclient *client, messageHandler on_message)
 
 int zclient_yield(IOTclient *client, int time_out)
 {
-    rc = ZSUCCESS;
+    int rc = ZSUCCESS;
     if (client == NULL)
     {
         log_error("Client object can't be NULL");
@@ -356,7 +359,7 @@ int zclient_yield(IOTclient *client, int time_out)
 
 int zclient_disconnect(IOTclient *client)
 {
-    rc = ZSUCCESS;
+    int rc = ZSUCCESS;
     if (client == NULL)
     {
         log_error("Client object can't be NULL");
@@ -376,7 +379,7 @@ int zclient_disconnect(IOTclient *client)
 
 int zclient_addString(IOTclient *client, char *val_name, char *val_string)
 {
-    int ret = 0;
+    int rc = ZSUCCESS;
     if (client == NULL)
     {
         log_error("Client object can't be NULL");
@@ -394,7 +397,7 @@ int zclient_addString(IOTclient *client, char *val_name, char *val_string)
         if (cJSON_AddStringToObject(client->message.data, val_name, val_string) == NULL)
         {
             log_error("Adding string attribute failed\n");
-            ret = ZFAILURE;
+            rc = ZFAILURE;
         }
     }
     else
@@ -402,7 +405,7 @@ int zclient_addString(IOTclient *client, char *val_name, char *val_string)
         cJSON *temp = cJSON_CreateString(val_string);
         cJSON_ReplaceItemInObject(client->message.data, val_name, temp);
     }
-    return ret;
+    return rc;
 }
 
 int zclient_setRetrycount(IOTclient *client, int count)
@@ -430,7 +433,7 @@ int zclient_setRetrycount(IOTclient *client, int count)
 
 int zclient_addNumber(IOTclient *client, char *val_name, int val_int)
 {
-    int ret = 0;
+    int rc = ZSUCCESS;
     if (client == NULL)
     {
         log_error("Client object can't be NULL");
@@ -447,7 +450,7 @@ int zclient_addNumber(IOTclient *client, char *val_name, int val_int)
         if (cJSON_AddNumberToObject(client->message.data, val_name, val_int) == NULL)
         {
             log_error("Adding int attribute failed\n");
-            ret = ZFAILURE;
+            rc = ZFAILURE;
         }
     }
     else
@@ -455,7 +458,7 @@ int zclient_addNumber(IOTclient *client, char *val_name, int val_int)
         cJSON *temp = cJSON_CreateNumber(val_int);
         cJSON_ReplaceItemInObject(client->message.data, val_name, temp);
     }
-    return ret;
+    return rc;
 }
 
 /*

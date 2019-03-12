@@ -12,7 +12,7 @@ int __wrap_MQTTConnect(MQTTClient *c, MQTTPacket_connectData *options)
     return mock_type(int);
 }
 
-int __wrap_NetworkConnect(Network *n, char *host, int pt)
+int __wrap_NetworkConnect(Network *n, char *host, int pt, ...)
 {
     return mock_type(int);
 }
@@ -50,18 +50,29 @@ static void InitMethod_OnNullArguments_ShouldFail(void **state)
     assert_int_equal(zclient_init(client, NULL, NULL, EMBED, "", "", "", ""), ZFAILURE);
 }
 
-static void InitMethod_WithTls_NullCertificates_ShouldFail(void **State)
+#ifndef SECURE_CONNECTION
+#define SECURE_CONNECTION
+#endif
+static void InitMethod_WithTLS_NullSeverCertificates_ShouldFail(void **State)
 {
-#ifdef SECURE_CONNECTION
+
     // Init return failure with TLS enabled as RootCA file is NULL .
     IOTclient client;
     assert_int_equal(zclient_init(&client, "device_id", "token", REFERENCE, NULL, "", "", ""), ZFAILURE);
-// Init return failure with TLS enabled as Client_Crt /client_key is NULL .
-#ifdef USE_CLIENT_CERTS
-    assert_int_equal(zclient_init(&client, "device_id", "token", REFERENCE, "/usr/device_certificate.pem", NULL, NULL, ""), ZFAILURE);
-#endif
-#endif
 }
+#ifndef USE_CLIENT_CERTS
+#define USE_CLIENT_CERTS
+#endif
+static void InitMethod_WithTLS_NullClientCertificates_ShouldFail(void **State)
+{
+
+    // Init return failure with TLS enabled as Client_Crt /client_key is NULL .
+    IOTclient client;
+    assert_int_equal(zclient_init(&client, "device_id", "token", REFERENCE, "/usr/device_certificate.pem", NULL, NULL, ""), ZFAILURE);
+}
+
+#undef USE_CLIENT_CERTS
+#undef SECURE_CONNECTION
 
 // CONNECT :
 
@@ -116,6 +127,37 @@ static void ConnectMethod_WithWrongCredentials_ShouldFail(void **state)
     zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
     assert_int_equal(zclient_connect(&client), 5);
 }
+
+#ifndef SECURE_CONNECTION
+#define SECURE_CONNECTION
+#endif
+static void ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed(void **state)
+{
+    // With Appropriate TLS Server Certificate and login credentials connect to HUB should succeed .
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "./ca.crt", "", "", "");
+    assert_int_equal(zclient_connect(&client), ZSUCCESS);
+}
+
+#ifndef USE_CLIENT_CERTS
+#define USE_CLIENT_CERTS
+#endif
+static void ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed(void **state)
+{
+    // With Appropriate TLS Server and Client Certificates and login credentials connect to HUB should succeed .
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+
+    IOTclient client;
+    zclient_init(&client, "device_id", "token", EMBED, "./ca.crt", "./client.crt", "./client.key", "");
+    assert_int_equal(zclient_connect(&client), ZSUCCESS);
+}
+
+#undef USE_CLIENT_CERTS
+#undef SECURE_CONNECTION
 
 // PUBLISH :
 
@@ -439,13 +481,16 @@ int main(void)
     const struct CMUnitTest sdk_basic_tests[] =
         {
             cmocka_unit_test(InitMethod_OnNullArguments_ShouldFail),
-            cmocka_unit_test(InitMethod_WithTls_NullCertificates_ShouldFail),
+            cmocka_unit_test(InitMethod_WithTLS_NullSeverCertificates_ShouldFail),
+            cmocka_unit_test(InitMethod_WithTLS_NullClientCertificates_ShouldFail),
             cmocka_unit_test(ConnectMethod_OnCallingBeforeInitialization_ShouldFail),
             cmocka_unit_test(ConnectMethod_OnNullArguments_ShouldFail),
             cmocka_unit_test(ConnectMethod_OnConnectOverExistingConnetion_ShouldSucceed),
             cmocka_unit_test(ConnectMethod_WithNonNullArguments_ShouldSucceed),
             cmocka_unit_test(ConnectMethod_WithLostNetworkConnection_ShouldFail),
             cmocka_unit_test(ConnectMethod_WithWrongCredentials_ShouldFail),
+            cmocka_unit_test(ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed),
+            cmocka_unit_test(ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed),
             cmocka_unit_test(PublishMethod_OnNUllArguments_ShouldFail),
             cmocka_unit_test(PublishMethod_OnCallingBeforeInitialization_ShouldFail),
             cmocka_unit_test(PublishMethod_WithLostConnection_ShouldFail),

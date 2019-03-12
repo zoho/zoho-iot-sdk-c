@@ -29,7 +29,7 @@ IF(NOT UNZIP_FOUND OR NOT CURL_FOUND OR NOT PATCH_FOUND)
 ENDIF()
 
 OPTION(ENABLE_TLS "Enable TLS for Secure connection" OFF)
-OPTION(USE_CLIENT_CERTS "Use Client side Certs for Secure connection" ON)
+OPTION(USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
 
 #For unit test cases:
 OPTION(RUN_TESTS "Run unit tests" ON)
