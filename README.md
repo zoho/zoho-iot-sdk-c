@@ -1,5 +1,7 @@
 # Zoho IoT C SDK
 
+Latest Build Status: [![Build Status](http://172.24.151.80:8080/buildStatus/icon?job=c-sdk_commits)](http://172.24.151.80:8080/job/c-sdk_commits/)
+
 ## Overview
 
 The Zoho IoT SDK for C will let your smart ( gateway ) devices to establish a secure connection with minimal efforts to the Zoho cloud platform. The lightweight MQTT messaging protocol is used to exchange the data between the device & cloud in a secured manner by implementing TLS security.
