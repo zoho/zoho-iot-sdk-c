@@ -1,6 +1,6 @@
 # Zoho IoT C SDK
 
-Latest Build Status: [![Build Status](http://172.24.151.80:8080/buildStatus/icon?job=c-sdk_commits)](http://172.24.151.80:8080/job/c-sdk_commits/)
+Latest Build Status: [![Build Status](http://wn-c7-am-16:8080/buildStatus/icon?job=c-sdk_commits)](http://wn-c7-am-16:8080/job/c-sdk_commits/)
 
 ## Overview
 
