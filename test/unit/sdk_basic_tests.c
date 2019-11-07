@@ -7,7 +7,7 @@
 #include "generic.h"
 #include "wrap_functions.h"
 
-int __wrap_MQTTConnect(MQTTClient *c, MQTTPacket_connectData *options)
+int __wrap_MQTTConnect(Client *c, MQTTPacket_connectData *options)
 {
     return mock_type(int);
 }
@@ -17,33 +17,34 @@ int __wrap_NetworkConnect(Network *n, char *host, int pt, ...)
     return mock_type(int);
 }
 
-int __wrap_MQTTSubscribe(MQTTClient *c, const char *topicFilter, enum QoS qos, messageHandler messageHandler)
+int __wrap_MQTTSubscribe(Client *c, const char *topicFilter, enum QoS qos, messageHandler messageHandler)
 {
     return mock_type(int);
 }
 
-int __wrap_MQTTPublish(MQTTClient *c, const char *topicName, MQTTMessage *message)
+int __wrap_MQTTPublish(Client *c, const char *topicName, MQTTMessage *message)
 {
     return mock_type(int);
 }
 
-int __wrap_MQTTDisconnect(MQTTClient *client)
+int __wrap_MQTTDisconnect(Client *client)
 {
     return mock_type(int);
 }
 
-int __wrap_MQTTYield(MQTTClient *c, int time_out)
+int __wrap_MQTTYield(Client *c, int time_out)
 {
     return mock_type(int);
 }
 
 //TEST CASES:
 // INIT :
-
+char *mqttUserName = "/domain_name/v1/devices/client_id/connect";
+char *mqttPassword = "mqtt_password";
 static void InitMethod_OnNullArguments_ShouldFail(void **state)
 {
     // Init returns failure as Client is NULL
-    assert_int_equal(zclient_init(NULL, "device_id", "token", EMBED, "", "", "", ""), ZFAILURE);
+    assert_int_equal(zclient_init(NULL, mqttUserName, mqttPassword, EMBED, "", "", "", ""), ZFAILURE);
 
     // Init returns failure as Device Credentials are NULL
     IOTclient *client;
@@ -58,7 +59,7 @@ static void InitMethod_WithTLS_NullSeverCertificates_ShouldFail(void **State)
 
     // Init return failure with TLS enabled as RootCA file is NULL .
     IOTclient client;
-    assert_int_equal(zclient_init(&client, "device_id", "token", REFERENCE, NULL, "", "", ""), ZFAILURE);
+    assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, REFERENCE, NULL, "", "", ""), ZFAILURE);
 }
 #ifndef USE_CLIENT_CERTS
 #define USE_CLIENT_CERTS
@@ -68,7 +69,7 @@ static void InitMethod_WithTLS_NullClientCertificates_ShouldFail(void **State)
 
     // Init return failure with TLS enabled as Client_Crt /client_key is NULL .
     IOTclient client;
-    assert_int_equal(zclient_init(&client, "device_id", "token", REFERENCE, "/usr/device_certificate.pem", NULL, NULL, ""), ZFAILURE);
+    assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, REFERENCE, "/usr/device_certificate.pem", NULL, NULL, ""), ZFAILURE);
 }
 
 #undef USE_CLIENT_CERTS
@@ -93,7 +94,7 @@ static void ConnectMethod_OnConnectOverExistingConnetion_ShouldSucceed(void **st
 {
     // connect returns SUCCESS for connect called on existing connection.
     IOTclient client;
-    assert_int_equal(zclient_init(&client, "device_id", "token", EMBED, "", "", "", ""), ZSUCCESS);
+    assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", ""), ZSUCCESS);
     client.current_state = Connected;
     assert_int_equal(zclient_connect(&client), ZSUCCESS);
 }
@@ -105,7 +106,7 @@ static void ConnectMethod_WithNonNullArguments_ShouldSucceed(void **state)
     will_return(__wrap_MQTTConnect, ZSUCCESS);
 
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     assert_int_equal(zclient_connect(&client), ZSUCCESS);
 }
 
@@ -114,7 +115,7 @@ static void ConnectMethod_WithLostNetworkConnection_ShouldFail(void **state)
     // Connect method returns failure as Network connection is not available.
     will_return(__wrap_NetworkConnect, ZFAILURE);
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     assert_int_equal(zclient_connect(&client), ZFAILURE);
 }
 static void ConnectMethod_WithWrongCredentials_ShouldFail(void **state)
@@ -124,7 +125,7 @@ static void ConnectMethod_WithWrongCredentials_ShouldFail(void **state)
     will_return(__wrap_MQTTConnect, 5);
 
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     assert_int_equal(zclient_connect(&client), 5);
 }
 
@@ -138,7 +139,7 @@ static void ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed(voi
     will_return(__wrap_MQTTConnect, ZSUCCESS);
 
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "./ca.crt", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "./ca.crt", "", "", "");
     assert_int_equal(zclient_connect(&client), ZSUCCESS);
 }
 
@@ -152,7 +153,7 @@ static void ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed(voi
     will_return(__wrap_MQTTConnect, ZSUCCESS);
 
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "./ca.crt", "./client.crt", "./client.key", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "./ca.crt", "./client.crt", "./client.key", "");
     assert_int_equal(zclient_connect(&client), ZSUCCESS);
 }
 
@@ -182,7 +183,7 @@ static void PublishMethod_WithLostConnection_ShouldFail(void **state)
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTPublish, ZFAILURE);
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
     assert_int_equal(zclient_publish(&client, "payload"), ZFAILURE);
 }
@@ -194,7 +195,7 @@ static void PublishMethod_WithNonNullArguments_ShouldSucceed(void **state)
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTPublish, ZSUCCESS);
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
     assert_int_equal(zclient_publish(&client, "payload"), ZSUCCESS);
 }
@@ -218,7 +219,7 @@ static void DispatchMethod_WithNoConnection_ShouldFail(void **state)
 {
     // Dispatch with out establishing connection should Fail.
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     assert_int_equal(zclient_dispatch(&client), ZFAILURE);
 }
 
@@ -229,7 +230,7 @@ static void DispatchMethod_WithProperConnection_ShouldSucceed(void **state)
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTPublish, ZSUCCESS);
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
     zclient_addNumber(&client, "key1", 10);
     zclient_addString(&client, "key2", "value");
@@ -253,7 +254,7 @@ static void SubscribeMethod_OnNullArguments_ShouldFail(void **state)
     assert_int_equal(zclient_subscribe(NULL, msghnd), ZFAILURE);
     // Subscribe returns Failure for Null messageHandler .
     //     IOTclient client;
-    //     zclient_init(&client, "device_id" , "token" , EMBED, "","","","");
+    //     zclient_init(&client, mqttUserName , mqttPassword , EMBED, "","","","");
     //     assert_int_equal(zclient_subscribe(&client,NULL),-1);
 }
 
@@ -266,7 +267,7 @@ static void SubscribeMethod_WithLostConnection_ShouldFail(void **state)
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTSubscribe, ZFAILURE);
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
     assert_int_equal(zclient_subscribe(&client, message_handler), ZFAILURE);
 }
@@ -278,7 +279,7 @@ static void SubscribeMethod_WithNonNullArguments_ShouldSucceed(void **state)
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTSubscribe, ZSUCCESS);
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
     assert_int_equal(zclient_subscribe(&client, message_handler), ZSUCCESS);
 }
@@ -309,7 +310,7 @@ static void YieldMethod_OnNonNullArguments_ShouldSucceed(void **state)
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTYield, ZSUCCESS);
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
     assert_int_equal(zclient_yield(&client, 300), ZSUCCESS);
 }
@@ -321,7 +322,7 @@ static void YieldMethod_WithLostConnection_ShouldFail(void **state)
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTYield, ZFAILURE);
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
     assert_int_equal(zclient_yield(&client, 300), ZFAILURE);
 }
@@ -338,7 +339,7 @@ static void DisconnectMethod_OnUnEstablishedConnetion_ShouldSucceed(void **state
 {
     // Disconnect returns SUCCESS for connect called on existing connection.
     IOTclient client;
-    assert_int_equal(zclient_init(&client, "device_id", "token", EMBED, "", "", "", ""), ZSUCCESS);
+    assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", ""), ZSUCCESS);
     assert_int_equal(zclient_disconnect(&client), ZSUCCESS);
 }
 
@@ -349,7 +350,7 @@ static void DisconnectMethod_WithActiveConnection_ShouldDisconnectAndReturnSucce
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTDisconnect, ZSUCCESS);
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
     assert_int_equal(zclient_disconnect(&client), ZSUCCESS);
 }
@@ -360,7 +361,7 @@ static void AddNumberMethod_WithNullArguments_ShouldFail(void **state)
 {
     // Adding Number will null key  or client would fail.
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_addNumber(NULL, "key1", 2);
     assert_int_equal(zclient_addNumber(&client, NULL, 10), ZFAILURE);
 }
@@ -376,7 +377,7 @@ static void AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void
 {
     // AddNumber with same key returns SUCCESS , old value gets replaced.
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_addNumber(&client, "key1", 1);
     zclient_addNumber(&client, "key1", 2);
     assert_int_equal(2, cJSON_GetObjectItem(client.message.data, "key1")->valueint);
@@ -395,7 +396,7 @@ static void AddStringMethod_OnNullArguments_ShouldFail(void **state)
 {
     // AddString with null key/value returns FAILURE
     IOTclient client;
-    int rc = zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    int rc = zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_addString(NULL, "Key", "value");
     assert_int_equal(zclient_addString(&client, "Key", NULL), ZFAILURE);
 }
@@ -404,7 +405,7 @@ static void AddStringMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void
 {
     // AddString with same key returns SUCCESS , old value gets replaced.
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_addString(&client, "str_key", "str_val1");
     zclient_addString(&client, "str_key", "str_val2");
     assert_int_equal(strcmp("str_val2", cJSON_GetObjectItem(client.message.data, "str_key")->valuestring), 0);
@@ -439,7 +440,7 @@ static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     client.current_state = Disconnected;
     assert_int_equal(zclient_reconnect(&client), ZSUCCESS);
 }
@@ -463,7 +464,7 @@ static void SetRetryCountMethod_WithNegativeCount_ShouldFail_DefaultValueIsUncha
 {
     // Retry count is set to default when negative value is set.
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     assert_int_equal(zclient_setRetrycount(&client, -10), ZFAILURE);
 }
 
@@ -471,7 +472,7 @@ static void SetRetryCountMethod_WithAppropriateArguments_ShouldSucceed(void **st
 {
     // Setting retry count with appropriate arguments succced.
     IOTclient client;
-    zclient_init(&client, "device_id", "token", EMBED, "", "", "", "");
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_setRetrycount(&client, 10);
     assert_int_equal(client.config.retry_limit, 10);
 }

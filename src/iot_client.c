@@ -11,7 +11,7 @@ char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "";
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
 
-int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
+int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     //TODO:1
     // All config.h and device related validations should be done here itself !
@@ -23,20 +23,31 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
         log_error("Client object is NULL");
         return ZFAILURE;
     }
-    if (device_id == NULL || auth_token == NULL)
+    if (MQTTUserName == NULL || MQTTPassword == NULL)
     {
         log_error("Device Credentials can't be NULL");
         return ZFAILURE;
     }
 
-    //Populating dynamic topic names based on its deviceID
-    sprintf(dataTopic, "%s/%s%s", topic_pre, device_id, data_topic);
-    sprintf(commandTopic, "%s/%s%s", topic_pre, device_id, command_topic);
-    sprintf(eventTopic, "%s/%s%s", topic_pre, device_id, event_topic);
-
     Config config = {NULL, NULL, 0};
-    cloneString(&config.device_id, device_id);
-    cloneString(&config.auth_token, auth_token);
+    int str_array_size=0;
+    char **string_array = stringSplit(MQTTUserName, '/',&str_array_size);
+    if (str_array_size < 6)
+    {
+        log_error("MQTTUsername is Malformed.");
+        return ZFAILURE;
+    }
+    cloneString(&config.hostname, trim(string_array[0]));
+    cloneString(&config.client_id, trim(string_array[3]));
+    cloneString(&config.auth_token, trim(MQTTPassword));
+    cloneString(&config.MqttUserName, trim(MQTTUserName));
+    log_error("client_id:%s", config.client_id);
+    log_error("hostname:%s", config.hostname);
+    //Populating dynamic topic names based on its deviceID
+    sprintf(dataTopic, "%s/%s%s", topic_pre, config.client_id, data_topic);
+    sprintf(commandTopic, "%s/%s%s", topic_pre, config.client_id, command_topic);
+    sprintf(eventTopic, "%s/%s%s", topic_pre, config.client_id, event_topic);
+
     config.retry_limit = 5;
     iot_client->config = config;
     parse_mode = mode;
@@ -67,7 +78,7 @@ int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certs
         log_error("Can't create cJSON object");
         return ZFAILURE;
     }
-    cJSON_AddStringToObject(iot_client->message.cJsonPayload, "device_id", device_id);
+    cJSON_AddStringToObject(iot_client->message.cJsonPayload, "client_id", config.client_id);
     iot_client->current_state = Initialized;
     log_info("Client Initialized!");
     return ZSUCCESS;
@@ -96,12 +107,12 @@ int zclient_connect(IOTclient *client)
     unsigned char buf[buff_size], readbuf[buff_size];
 
     log_info("Preparing Network..");
-    NetworkInit(&n);
+    NewNetwork(&n);
 
 #if defined(SECURE_CONNECTION)
-    rc = NetworkConnect(&n, hostname, port, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
+    rc = ConnectNetwork(&n, client->config.hostname, port, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
 #else
-    rc = NetworkConnect(&n, hostname, port);
+    rc = ConnectNetwork(&n, client->config.hostname, port);
 #endif
     if (rc != ZSUCCESS)
     {
@@ -110,18 +121,18 @@ int zclient_connect(IOTclient *client)
     }
 
     //TODO: Handle the rc of ConnectNetwork().
-    log_info("Connecting to \x1b[32m %s : %d \x1b[0m", hostname, port);
-    MQTTClientInit(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
+    log_info("Connecting to \x1b[32m %s : %d \x1b[0m", client->config.hostname, port);
+    MQTTClient(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
 
     conn_data.MQTTVersion = 4;
     conn_data.cleansession = 1; //TODO: tobe confirmed with Hub
     conn_data.keepAliveInterval = 60;
-    conn_data.clientID.cstring = client->config.device_id;
+    conn_data.clientID.cstring = client->config.client_id;
     conn_data.willFlag = 0;
 
     //TODO:2: to be verified with HUB.
-    conn_data.username.cstring = client->config.device_id;
+    conn_data.username.cstring = client->config.MqttUserName;
     conn_data.password.cstring = client->config.auth_token;
 
     rc = MQTTConnect(&client->mqtt_client, &conn_data);
@@ -132,7 +143,7 @@ int zclient_connect(IOTclient *client)
     }
     else
     {
-        NetworkDisconnect(client->mqtt_client.ipstack);
+        linux_disconnect(client->mqtt_client.ipstack);
         if (rc == 5)
         {
             log_error("Error while establishing connection, due to invalid credentials");
@@ -166,7 +177,7 @@ int zclient_reconnect(IOTclient *client)
     }
 
     int rc = ZFAILURE, delay = 5;
-    log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", hostname, port, delay);
+    log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", client->config.hostname, port, delay);
     sleep(delay);
     rc = zclient_connect(client);
     if (rc == ZSUCCESS)
@@ -221,7 +232,7 @@ int zclient_publish(IOTclient *client, char *payload)
     {
         log_debug("Published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, dataTopic);
     }
-    else if (MQTTIsConnected(&client->mqtt_client) == 0)
+    else if (client->mqtt_client.isconnected == 0)
     {
         client->current_state = Disconnected;
         log_error("Error on Pubish due to lost connection. Error code: %d", rc);
@@ -298,7 +309,7 @@ int zclient_subscribe(IOTclient *client, messageHandler on_message)
     {
         log_info("Subscribed on \x1b[36m '%s' \x1b[0m", commandTopic);
     }
-    else if (MQTTIsConnected(&client->mqtt_client) == 0)
+    else if (client->mqtt_client.isconnected == 0)
     {
         client->current_state = Disconnected;
         log_error("Error on Subscribe due to lost connection. Error code: %d", rc);
@@ -342,7 +353,7 @@ int zclient_yield(IOTclient *client, int time_out)
     }
     else if (rc == ZFAILURE)
     {
-        if (MQTTIsConnected(&client->mqtt_client) == 0)
+        if (client->mqtt_client.isconnected == 0)
         {
             client->current_state = Disconnected;
             log_error("Error on Yielding due to lost connection. Error code: %d", rc);
@@ -368,7 +379,7 @@ int zclient_disconnect(IOTclient *client)
     if (client->current_state == Connected)
     {
         rc = MQTTDisconnect(&client->mqtt_client);
-        NetworkDisconnect(client->mqtt_client.ipstack);
+        linux_disconnect(client->mqtt_client.ipstack);
     }
     client->current_state = Disconnected;
     log_info("Disconnected.");
