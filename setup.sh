@@ -30,9 +30,9 @@ unzip v1.7.7.zip
 mv cJSON-1.7.7 ../lib/cjson
 
 echo "Fetching mbedTLS-2.4.1 source ...."
-curl -LO https://github.com/ARMmbed/mbedtls/archive/mbedtls-2.12.0.zip
-unzip mbedtls-2.12.0.zip
-mv mbedtls-mbedtls-2.12.0 ../lib/mbedtls
+curl -LO https://github.com/ARMmbed/mbedtls/archive/mbedtls-2.16.3.zip
+unzip mbedtls-2.16.3.zip
+mv mbedtls-mbedtls-2.16.3 ../lib/mbedtls
 
 cd ..
 echo "Setup Done!! Cleaning the temp  directory.."

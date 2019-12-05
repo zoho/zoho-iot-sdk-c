@@ -8,11 +8,6 @@
 #include "generic.h"
 #include <time.h>
 
-#define hostname (char *)"iotdevices.localzoho.com"
-// #define hostname (char *)"shahul-6029.csez.zohocorpin.com"
-// #define hostname (char *)"keerthi-7285"
-// #define hostname (char *)"172.22.142.33"
-
 #if defined(SECURE_CONNECTION)
 #define port (int)8883
 #else
@@ -26,8 +21,10 @@
 
 typedef struct
 {
-    char *device_id;
+    char *client_id;
+    char *hostname;
     char *auth_token;
+    char *MqttUserName;
     int retry_limit;
 } Config;
 
@@ -56,7 +53,7 @@ typedef enum
 
 typedef struct
 {
-    MQTTClient mqtt_client;
+    Client mqtt_client;
     Config config;
     ConnectionState current_state;
     Payload message;
@@ -65,7 +62,7 @@ typedef struct
 #endif
 } IOTclient;
 
-int zclient_init(IOTclient *iot_client, char *device_id, char *auth_token, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
+int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
 int zclient_connect(IOTclient *client);
 int zclient_publish(IOTclient *client, char *payload);
 int zclient_disconnect(IOTclient *client);

@@ -24,12 +24,12 @@
 #include <string.h>
 #include <log.h>
 
-void TimerInit(Timer *run_timer)
+void InitTimer(Timer *run_timer)
 {
     run_timer->end_time = (struct timeval){0, 0};
 }
 
-int TimerLeftMS(Timer *run_timer)
+int left_ms(Timer *run_timer)
 {
     struct timeval curr_time, res;
     gettimeofday(&curr_time, NULL);
@@ -37,7 +37,7 @@ int TimerLeftMS(Timer *run_timer)
     return (res.tv_sec < 0) ? 0 : ((res.tv_sec * 1000) + (res.tv_usec / 1000));
 }
 
-void TimerCountdown(Timer *run_timer, unsigned int timeout)
+void countdown(Timer *run_timer, unsigned int timeout)
 {
     struct timeval curr_time;
     gettimeofday(&curr_time, NULL);
@@ -45,7 +45,7 @@ void TimerCountdown(Timer *run_timer, unsigned int timeout)
     timeradd(&curr_time, &interval, &run_timer->end_time);
 }
 
-void TimerCountdownMS(Timer *run_timer, unsigned int timeout)
+void countdown_ms(Timer *run_timer, unsigned int timeout)
 {
     struct timeval curr_time;
     gettimeofday(&curr_time, NULL);
@@ -53,7 +53,7 @@ void TimerCountdownMS(Timer *run_timer, unsigned int timeout)
     timeradd(&curr_time, &interval, &run_timer->end_time);
 }
 
-char TimerIsExpired(Timer *run_timer)
+char expired(Timer *run_timer)
 {
     struct timeval curr_time, res;
     gettimeofday(&curr_time, NULL);
@@ -61,7 +61,7 @@ char TimerIsExpired(Timer *run_timer)
     return res.tv_sec < 0 || (res.tv_sec == 0 && res.tv_usec <= 0);
 }
 
-void NetworkInit(Network *n)
+void NewNetwork(Network *n)
 {
     n->my_socket = 0;
     n->mqttread = tls_read;
@@ -201,7 +201,7 @@ int tls_write(Network *n, unsigned char *buffer, int len, int timeout_ms)
     return writtenLength;
 }
 
-int NetworkConnect(Network *n, char *addr, int port, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
+int ConnectNetwork(Network *n, char *addr, int port, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     int rc = -1;
     char port_char[5]; // max 4 digit port number
@@ -303,7 +303,7 @@ int NetworkConnect(Network *n, char *addr, int port, certsParseMode mode, char *
     return 0;
 }
 
-void NetworkDisconnect(Network *n)
+void linux_disconnect(Network *n)
 {
     log_trace("Disconnecting TLS...");
 

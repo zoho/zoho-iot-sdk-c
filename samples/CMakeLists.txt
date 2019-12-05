@@ -6,7 +6,7 @@ SET(CLIENT_KEY /usr/local/certs/client.key)
 
 # Configure EMBED_CERT_MODE to ON if you want to embed certs along with application. else
 # certificates needs to be copied along with application.
-OPTION(EMBED_CERT_MODE "Embed certificates along with application" ON)
+OPTION(EMBED_CERT_MODE "Embed certificates along with application" OFF)
 
 INCLUDE(${PROJECT_SOURCE_DIR}/cmake/internalFuncs.cmake)
 
