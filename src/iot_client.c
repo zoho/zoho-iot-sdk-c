@@ -122,12 +122,12 @@ int zclient_connect(IOTclient *client)
     unsigned char buf[buff_size], readbuf[buff_size];
 
     log_info("Preparing Network..");
-    NewNetwork(&n);
+    NetworkInit(&n);
 
 #if defined(SECURE_CONNECTION)
-    rc = ConnectNetwork(&n, client->config.hostname, port, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
+    rc = NetworkConnect(&n, client->config.hostname, port, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
 #else
-    rc = ConnectNetwork(&n, client->config.hostname, port);
+    rc = NetworkConnect(&n, client->config.hostname, port);
 #endif
     if (rc != ZSUCCESS)
     {
@@ -137,7 +137,7 @@ int zclient_connect(IOTclient *client)
 
     //TODO: Handle the rc of ConnectNetwork().
     log_info("Connecting to \x1b[32m %s : %d \x1b[0m", client->config.hostname, port);
-    MQTTClient(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
+    MQTTClientInit(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
 
     conn_data.MQTTVersion = 4;
@@ -158,7 +158,7 @@ int zclient_connect(IOTclient *client)
     }
     else
     {
-        linux_disconnect(client->mqtt_client.ipstack);
+        NetworkDisconnect(client->mqtt_client.ipstack);
         if (rc == 5)
         {
             log_error("Error while establishing connection, due to invalid credentials");
@@ -394,7 +394,7 @@ int zclient_disconnect(IOTclient *client)
     if (client->current_state == Connected)
     {
         rc = MQTTDisconnect(&client->mqtt_client);
-        linux_disconnect(client->mqtt_client.ipstack);
+        NetworkDisconnect(client->mqtt_client.ipstack);
     }
     client->current_state = Disconnected;
     log_info("Disconnected.");

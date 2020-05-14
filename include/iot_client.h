@@ -53,7 +53,7 @@ typedef enum
 
 typedef struct
 {
-    Client mqtt_client;
+    MQTTClient mqtt_client;
     Config config;
     ConnectionState current_state;
     Payload message;
