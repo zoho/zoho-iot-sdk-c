@@ -12,7 +12,7 @@ int __wrap_MQTTConnect(Client *c, MQTTPacket_connectData *options)
     return mock_type(int);
 }
 
-int __wrap_NetworkConnect(Network *n, char *host, int pt, ...)
+int __wrap_ConnectNetwork(Network *n, char *host, int pt, ...)
 {
     return mock_type(int);
 }
@@ -102,7 +102,7 @@ static void ConnectMethod_OnConnectOverExistingConnetion_ShouldSucceed(void **st
 static void ConnectMethod_WithNonNullArguments_ShouldSucceed(void **state)
 {
     // Connect method returns SUCCEDD with proper device credentials
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_ConnectNetwork, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
 
     IOTclient client;
@@ -113,7 +113,7 @@ static void ConnectMethod_WithNonNullArguments_ShouldSucceed(void **state)
 static void ConnectMethod_WithLostNetworkConnection_ShouldFail(void **state)
 {
     // Connect method returns failure as Network connection is not available.
-    will_return(__wrap_NetworkConnect, ZFAILURE);
+    will_return(__wrap_ConnectNetwork, ZFAILURE);
     IOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     assert_int_equal(zclient_connect(&client), ZFAILURE);
@@ -121,7 +121,7 @@ static void ConnectMethod_WithLostNetworkConnection_ShouldFail(void **state)
 static void ConnectMethod_WithWrongCredentials_ShouldFail(void **state)
 {
     // connect method returns failure as credentials for network connection are incorrect.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_ConnectNetwork, ZSUCCESS);
     will_return(__wrap_MQTTConnect, 5);
 
     IOTclient client;
@@ -135,7 +135,7 @@ static void ConnectMethod_WithWrongCredentials_ShouldFail(void **state)
 static void ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed(void **state)
 {
     // With Appropriate TLS Server Certificate and login credentials connect to HUB should succeed .
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_ConnectNetwork, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
 
     IOTclient client;
@@ -149,7 +149,7 @@ static void ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed(voi
 static void ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed(void **state)
 {
     // With Appropriate TLS Server and Client Certificates and login credentials connect to HUB should succeed .
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_ConnectNetwork, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
 
     IOTclient client;
@@ -179,7 +179,7 @@ static void PublishMethod_OnCallingBeforeInitialization_ShouldFail()
 static void PublishMethod_WithLostConnection_ShouldFail(void **state)
 {
     // Publishing with lost connection will return failure.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_ConnectNetwork, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTPublish, ZFAILURE);
     IOTclient client;
@@ -191,7 +191,7 @@ static void PublishMethod_WithLostConnection_ShouldFail(void **state)
 static void PublishMethod_WithNonNullArguments_ShouldSucceed(void **state)
 {
     // Publish method with appropriate arguments should succeed.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_ConnectNetwork, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTPublish, ZSUCCESS);
     IOTclient client;
@@ -226,7 +226,7 @@ static void DispatchMethod_WithNoConnection_ShouldFail(void **state)
 static void DispatchMethod_WithProperConnection_ShouldSucceed(void **state)
 {
     // Dispatch with Active connection should succeed.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_ConnectNetwork, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTPublish, ZSUCCESS);
     IOTclient client;
@@ -263,7 +263,7 @@ void message_handler(MessageData *data) {}
 static void SubscribeMethod_WithLostConnection_ShouldFail(void **state)
 {
     // Subscribe with lost connection should Fail
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_ConnectNetwork, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTSubscribe, ZFAILURE);
     IOTclient client;
@@ -275,7 +275,7 @@ static void SubscribeMethod_WithLostConnection_ShouldFail(void **state)
 static void SubscribeMethod_WithNonNullArguments_ShouldSucceed(void **state)
 {
     // Subscribe method returns success with appropriate connection.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_ConnectNetwork, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTSubscribe, ZSUCCESS);
     IOTclient client;
@@ -306,7 +306,7 @@ static void YieldMethod_OnNullArguments_ShouldFail(void **state)
 static void YieldMethod_OnNonNullArguments_ShouldSucceed(void **state)
 {
     // yield method with appropriate arguments should succeed.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_ConnectNetwork, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTYield, ZSUCCESS);
     IOTclient client;
@@ -318,7 +318,7 @@ static void YieldMethod_OnNonNullArguments_ShouldSucceed(void **state)
 static void YieldMethod_WithLostConnection_ShouldFail(void **state)
 {
     // Yield method wehn connection lost returns failure
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_ConnectNetwork, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTYield, ZFAILURE);
     IOTclient client;
@@ -346,7 +346,7 @@ static void DisconnectMethod_OnUnEstablishedConnetion_ShouldSucceed(void **state
 static void DisconnectMethod_WithActiveConnection_ShouldDisconnectAndReturnSuccess(void **state)
 {
     // Disconnect method with active connection get disconnected properly from HUB and return success.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_ConnectNetwork, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTDisconnect, ZSUCCESS);
     IOTclient client;
@@ -437,7 +437,7 @@ static void ReconnectMethod_OnCallingBeforeInitialization_ShouldFail()
 static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
 {
     // Reconnect method with lost connection can Retry connection and succeed.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_ConnectNetwork, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     IOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
