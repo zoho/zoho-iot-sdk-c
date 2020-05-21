@@ -89,5 +89,6 @@ char **stringSplit(const char *str, char separator,int *size)
       i++;
     }
   }
+  *size = count;
   return split;
 }

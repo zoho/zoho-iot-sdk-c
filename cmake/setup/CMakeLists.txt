@@ -52,7 +52,7 @@ ENDIF()
 # --------------------------------------------
 # MBED TLS LIBRARY:
 IF(NOT EXISTS ${PROJECT_SOURCE_DIR}/lib/mbedtls)
-    SET(MBED_TLS_VERSION mbedtls-2.12.0)
+    SET(MBED_TLS_VERSION mbedtls-2.16.3)
     MESSAGE("\nDownloading ${MBED_TLS_VERSION}\n")
     EXECUTE_PROCESS(COMMAND curl -LO
                             https://github.com/ARMmbed/mbedtls/archive/${MBED_TLS_VERSION}.zip
@@ -68,5 +68,5 @@ IF(NOT EXISTS ${PROJECT_SOURCE_DIR}/lib/mbedtls)
 
     EXECUTE_PROCESS(COMMAND unzip -q ${MBED_TLS_VERSION}.zip -d ${PROJECT_SOURCE_DIR}/lib)
     FILE(REMOVE ${PROJECT_BINARY_DIR}/${MBED_TLS_VERSION}.zip)
-    FILE(RENAME ${PROJECT_SOURCE_DIR}/lib/mbedtls-mbedtls-2.12.0 ${PROJECT_SOURCE_DIR}/lib/mbedtls)
+    FILE(RENAME ${PROJECT_SOURCE_DIR}/lib/mbedtls-${MBED_TLS_VERSION} ${PROJECT_SOURCE_DIR}/lib/mbedtls)
 ENDIF()

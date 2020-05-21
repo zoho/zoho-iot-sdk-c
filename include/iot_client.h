@@ -53,7 +53,7 @@ typedef enum
 
 typedef struct
 {
-    Client mqtt_client;
+    MQTTClient mqtt_client;
     Config config;
     ConnectionState current_state;
     Payload message;
@@ -72,6 +72,7 @@ int zclient_yield(IOTclient *client, int time_out);
 int zclient_reconnect(IOTclient *client);
 int zclient_dispatch(IOTclient *client);
 
+void zclient_addConnectionParameter(char *connectionParamKey, char *connectionParamValue);
 int zclient_addString(IOTclient *client, char *val_name, char *val_string);
 int zclient_addNumber(IOTclient *client, char *val_name, int val_int);
 int zclient_setRetrycount(IOTclient *client, int count);

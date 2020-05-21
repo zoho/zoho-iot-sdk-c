@@ -77,10 +77,10 @@ LIST(APPEND Z_IOT_SOURCES
             "src/utils.c")
 
 LIST(APPEND SDK_DEPENDENCIES
-            ${Z_IOT_SOURCES}
-            ${CJSON_SOURCES}
             ${PAHO_SOURCES}
-            ${NETWORK_SOURCES})
+            ${NETWORK_SOURCES}
+            ${CJSON_SOURCES}
+            ${Z_IOT_SOURCES})
 
 # TODO: Add configurable STATIC/DYNAMIC option.
 ADD_LIBRARY(zoho_iot_sdk STATIC ${SDK_DEPENDENCIES})

@@ -6,7 +6,7 @@
 Network n;
 certsParseMode parse_mode;
 int retryCount = 0;
-char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "";
+char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "", connectionStringBuff[256] = "";
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
@@ -30,9 +30,9 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
     }
 
     Config config = {NULL, NULL, 0};
-    int str_array_size=0;
-    char **string_array = stringSplit(MQTTUserName, '/',&str_array_size);
-    if (str_array_size < 6)
+    int str_array_size = 0;
+    char **string_array = stringSplit(MQTTUserName, '/', &str_array_size);
+    if (str_array_size != 5)
     {
         log_error("MQTTUsername is Malformed.");
         return ZFAILURE;
@@ -84,6 +84,21 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
     return ZSUCCESS;
 }
 
+void zclient_addConnectionParameter(char *connectionParamKey, char *connectionParamValue)
+{
+    sprintf(connectionStringBuff, "%s%s%s%s%s", connectionStringBuff, connectionParamKey, "=", connectionParamValue, "&");
+}
+
+char *formConnectionString(char *username)
+{
+    sprintf(connectionStringBuff, "%s%s", username, "?");
+    zclient_addConnectionParameter("sdk_name", "zoho-iot-sdk-c");
+    zclient_addConnectionParameter("sdk_version", "0.0.1");
+    //    zclient_addConnectionParams("sdk_url", "");
+    connectionStringBuff[strlen(connectionStringBuff) - 1] = '\0';
+    return connectionStringBuff;
+}
+
 int zclient_connect(IOTclient *client)
 {
     int rc = ZFAILURE;
@@ -107,12 +122,12 @@ int zclient_connect(IOTclient *client)
     unsigned char buf[buff_size], readbuf[buff_size];
 
     log_info("Preparing Network..");
-    NewNetwork(&n);
+    NetworkInit(&n);
 
 #if defined(SECURE_CONNECTION)
-    rc = ConnectNetwork(&n, client->config.hostname, port, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
+    rc = NetworkConnect(&n, client->config.hostname, port, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
 #else
-    rc = ConnectNetwork(&n, client->config.hostname, port);
+    rc = NetworkConnect(&n, client->config.hostname, port);
 #endif
     if (rc != ZSUCCESS)
     {
@@ -122,7 +137,7 @@ int zclient_connect(IOTclient *client)
 
     //TODO: Handle the rc of ConnectNetwork().
     log_info("Connecting to \x1b[32m %s : %d \x1b[0m", client->config.hostname, port);
-    MQTTClient(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
+    MQTTClientInit(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
 
     conn_data.MQTTVersion = 4;
@@ -132,7 +147,7 @@ int zclient_connect(IOTclient *client)
     conn_data.willFlag = 0;
 
     //TODO:2: to be verified with HUB.
-    conn_data.username.cstring = client->config.MqttUserName;
+    conn_data.username.cstring = formConnectionString(client->config.MqttUserName);
     conn_data.password.cstring = client->config.auth_token;
 
     rc = MQTTConnect(&client->mqtt_client, &conn_data);
@@ -143,7 +158,7 @@ int zclient_connect(IOTclient *client)
     }
     else
     {
-        linux_disconnect(client->mqtt_client.ipstack);
+        NetworkDisconnect(client->mqtt_client.ipstack);
         if (rc == 5)
         {
             log_error("Error while establishing connection, due to invalid credentials");
@@ -379,7 +394,7 @@ int zclient_disconnect(IOTclient *client)
     if (client->current_state == Connected)
     {
         rc = MQTTDisconnect(&client->mqtt_client);
-        linux_disconnect(client->mqtt_client.ipstack);
+        NetworkDisconnect(client->mqtt_client.ipstack);
     }
     client->current_state = Disconnected;
     log_info("Disconnected.");
