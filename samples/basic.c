@@ -40,7 +40,7 @@ int main()
     signal(SIGTERM, interruptHandler);
 
     char *payload;
-    int temperature = 23;
+    int temperature = 23, humidity = 56, pressure = 78;
     char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "", *pDeviceCertParsword = "";
 
 #if defined(SECURE_CONNECTION)
@@ -68,7 +68,13 @@ int main()
     while (ctrl_flag == 0)
     {
         temperature += 2;
+        humidity *= 2;
+        pressure -= 5;
         rc = zclient_addNumber(&client, "temperature", temperature);
+        rc = zclient_addNumber(&client, "humidity", humidity, "room1");
+        rc = zclient_addNumber(&client, "pressure", pressure, "room2");
+        rc = zclient_markDataPointAsError(&client, "mositure", "room2");
+        rc = zclient_markDataPointAsError(&client, "air_quality");
         rc = zclient_addString(&client, "status", "OK");
 
         //payload = zclient_getpayload();

@@ -162,7 +162,7 @@ static void ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed(voi
 
 // PUBLISH :
 
-static void PublishMethod_OnNUllArguments_ShouldFail(void **state)
+static void PublishMethod_OnNullArguments_ShouldFail(void **state)
 {
     // Publish method returns FAILURE as client is null.
     IOTclient *client = NULL;
@@ -173,7 +173,7 @@ static void PublishMethod_OnCallingBeforeInitialization_ShouldFail()
 {
     // publishing to HUB with out initializing client would return FAILURE
     IOTclient client;
-    assert_int_equal(zclient_publish(&client, "hello"), ZFAILURE);
+    assert_int_equal(zclient_publish(&client, "hello"), -2);
 }
 
 static void PublishMethod_WithLostConnection_ShouldFail(void **state)
@@ -300,6 +300,7 @@ static void YieldMethod_OnNullArguments_ShouldFail(void **state)
 
     //Yield returns Failure for non positive timeout.
     IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     assert_int_equal(zclient_yield(&client, 0), ZFAILURE);
 }
 
@@ -383,6 +384,27 @@ static void AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void
     assert_int_equal(2, cJSON_GetObjectItem(client.message.data, "key1")->valueint);
 }
 
+static void AddNumberMethod_withNonNullAssetNameArgument_ShouldAddKeyToAssetObject_InData(void **state)
+{
+    // AddNumber with non-null asset name argument should add value to asset object in data.
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_addNumber(&client, "key1", 1, "asset1");
+    cJSON *assetObj = cJSON_GetObjectItem(client.message.data, "asset1");
+    assert_int_equal(1, cJSON_GetObjectItem(assetObj, "key1")->valueint);
+}
+
+static void AddNumberMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void **state)
+{
+    // AddNumber with non-null asset name argument on adding key should replace old value in asset object of data.
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_addNumber(&client, "key1", 1, "asset1");
+    zclient_addNumber(&client, "key1", 30, "asset1");
+    cJSON *assetObj = cJSON_GetObjectItem(client.message.data, "asset1");
+    assert_int_equal(30, cJSON_GetObjectItem(assetObj, "key1")->valueint);
+}
+
 // ADD STRING :
 
 static void AddStringMethod_CalledWithoutInitialization_ShouldFail(void **state)
@@ -409,6 +431,46 @@ static void AddStringMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void
     zclient_addString(&client, "str_key", "str_val1");
     zclient_addString(&client, "str_key", "str_val2");
     assert_int_equal(strcmp("str_val2", cJSON_GetObjectItem(client.message.data, "str_key")->valuestring), 0);
+}
+
+static void AddStringMethod_withNonNullAssetNameArgument_ShouldAddKeyToAssetObject_InData(void **state)
+{
+    // AddString with non-null asset name argument should add value to asset name in data.
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_addString(&client, "key1", "str_val1", "asset1");
+    cJSON *assetObj = cJSON_GetObjectItem(client.message.data, "asset1");
+    assert_int_equal(strcmp("str_val1", cJSON_GetObjectItem(assetObj, "key1")->valuestring), 0);
+}
+
+static void AddStringMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void **state)
+{
+    // AddString with non-null asset name argument on adding key should replace old value in asset object of data.
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_addString(&client, "key1", "str_val1", "asset1");
+    zclient_addString(&client, "key1", "str_val2", "asset1");
+    cJSON *assetObj = cJSON_GetObjectItem(client.message.data, "asset1");
+    assert_int_equal(strcmp("str_val2", cJSON_GetObjectItem(assetObj, "key1")->valuestring), 0);
+}
+
+// MARK DATAPOINT ERROR :
+
+static void MarkDataPointAsError_withNonNullAssetNameArgument_ShouldAddErrorValueToDataPointInAssetObject(void **state)
+{
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_markDataPointAsError(&client, "key1", "asset1");
+    cJSON *assetObj = cJSON_GetObjectItem(client.message.data, "asset1");
+    assert_int_equal(strcmp("<ERROR>", cJSON_GetObjectItem(assetObj, "key1")->valuestring), 0);
+}
+
+static void MarkDataPointAsError_withNoOrNullAssetNameArgument_ShouldAddErrorValueToDataPoint(void **state)
+{
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_markDataPointAsError(&client, "key1");
+    assert_int_equal(strcmp("<ERROR>", cJSON_GetObjectItem(client.message.data, "key1")->valuestring), 0);
 }
 
 // RECONNECT :
@@ -492,7 +554,7 @@ int main(void)
             cmocka_unit_test(ConnectMethod_WithWrongCredentials_ShouldFail),
             cmocka_unit_test(ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed),
             cmocka_unit_test(ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed),
-            cmocka_unit_test(PublishMethod_OnNUllArguments_ShouldFail),
+            cmocka_unit_test(PublishMethod_OnNullArguments_ShouldFail),
             cmocka_unit_test(PublishMethod_OnCallingBeforeInitialization_ShouldFail),
             cmocka_unit_test(PublishMethod_WithLostConnection_ShouldFail),
             cmocka_unit_test(PublishMethod_WithNonNullArguments_ShouldSucceed),
@@ -514,9 +576,15 @@ int main(void)
             cmocka_unit_test(AddNumberMethod_WithNullArguments_ShouldFail),
             cmocka_unit_test(AddNumberMethod_CalledWithoutInitialization_ShouldFail),
             cmocka_unit_test(AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
+            cmocka_unit_test(AddNumberMethod_withNonNullAssetNameArgument_ShouldAddKeyToAssetObject_InData),
+            cmocka_unit_test(AddNumberMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
             cmocka_unit_test(AddStringMethod_CalledWithoutInitialization_ShouldFail),
             cmocka_unit_test(AddStringMethod_OnNullArguments_ShouldFail),
             cmocka_unit_test(AddStringMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
+            cmocka_unit_test(AddStringMethod_withNonNullAssetNameArgument_ShouldAddKeyToAssetObject_InData),
+            cmocka_unit_test(AddStringMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
+            cmocka_unit_test(MarkDataPointAsError_withNonNullAssetNameArgument_ShouldAddErrorValueToDataPointInAssetObject),
+            cmocka_unit_test(MarkDataPointAsError_withNoOrNullAssetNameArgument_ShouldAddErrorValueToDataPoint),
             cmocka_unit_test(ReconnectMethod_WithExistingConnection_ShouldSucceed),
             cmocka_unit_test(ReconnectMethod_OnNullArguments_ShouldFail),
             cmocka_unit_test(ReconnectMethod_OnCallingBeforeInitialization_ShouldFail),
