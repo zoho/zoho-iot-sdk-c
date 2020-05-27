@@ -19,6 +19,15 @@
 #define command_topic (char *)"/command"
 #define event_topic (char *)"/events"
 
+#define zclient_addNumber(...) zclient_addNumberToAsset(__VA_ARGS__, NULL)
+#define zclient_addNumberToAsset(client, val_name, val_int, assetName, ...) zclient_addNumber(client, val_name, val_int, assetName)
+
+#define zclient_addString(...) zclient_addStringToAsset(__VA_ARGS__, NULL)
+#define zclient_addStringToAsset(client, val_name, val_string, assetName, ...) zclient_addString(client, val_name, val_string, assetName)
+
+#define zclient_markDataPointAsError(...) zclient_markDataPointAsErrorInAsset(__VA_ARGS__, NULL)
+#define zclient_markDataPointAsErrorInAsset(client, val_name, assetName, ...) zclient_markDataPointAsError(client, val_name, assetName)
+
 typedef struct
 {
     char *client_id;
@@ -73,8 +82,11 @@ int zclient_reconnect(IOTclient *client);
 int zclient_dispatch(IOTclient *client);
 
 void zclient_addConnectionParameter(char *connectionParamKey, char *connectionParamValue);
-int zclient_addString(IOTclient *client, char *val_name, char *val_string);
-int zclient_addNumber(IOTclient *client, char *val_name, int val_int);
+int zclient_markDataPointAsError(IOTclient *client, char *val_name, char *assetName);
+// In add String method , assetName parameter as optional.
+int zclient_addString(IOTclient *client, char *val_name, char *val_string, char *assetName);
+// In add Number method , assetName parameter as optional.
+int zclient_addNumber(IOTclient *client, char *val_name, int val_int, char *assetName);
 int zclient_setRetrycount(IOTclient *client, int count);
 //char *zclient_getpayload();
 #endif //# IOT_CLIENT_H_

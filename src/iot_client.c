@@ -71,14 +71,12 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
 #endif
 
     //TODO: freeup config.
-    iot_client->message.cJsonPayload = cJSON_CreateObject();
     iot_client->message.data = cJSON_CreateObject();
-    if (iot_client->message.cJsonPayload == NULL || iot_client->message.data == NULL)
+    if (iot_client->message.data == NULL)
     {
         log_error("Can't create cJSON object");
         return ZFAILURE;
     }
-    cJSON_AddStringToObject(iot_client->message.cJsonPayload, "client_id", config.client_id);
     iot_client->current_state = Initialized;
     log_info("Client Initialized!");
     return ZSUCCESS;
@@ -99,20 +97,32 @@ char *formConnectionString(char *username)
     return connectionStringBuff;
 }
 
-int zclient_connect(IOTclient *client)
+int validateClientState(IOTclient *client)
 {
-    int rc = ZFAILURE;
     if (client == NULL)
     {
         log_error("Client object can't be NULL");
         return ZFAILURE;
     }
-    //TODO: verify the buff size on real device. and flush the buffer at end of connection.
-    if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
+    else if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
     {
-        log_error("Client should be initialized before connection");
+        log_error("Client should be initialized");
         return -2; //just to differentiate with network error.
     }
+    else
+    {
+        return ZSUCCESS;
+    }
+}
+
+int zclient_connect(IOTclient *client)
+{
+    int rc = validateClientState(client);
+    if (rc != 0)
+    {
+        return rc;
+    }
+    //TODO: verify the buff size on real device. and flush the buffer at end of connection.
     if (client->current_state == Connected)
     {
         log_info("Client already Connected");
@@ -173,16 +183,11 @@ int zclient_connect(IOTclient *client)
 
 int zclient_reconnect(IOTclient *client)
 {
-    if (client == NULL)
+    int delay = 5;
+    int rc = validateClientState(client);
+    if (rc != 0)
     {
-        log_error("Client object can't be NULL");
-        return ZFAILURE;
-    }
-
-    if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
-    {
-        log_error("Client should be initialized before connection");
-        return -2; //just to differentiate with network error.
+        return rc;
     }
 
     if (client->current_state == Connected)
@@ -191,7 +196,6 @@ int zclient_reconnect(IOTclient *client)
         return ZSUCCESS;
     }
 
-    int rc = ZFAILURE, delay = 5;
     log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", client->config.hostname, port, delay);
     sleep(delay);
     rc = zclient_connect(client);
@@ -219,17 +223,17 @@ int zclient_reconnect(IOTclient *client)
 
 int zclient_publish(IOTclient *client, char *payload)
 {
-    if (client == NULL)
+    int rc = validateClientState(client);
+    if (rc != 0)
     {
-        log_error("Client object can't be NULL");
-        return ZFAILURE;
+        return rc;
     }
     if (client->current_state != Connected)
     {
-        log_debug("Failed to publish, since connection is lost/not established");
+        log_debug("Can not publish, since connection is lost/not established");
         return ZFAILURE;
     }
-    int rc = ZFAILURE;
+    rc = ZFAILURE;
     MQTTMessage pubmsg;
     //TODO:remove hardcoded values of id etc and get from structure copied from config.h
     //TODO: confirm the below parameters with Hub. Especially the pubmessageID
@@ -261,62 +265,32 @@ int zclient_publish(IOTclient *client, char *payload)
 
 int zclient_dispatch(IOTclient *client)
 {
-    if (client == NULL)
+    int rc = validateClientState(client);
+    if (rc != 0)
     {
-        log_error("Client object can't be NULL");
-        return ZFAILURE;
-    }
-    if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
-    {
-        log_error("Client should be initialized");
-        return -2;
+        return rc;
     }
     if (client->current_state != Connected)
     {
-        log_debug("Failed to Publish, since connection is lost/not established");
+        log_debug("Can not dispatch, since connection is lost/not established");
         return ZFAILURE;
     }
     //TODO: Add time stamp, Client ID
-    int rc = ZSUCCESS;
-    time_t curtime;
-    time(&curtime);
-    char *time_val = strtok(ctime(&curtime), "\n");
-    if (!cJSON_HasObjectItem(client->message.cJsonPayload, "time"))
-    {
-        cJSON_AddStringToObject(client->message.cJsonPayload, "time", time_val);
-    }
-    else
-    {
-        cJSON *temp = cJSON_CreateString(time_val);
-        cJSON_ReplaceItemInObject(client->message.cJsonPayload, "time", temp);
-    }
-
-    if (!cJSON_HasObjectItem(client->message.cJsonPayload, "data"))
-    {
-        cJSON_AddItemToObject(client->message.cJsonPayload, "data", client->message.data);
-    }
-    else
-    {
-        cJSON_ReplaceItemInObject(client->message.cJsonPayload, "data", client->message.data);
-    }
-
-    char *payload = cJSON_Print(client->message.cJsonPayload);
-    rc = zclient_publish(client, payload);
-    return rc;
+    char *payload = cJSON_Print(client->message.data);
+    return zclient_publish(client, payload);
 }
 
 int zclient_subscribe(IOTclient *client, messageHandler on_message)
 {
-    int rc = ZSUCCESS;
-    if (client == NULL)
+    int rc = validateClientState(client);
+    if (rc != 0)
     {
-        log_error("Client object can't be NULL");
-        return ZFAILURE;
+        return rc;
     }
-    if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
+    if (client->current_state != Connected)
     {
-        log_error("Client should be initialized");
-        return -2;
+        log_debug("Can not subscribe, since connection is lost/not established");
+        return ZFAILURE;
     }
     //TODO: add basic validation & callback method and append it on error logs.
     rc = MQTTSubscribe(&(client->mqtt_client), commandTopic, QOS0, on_message);
@@ -339,21 +313,15 @@ int zclient_subscribe(IOTclient *client, messageHandler on_message)
 
 int zclient_yield(IOTclient *client, int time_out)
 {
-    int rc = ZSUCCESS;
-    if (client == NULL)
+    int rc = validateClientState(client);
+    if (rc != 0)
     {
-        log_error("Client object can't be NULL");
-        return ZFAILURE;
+        return rc;
     }
     if (time_out <= 0)
     {
         log_error("timeout can't be Zero or Negative");
         return ZFAILURE;
-    }
-    if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
-    {
-        log_error("Client should be initialized");
-        return -2;
     }
     if (client->current_state == Disconnected)
     {
@@ -399,52 +367,15 @@ int zclient_disconnect(IOTclient *client)
     client->current_state = Disconnected;
     log_info("Disconnected.");
     log_free();
-    cJSON_free(client->message.cJsonPayload);
-    return rc;
-}
-
-int zclient_addString(IOTclient *client, char *val_name, char *val_string)
-{
-    int rc = ZSUCCESS;
-    if (client == NULL)
-    {
-        log_error("Client object can't be NULL");
-        return ZFAILURE;
-    }
-
-    if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
-    {
-        log_error("Client should be initialized");
-        return -2;
-    }
-
-    if (!cJSON_HasObjectItem(client->message.data, val_name))
-    {
-        if (cJSON_AddStringToObject(client->message.data, val_name, val_string) == NULL)
-        {
-            log_error("Adding string attribute failed\n");
-            rc = ZFAILURE;
-        }
-    }
-    else
-    {
-        cJSON *temp = cJSON_CreateString(val_string);
-        cJSON_ReplaceItemInObject(client->message.data, val_name, temp);
-    }
     return rc;
 }
 
 int zclient_setRetrycount(IOTclient *client, int count)
 {
-    if (client == NULL)
+    int rc = validateClientState(client);
+    if (rc != 0)
     {
-        return ZFAILURE;
-    }
-
-    if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
-    {
-        log_error("Client should be initialized");
-        return -2;
+        return rc;
     }
 
     if (count < 0)
@@ -457,23 +388,40 @@ int zclient_setRetrycount(IOTclient *client, int count)
     return ZSUCCESS;
 }
 
-int zclient_addNumber(IOTclient *client, char *val_name, int val_int)
+cJSON *addAssetNameTopayload(IOTclient *client, char *assetName)
 {
-    int rc = ZSUCCESS;
-    if (client == NULL)
+    if (assetName != NULL)
     {
-        log_error("Client object can't be NULL");
-        return ZFAILURE;
+        if (!cJSON_HasObjectItem(client->message.data, assetName))
+        {
+            cJSON_AddItemReferenceToObject(client->message.data, assetName, cJSON_CreateObject());
+        }
+        return cJSON_GetObjectItem(client->message.data, assetName);
     }
-    if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
+    else
     {
-        log_error("Client should be initialized");
-        return -2;
+        return client->message.data;
+    }
+}
+
+int zclient_addNumber(IOTclient *client, char *val_name, int val_int, char *assetName)
+{
+    int rc = validateClientState(client);
+    if (rc != 0)
+    {
+        return rc;
+    }
+    if (val_name == NULL)
+    {
+        return -1;
     }
 
-    if (!cJSON_HasObjectItem(client->message.data, val_name))
+    cJSON *obj = addAssetNameTopayload(client, assetName);
+    rc = ZSUCCESS;
+
+    if (!cJSON_HasObjectItem(obj, val_name))
     {
-        if (cJSON_AddNumberToObject(client->message.data, val_name, val_int) == NULL)
+        if (cJSON_AddNumberToObject(obj, val_name, val_int) == NULL)
         {
             log_error("Adding int attribute failed\n");
             rc = ZFAILURE;
@@ -482,9 +430,45 @@ int zclient_addNumber(IOTclient *client, char *val_name, int val_int)
     else
     {
         cJSON *temp = cJSON_CreateNumber(val_int);
-        cJSON_ReplaceItemInObject(client->message.data, val_name, temp);
+        cJSON_ReplaceItemInObject(obj, val_name, temp);
     }
     return rc;
+}
+
+int zclient_addString(IOTclient *client, char *val_name, char *val_string, char *assetName)
+{
+    int rc = validateClientState(client);
+    if (rc != 0)
+    {
+        return rc;
+    }
+    if (val_name == NULL)
+    {
+        return -1;
+    }
+
+    cJSON *obj = addAssetNameTopayload(client, assetName);
+    rc = ZSUCCESS;
+
+    if (!cJSON_HasObjectItem(obj, val_name))
+    {
+        if (cJSON_AddStringToObject(obj, val_name, val_string) == NULL)
+        {
+            log_error("Adding string attribute failed\n");
+            rc = ZFAILURE;
+        }
+    }
+    else
+    {
+        cJSON *temp = cJSON_CreateString(val_string);
+        cJSON_ReplaceItemInObject(obj, val_name, temp);
+    }
+    return rc;
+}
+
+int zclient_markDataPointAsError(IOTclient *client, char *val_name, char *assetName)
+{
+    return zclient_addString(client, val_name, "<ERROR>", assetName);
 }
 
 /*
