@@ -390,7 +390,7 @@ int zclient_setRetrycount(IOTclient *client, int count)
 
 cJSON *addAssetNameTopayload(IOTclient *client, char *assetName)
 {
-    if (assetName != NULL)
+    if (assetName != NULL && strcmp(assetName, "") != 0 )
     {
         if (!cJSON_HasObjectItem(client->message.data, assetName))
         {

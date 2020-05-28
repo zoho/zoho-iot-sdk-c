@@ -405,6 +405,15 @@ static void AddNumberMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldS
     assert_int_equal(30, cJSON_GetObjectItem(assetObj, "key1")->valueint);
 }
 
+static void AddNumberMethod_withEmptyAssetNameArgument_ShouldAddKeyToData(void **state)
+{
+    // AddNumber with empty asset name argument on adding key should add key to data.
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_addNumber(&client, "key1", 123, "");
+    assert_int_equal(123, cJSON_GetObjectItem(client.message.data, "key1")->valueint);
+}
+
 // ADD STRING :
 
 static void AddStringMethod_CalledWithoutInitialization_ShouldFail(void **state)
@@ -452,6 +461,15 @@ static void AddStringMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldS
     zclient_addString(&client, "key1", "str_val2", "asset1");
     cJSON *assetObj = cJSON_GetObjectItem(client.message.data, "asset1");
     assert_int_equal(strcmp("str_val2", cJSON_GetObjectItem(assetObj, "key1")->valuestring), 0);
+}
+
+static void AddStringMethod_withEmptyAssetNameArgument_ShouldAddKeyToData(void **state)
+{
+    // AddString with empty asset name argument on adding key should add key to data.
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_addString(&client, "key1", "str_val1", "");
+    assert_int_equal(strcmp("str_val1", cJSON_GetObjectItem(client.message.data, "key1")->valuestring), 0);
 }
 
 // MARK DATAPOINT ERROR :
@@ -578,11 +596,13 @@ int main(void)
             cmocka_unit_test(AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
             cmocka_unit_test(AddNumberMethod_withNonNullAssetNameArgument_ShouldAddKeyToAssetObject_InData),
             cmocka_unit_test(AddNumberMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
+            cmocka_unit_test(AddNumberMethod_withEmptyAssetNameArgument_ShouldAddKeyToData),
             cmocka_unit_test(AddStringMethod_CalledWithoutInitialization_ShouldFail),
             cmocka_unit_test(AddStringMethod_OnNullArguments_ShouldFail),
             cmocka_unit_test(AddStringMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
             cmocka_unit_test(AddStringMethod_withNonNullAssetNameArgument_ShouldAddKeyToAssetObject_InData),
             cmocka_unit_test(AddStringMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
+            cmocka_unit_test(AddStringMethod_withEmptyAssetNameArgument_ShouldAddKeyToData),
             cmocka_unit_test(MarkDataPointAsError_withNonNullAssetNameArgument_ShouldAddErrorValueToDataPointInAssetObject),
             cmocka_unit_test(MarkDataPointAsError_withNoOrNullAssetNameArgument_ShouldAddErrorValueToDataPoint),
             cmocka_unit_test(ReconnectMethod_WithExistingConnection_ShouldSucceed),
