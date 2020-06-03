@@ -169,9 +169,25 @@ int zclient_connect(IOTclient *client)
     else
     {
         NetworkDisconnect(client->mqtt_client.ipstack);
-        if (rc == 5)
+        if (rc == 1)
         {
-            log_error("Error while establishing connection, due to invalid credentials");
+            log_error("Error while establishing connection, unacceptable protocol version. Error code: %d", rc);
+        }
+        else if (rc == 2)
+        {
+            log_error("Error while establishing connection, Invalid ClientId . Error code: %d", rc);
+        }
+        else if (rc == 3)
+        {
+            log_error("Error while establishing connection, Server unavailable . Error code: %d", rc);
+        }
+        else if (rc == 4)
+        {
+            log_error("Error while establishing connection, due to invalid credentials. Error code: %d", rc);
+        }
+        else if (rc == 5)
+        {
+            log_error("Error while establishing connection, Connection refused,as device is not authorized. Error code: %d", rc);
         }
         else
         {
@@ -390,7 +406,7 @@ int zclient_setRetrycount(IOTclient *client, int count)
 
 cJSON *addAssetNameTopayload(IOTclient *client, char *assetName)
 {
-    if (assetName != NULL && strcmp(assetName, "") != 0 )
+    if (assetName != NULL && strcmp(assetName, "") != 0)
     {
         if (!cJSON_HasObjectItem(client->message.data, assetName))
         {
