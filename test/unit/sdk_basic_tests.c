@@ -120,7 +120,7 @@ static void ConnectMethod_OnConnectOverExistingConnetion_ShouldSucceed(void **st
     // connect returns SUCCESS for connect called on existing connection.
     IOTclient client;
     assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", ""), ZSUCCESS);
-    client.current_state = Connected;
+    client.current_state = CONNECTED;
     assert_int_equal(zclient_connect(&client), ZSUCCESS);
 }
 
@@ -522,7 +522,7 @@ static void ReconnectMethod_WithExistingConnection_ShouldSucceed(void **state)
 {
     //  Reconnecting over the existing connection returns SUCCESS.
     IOTclient client;
-    client.current_state = Connected;
+    client.current_state = CONNECTED;
     assert_int_equal(zclient_reconnect(&client), ZSUCCESS);
 }
 
@@ -546,7 +546,7 @@ static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     IOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
-    client.current_state = Disconnected;
+    client.current_state = DISCONNECTED;
     assert_int_equal(zclient_reconnect(&client), ZSUCCESS);
 }
 

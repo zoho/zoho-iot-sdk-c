@@ -55,9 +55,9 @@ typedef struct
 
 typedef enum
 {
-    Initialized = 1,
-    Connected = 2,
-    Disconnected = 3
+    INITIALIZED = 1,
+    CONNECTED = 2,
+    DISCONNECTED = 3
 } ConnectionState;
 
 typedef struct
