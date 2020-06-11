@@ -47,8 +47,33 @@ static void InitMethod_OnNullArguments_ShouldFail(void **state)
     assert_int_equal(zclient_init(NULL, mqttUserName, mqttPassword, EMBED, "", "", "", ""), ZFAILURE);
 
     // Init returns failure as Device Credentials are NULL
-    IOTclient *client;
-    assert_int_equal(zclient_init(client, NULL, NULL, EMBED, "", "", "", ""), ZFAILURE);
+    IOTclient client;
+    assert_int_equal(zclient_init(&client, NULL, NULL, EMBED, "", "", "", ""), ZFAILURE);
+}
+
+static void InitConfigFileMethod_OnNullArguments_ShouldFail(void **state)
+{
+    IOTclient client;
+    // Init returns failure as FileName is NULL
+    assert_int_equal(zclient_init_config_file(&client, NULL, EMBED), ZFAILURE);
+    // Init returns failure as FileName is Empty
+    assert_int_equal(zclient_init_config_file(&client, "", EMBED), ZFAILURE);
+}
+
+static void InitConfigFileMethod_OnProperArguments_ShouldSucceed(void **state)
+{
+    IOTclient client;
+    // Init returns Success by initialising client with proper file contents.
+    assert_int_equal(zclient_init_config_file(&client, "../../../test/MqttConfig.json", EMBED), ZSUCCESS);
+}
+
+static void InitConfigFileMethod_OnProperArguments_withImproperKeys_ShouldFail(void **state)
+{
+    IOTclient client;
+    // Init returns Fail to initialise client with improper file contents (Empty credentials).
+    assert_int_equal(zclient_init_config_file(&client, "../../../test/MqttConfig_Wrong_Params.json", EMBED), ZFAILURE);
+    // Init returns Fail to initialise client with proper file format (JSON structure).
+    assert_int_equal(zclient_init_config_file(&client, "../../../test/MqttConfig_Wrong_Format.json", EMBED), ZFAILURE);
 }
 
 #ifndef SECURE_CONNECTION
@@ -562,6 +587,9 @@ int main(void)
     const struct CMUnitTest sdk_basic_tests[] =
         {
             cmocka_unit_test(InitMethod_OnNullArguments_ShouldFail),
+            cmocka_unit_test(InitConfigFileMethod_OnNullArguments_ShouldFail),
+            cmocka_unit_test(InitConfigFileMethod_OnProperArguments_ShouldSucceed),
+            cmocka_unit_test(InitConfigFileMethod_OnProperArguments_withImproperKeys_ShouldFail),
             cmocka_unit_test(InitMethod_WithTLS_NullSeverCertificates_ShouldFail),
             cmocka_unit_test(InitMethod_WithTLS_NullClientCertificates_ShouldFail),
             cmocka_unit_test(ConnectMethod_OnCallingBeforeInitialization_ShouldFail),

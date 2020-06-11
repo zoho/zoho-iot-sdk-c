@@ -11,6 +11,39 @@ char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "", connecti
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
 
+int zclient_init_config_file(IOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode)
+{
+    FILE *MqttConfigFile = fopen(MqttConfigFilePath, "rb");
+    if (!MqttConfigFile)
+    {
+        log_error("Mqtt Config File can't be missing or NULL.");
+        return ZFAILURE;
+    }
+    fseek(MqttConfigFile, 0, SEEK_END);
+    long length = ftell(MqttConfigFile);
+    fseek(MqttConfigFile, 0, SEEK_SET);
+    char buffer[length+2];
+    if (buffer)
+    {
+        fread(buffer, sizeof(char), length, MqttConfigFile);
+    }
+    fclose(MqttConfigFile);
+    buffer[length] = '\0';
+    cJSON *temp = cJSON_Parse(buffer);
+    if (temp == NULL)
+    {
+        log_error("Cannot parse the contents of MQTT config file");
+        return ZFAILURE;
+    }
+    char *mqttUserName = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "MQTTUserName"));
+    char *mqttPassword = cJSON_GetObjectItem(temp, "MQTTPassword")->valuestring;
+    char *ca_crt = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "RootCACertLocation"));
+    char *client_cert = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "DeviceCertLocation"));
+    char *client_key = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "DevicePrivateKeyLocation"));
+    char *cert_password = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "DeviceCertParsword"));
+    return zclient_init(iot_client, mqttUserName, mqttPassword, mode, ca_crt, client_cert, client_key, cert_password);
+}
+
 int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     //TODO:1
@@ -23,9 +56,9 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
         log_error("Client object is NULL");
         return ZFAILURE;
     }
-    if (MQTTUserName == NULL || MQTTPassword == NULL)
+    if (MQTTUserName == NULL || !strcmp(MQTTUserName, "") || MQTTPassword == NULL || !strcmp(MQTTPassword, ""))
     {
-        log_error("Device Credentials can't be NULL");
+        log_error("Device Credentials can't be NULL or Empty");
         return ZFAILURE;
     }
 
