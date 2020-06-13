@@ -1,0 +1,8 @@
+{
+    "MQTTUserName": "/domain_name/v1/devices/device_id/connect",
+    "MQTTPassword": "",
+    "RootCACertLocation": "/path_to/server_ca.crt",
+    "DeviceCertLocation": "/path_to/client_crt.crt",
+    "DevicePrivateKeyLocation": "/path_to/client_key.key",
+    "DeviceCertParsword": ""
+}

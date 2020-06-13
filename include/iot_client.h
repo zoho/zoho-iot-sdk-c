@@ -55,9 +55,9 @@ typedef struct
 
 typedef enum
 {
-    Initialized = 1,
-    Connected = 2,
-    Disconnected = 3
+    INITIALIZED = 1,
+    CONNECTED = 2,
+    DISCONNECTED = 3
 } ConnectionState;
 
 typedef struct
@@ -71,6 +71,7 @@ typedef struct
 #endif
 } IOTclient;
 
+int zclient_init_config_file(IOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode);
 int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
 int zclient_connect(IOTclient *client);
 int zclient_publish(IOTclient *client, char *payload);

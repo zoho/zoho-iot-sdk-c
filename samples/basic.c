@@ -53,6 +53,7 @@ int main()
 
     //Update your DEVICE_ID AND AUTH_TOKEN below:
     rc = zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
+    // rc = zclient_init_config_file(&client, "MQTTConfigFileName", CRT_PARSE_MODE);
     if (rc != ZSUCCESS)
     {
         return 0;

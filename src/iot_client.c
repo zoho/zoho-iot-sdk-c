@@ -11,6 +11,39 @@ char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "", connecti
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
 
+int zclient_init_config_file(IOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode)
+{
+    FILE *MqttConfigFile = fopen(MqttConfigFilePath, "rb");
+    if (!MqttConfigFile)
+    {
+        log_error("Mqtt Config File can't be missing or NULL.");
+        return ZFAILURE;
+    }
+    fseek(MqttConfigFile, 0, SEEK_END);
+    long length = ftell(MqttConfigFile);
+    fseek(MqttConfigFile, 0, SEEK_SET);
+    char buffer[length+2];
+    if (buffer)
+    {
+        fread(buffer, sizeof(char), length, MqttConfigFile);
+    }
+    fclose(MqttConfigFile);
+    buffer[length] = '\0';
+    cJSON *temp = cJSON_Parse(buffer);
+    if (temp == NULL)
+    {
+        log_error("Cannot parse the contents of MQTT config file");
+        return ZFAILURE;
+    }
+    char *mqttUserName = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "MQTTUserName"));
+    char *mqttPassword = cJSON_GetObjectItem(temp, "MQTTPassword")->valuestring;
+    char *ca_crt = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "RootCACertLocation"));
+    char *client_cert = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "DeviceCertLocation"));
+    char *client_key = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "DevicePrivateKeyLocation"));
+    char *cert_password = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "DeviceCertParsword"));
+    return zclient_init(iot_client, mqttUserName, mqttPassword, mode, ca_crt, client_cert, client_key, cert_password);
+}
+
 int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     //TODO:1
@@ -23,9 +56,9 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
         log_error("Client object is NULL");
         return ZFAILURE;
     }
-    if (MQTTUserName == NULL || MQTTPassword == NULL)
+    if (MQTTUserName == NULL || !strcmp(MQTTUserName, "") || MQTTPassword == NULL || !strcmp(MQTTPassword, ""))
     {
-        log_error("Device Credentials can't be NULL");
+        log_error("Device Credentials can't be NULL or Empty");
         return ZFAILURE;
     }
 
@@ -77,7 +110,7 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
         log_error("Can't create cJSON object");
         return ZFAILURE;
     }
-    iot_client->current_state = Initialized;
+    iot_client->current_state = INITIALIZED;
     log_info("Client Initialized!");
     return ZSUCCESS;
 }
@@ -104,7 +137,7 @@ int validateClientState(IOTclient *client)
         log_error("Client object can't be NULL");
         return ZFAILURE;
     }
-    else if (client->current_state != Initialized && client->current_state != Connected && client->current_state != Disconnected)
+    else if (client->current_state != INITIALIZED && client->current_state != CONNECTED && client->current_state != DISCONNECTED)
     {
         log_error("Client should be initialized");
         return -2; //just to differentiate with network error.
@@ -123,7 +156,7 @@ int zclient_connect(IOTclient *client)
         return rc;
     }
     //TODO: verify the buff size on real device. and flush the buffer at end of connection.
-    if (client->current_state == Connected)
+    if (client->current_state == CONNECTED)
     {
         log_info("Client already Connected");
         return ZSUCCESS;
@@ -164,14 +197,30 @@ int zclient_connect(IOTclient *client)
     if (rc == 0)
     {
         log_info("Connected!");
-        client->current_state = Connected;
+        client->current_state = CONNECTED;
     }
     else
     {
         NetworkDisconnect(client->mqtt_client.ipstack);
-        if (rc == 5)
+        if (rc == 1)
         {
-            log_error("Error while establishing connection, due to invalid credentials");
+            log_error("Error while establishing connection, unacceptable protocol version. Error code: %d", rc);
+        }
+        else if (rc == 2)
+        {
+            log_error("Error while establishing connection, Invalid ClientId . Error code: %d", rc);
+        }
+        else if (rc == 3)
+        {
+            log_error("Error while establishing connection, Server unavailable . Error code: %d", rc);
+        }
+        else if (rc == 4)
+        {
+            log_error("Error while establishing connection, due to invalid credentials. Error code: %d", rc);
+        }
+        else if (rc == 5)
+        {
+            log_error("Error while establishing connection, Connection refused,as device is not authorized. Error code: %d", rc);
         }
         else
         {
@@ -190,7 +239,7 @@ int zclient_reconnect(IOTclient *client)
         return rc;
     }
 
-    if (client->current_state == Connected)
+    if (client->current_state == CONNECTED)
     {
         log_info("Client already Connected");
         return ZSUCCESS;
@@ -201,13 +250,13 @@ int zclient_reconnect(IOTclient *client)
     rc = zclient_connect(client);
     if (rc == ZSUCCESS)
     {
-        client->current_state = Connected;
+        client->current_state = CONNECTED;
         retryCount = 0;
         return ZSUCCESS;
     }
     retryCount++;
     log_info("retryCount :%d", retryCount);
-    if (client->current_state != Disconnected && client->current_state != Connected)
+    if (client->current_state != DISCONNECTED && client->current_state != CONNECTED)
     {
         log_info("Retrying indefinetely");
         return ZCONNECTION_ERROR;
@@ -228,7 +277,7 @@ int zclient_publish(IOTclient *client, char *payload)
     {
         return rc;
     }
-    if (client->current_state != Connected)
+    if (client->current_state != CONNECTED)
     {
         log_debug("Can not publish, since connection is lost/not established");
         return ZFAILURE;
@@ -253,7 +302,7 @@ int zclient_publish(IOTclient *client, char *payload)
     }
     else if (client->mqtt_client.isconnected == 0)
     {
-        client->current_state = Disconnected;
+        client->current_state = DISCONNECTED;
         log_error("Error on Pubish due to lost connection. Error code: %d", rc);
     }
     else
@@ -270,7 +319,7 @@ int zclient_dispatch(IOTclient *client)
     {
         return rc;
     }
-    if (client->current_state != Connected)
+    if (client->current_state != CONNECTED)
     {
         log_debug("Can not dispatch, since connection is lost/not established");
         return ZFAILURE;
@@ -287,7 +336,7 @@ int zclient_subscribe(IOTclient *client, messageHandler on_message)
     {
         return rc;
     }
-    if (client->current_state != Connected)
+    if (client->current_state != CONNECTED)
     {
         log_debug("Can not subscribe, since connection is lost/not established");
         return ZFAILURE;
@@ -300,7 +349,7 @@ int zclient_subscribe(IOTclient *client, messageHandler on_message)
     }
     else if (client->mqtt_client.isconnected == 0)
     {
-        client->current_state = Disconnected;
+        client->current_state = DISCONNECTED;
         log_error("Error on Subscribe due to lost connection. Error code: %d", rc);
     }
     else
@@ -323,7 +372,7 @@ int zclient_yield(IOTclient *client, int time_out)
         log_error("timeout can't be Zero or Negative");
         return ZFAILURE;
     }
-    if (client->current_state == Disconnected)
+    if (client->current_state == DISCONNECTED)
     {
         rc = zclient_reconnect(client);
         return rc;
@@ -338,7 +387,7 @@ int zclient_yield(IOTclient *client, int time_out)
     {
         if (client->mqtt_client.isconnected == 0)
         {
-            client->current_state = Disconnected;
+            client->current_state = DISCONNECTED;
             log_error("Error on Yielding due to lost connection. Error code: %d", rc);
             return ZFAILURE;
         }
@@ -359,12 +408,12 @@ int zclient_disconnect(IOTclient *client)
         log_error("Client object can't be NULL");
         return ZFAILURE;
     }
-    if (client->current_state == Connected)
+    if (client->current_state == CONNECTED)
     {
         rc = MQTTDisconnect(&client->mqtt_client);
         NetworkDisconnect(client->mqtt_client.ipstack);
     }
-    client->current_state = Disconnected;
+    client->current_state = DISCONNECTED;
     log_info("Disconnected.");
     log_free();
     return rc;
@@ -390,7 +439,7 @@ int zclient_setRetrycount(IOTclient *client, int count)
 
 cJSON *addAssetNameTopayload(IOTclient *client, char *assetName)
 {
-    if (assetName != NULL && strcmp(assetName, "") != 0 )
+    if (assetName != NULL && strcmp(assetName, "") != 0)
     {
         if (!cJSON_HasObjectItem(client->message.data, assetName))
         {
