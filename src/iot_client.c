@@ -22,7 +22,7 @@ int zclient_init_config_file(IOTclient *iot_client, char *MqttConfigFilePath, ce
     fseek(MqttConfigFile, 0, SEEK_END);
     long length = ftell(MqttConfigFile);
     fseek(MqttConfigFile, 0, SEEK_SET);
-    char buffer[length+2];
+    char buffer[length + 2];
     if (buffer)
     {
         fread(buffer, sizeof(char), length, MqttConfigFile);
@@ -44,6 +44,29 @@ int zclient_init_config_file(IOTclient *iot_client, char *MqttConfigFilePath, ce
     return zclient_init(iot_client, mqttUserName, mqttPassword, mode, ca_crt, client_cert, client_key, cert_password);
 }
 
+int populateConfigObject(char *MQTTUserName, Config *config)
+{
+    int len = strlen(MQTTUserName), itr_cnt = 0;
+    char *delim = "/", userName[len];
+    strcpy(userName, MQTTUserName);
+    char *ptr = strtok(userName, delim);
+    cloneString(&config->hostname, ptr);
+    while (ptr != NULL)
+    {
+        ptr = strtok(NULL, delim);
+        itr_cnt++;
+        if (itr_cnt == 3)
+        {
+            cloneString(&config->client_id, ptr);
+        }
+    }
+    if (itr_cnt != 5)
+    {
+        return ZFAILURE;
+    }
+    return ZSUCCESS;
+}
+
 int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     //TODO:1
@@ -62,16 +85,12 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
         return ZFAILURE;
     }
 
-    Config config = {NULL, NULL, 0};
-    int str_array_size = 0;
-    char **string_array = stringSplit(MQTTUserName, '/', &str_array_size);
-    if (str_array_size != 5)
+    Config config = {"", "", "", "", 0};
+    if (populateConfigObject(MQTTUserName, &config) == ZFAILURE)
     {
         log_error("MQTTUsername is Malformed.");
         return ZFAILURE;
     }
-    cloneString(&config.hostname, trim(string_array[0]));
-    cloneString(&config.client_id, trim(string_array[3]));
     cloneString(&config.auth_token, trim(MQTTPassword));
     cloneString(&config.MqttUserName, trim(MQTTUserName));
     log_error("client_id:%s", config.client_id);
