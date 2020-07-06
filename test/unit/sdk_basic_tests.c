@@ -262,6 +262,108 @@ static void DispatchMethod_WithProperConnection_ShouldSucceed(void **state)
     assert_int_equal(zclient_dispatch(&client), ZSUCCESS);
 }
 
+// DISPATCH EVENT FROM EVENT DATA OBJECT:
+
+static void DispatchEventFromEventDataObject_OnCallingBeforeInitialization_ShouldFail(void **state)
+{
+    // DispatchEvent from event data object with out initializing should Fail.
+    IOTclient client;
+    cJSON *obj = cJSON_CreateObject();
+    cJSON_AddNumberToObject(obj, "key1", 123);
+    assert_int_equal(zclient_dispatchEventFromEventDataObject(&client, "eventType", "eventDescription", ""), -2);
+    assert_int_equal(zclient_dispatchEventFromEventDataObject(&client, "eventType", "eventDescription", "assetName"), -2);
+}
+
+static void DispatchEventEventDataObject_WithNoConnection_ShouldFail(void **state)
+{
+    // DispatchEvent from event data object with out establishing connection should Fail.
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    cJSON *obj = cJSON_CreateObject();
+    assert_int_equal(zclient_dispatchEventFromEventDataObject(&client, "eventType", "eventDescription", ""), ZFAILURE);
+    assert_int_equal(zclient_dispatchEventFromEventDataObject(&client, "eventType", "eventDescription", "assetName"), ZFAILURE);
+}
+
+static void DispatchEventFromEventDataObject_WithProperConnectionWithAndWithOutAssetName_ShouldSucceed(void **state)
+{
+    // DispatchEvent from event data object with Active connection with and without AssetName should succeed.
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTPublish, ZSUCCESS);
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_connect(&client);
+    zclient_addEventDataNumber("key1", 10);
+    assert_int_equal(zclient_dispatchEventFromEventDataObject(&client, "eventType", "eventDescription", ""), ZSUCCESS);
+    zclient_addEventDataNumber("key1", 20);
+    assert_int_equal(zclient_dispatchEventFromEventDataObject(&client, "eventType", "eventDescription", "assetName"), ZSUCCESS);
+}
+
+static void DispatchEventFromEventDataObject_WithImproperArgumentsOrEventDataWithAndWithOutAssetName_ShouldFail(void **state)
+{
+    // DispatchEvent from event data object with ImproperEventData with and without AssetName should fail.
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_dispatchEventFromEventDataObject(&client, "", NULL, ""), ZFAILURE);
+    assert_int_equal(zclient_dispatchEventFromEventDataObject(&client, NULL, "eventDescription", NULL), ZFAILURE);
+    assert_int_equal(zclient_dispatchEventFromEventDataObject(&client, "eventType", NULL, "assetName"), ZFAILURE);
+    assert_int_equal(zclient_dispatchEventFromEventDataObject(&client, "", NULL, "assetName"), ZFAILURE);
+}
+
+// DISPATCH EVENT FROM JSON STRING
+
+static void DispatchEventFromJSONString_OnCallingBeforeInitialization_ShouldFail(void **state)
+{
+    // DispatchEvent from json string with out initializing should Fail.
+    IOTclient client;
+    cJSON *obj = cJSON_CreateObject();
+    cJSON_AddNumberToObject(obj, "key1", 123);
+    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), ""), -2);
+}
+
+static void DispatchEventFromJSONString_WithNoConnection_ShouldFail(void **state)
+{
+    // DispatchEvent from json string with out establishing connection should Fail.
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    cJSON *obj = cJSON_CreateObject();
+    cJSON_AddNumberToObject(obj, "key1", 123);
+    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), ""), ZFAILURE);
+}
+
+static void DispatchEventFromJSONString_WithImproperEventDataWithAndWithOutAssetName_ShouldFail(void **state)
+{
+    // DispatchEvent from json string with ImproperEventData with and without AssetName should fail.
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", "", ""), ZFAILURE);
+    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", NULL, "assetName"), ZFAILURE);
+    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", NULL, "", "assetName"), ZFAILURE);
+    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "", NULL, "", "assetName"), ZFAILURE);
+}
+
+static void DispatchEventFromJSONString_WithproperEventDataWithAndWithOutAssetName_ShouldSucceed(void **state)
+{
+    // DispatchEvent from json string with properEventData with and without AssetName should Succeed.
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTPublish, ZSUCCESS);
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_connect(&client);
+    cJSON *obj = cJSON_CreateObject();
+    cJSON_AddNumberToObject(obj, "key1", 123);
+    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), ""), ZSUCCESS);
+    cJSON_AddStringToObject(obj, "key1", "value1");
+    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), "assetName"), ZSUCCESS);
+}
+
 // SUBSCRIBE :
 
 static void SubscribeMethod_OnCallingBeforeInitialization_ShouldFail()
@@ -439,6 +541,41 @@ static void AddNumberMethod_withEmptyAssetNameArgument_ShouldAddKeyToData(void *
     assert_int_equal(123, cJSON_GetObjectItem(client.message.data, "key1")->valueint);
 }
 
+// ADD EVENTDATA NUMBER :
+static void AddEventDataNumber_WithProperArguments_ShouldSucceed(void **state)
+{
+    // AddEventDataNumber with Proper argument should add data to EventDataObject.
+    assert_int_equal(0, zclient_addEventDataNumber("key1", 123));
+}
+
+static void AddEventDataNumber_WithImProperArguments_ShouldFail(void **state)
+{
+    // AddEventDataNumber with ImProper arguments should Fail to add data to EventDataObject.
+    assert_int_equal(-1, zclient_addEventDataNumber(NULL, 123));
+    assert_int_equal(-1, zclient_addEventDataNumber("", 123));
+}
+
+// ADD EVENTDATA STRING :
+static void AddEventDataString_WithProperArguments_ShouldSucceed(void **state)
+{
+    // AddEventDataString with Proper argument should add data to EventDataObject.
+    assert_int_equal(0, zclient_addEventDataString("key1", "value1"));
+}
+
+static void AddEventDataString_WithImProperArguments_ShouldFail(void **state)
+{
+    // AddEventDataString with ImProper arguments should Fail to add data to EventDataObject.
+    assert_int_equal(-1, zclient_addEventDataString("", "value1"));
+    assert_int_equal(-1, zclient_addEventDataString(NULL, "value1"));
+    assert_int_equal(-1, zclient_addEventDataString(NULL, NULL));
+    assert_int_equal(-1, zclient_addEventDataString(NULL, ""));
+}
+
+static void AddEventDataString_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void **state)
+{
+    zclient_addEventDataString("key1", "value1");
+    assert_int_equal(0, zclient_addEventDataString("key1", "value2"));
+}
 // ADD STRING :
 
 static void AddStringMethod_CalledWithoutInitialization_ShouldFail(void **state)
@@ -608,6 +745,19 @@ int main(void)
             cmocka_unit_test(DispatchMethod_OnNullArguments_ShouldFail),
             cmocka_unit_test(DispatchMethod_WithNoConnection_ShouldFail),
             cmocka_unit_test(DispatchMethod_WithProperConnection_ShouldSucceed),
+            cmocka_unit_test(AddEventDataNumber_WithImProperArguments_ShouldFail),
+            cmocka_unit_test(AddEventDataNumber_WithProperArguments_ShouldSucceed),
+            cmocka_unit_test(AddEventDataString_WithImProperArguments_ShouldFail),
+            cmocka_unit_test(AddEventDataString_WithProperArguments_ShouldSucceed),
+            cmocka_unit_test(DispatchEventFromEventDataObject_WithProperConnectionWithAndWithOutAssetName_ShouldSucceed),
+            cmocka_unit_test(DispatchEventFromJSONString_WithImproperEventDataWithAndWithOutAssetName_ShouldFail),
+            cmocka_unit_test(DispatchEventFromJSONString_WithproperEventDataWithAndWithOutAssetName_ShouldSucceed),
+            cmocka_unit_test(DispatchEventFromJSONString_OnCallingBeforeInitialization_ShouldFail),
+            cmocka_unit_test(DispatchEventFromJSONString_WithNoConnection_ShouldFail),
+            cmocka_unit_test(DispatchEventFromEventDataObject_OnCallingBeforeInitialization_ShouldFail),
+            cmocka_unit_test(DispatchEventEventDataObject_WithNoConnection_ShouldFail),
+            cmocka_unit_test(DispatchEventFromEventDataObject_WithImproperArgumentsOrEventDataWithAndWithOutAssetName_ShouldFail),
+            cmocka_unit_test(AddEventDataString_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
             cmocka_unit_test(SubscribeMethod_OnCallingBeforeInitialization_ShouldFail),
             cmocka_unit_test(SubscribeMethod_OnNullArguments_ShouldFail),
             cmocka_unit_test(SubscribeMethod_WithNonNullArguments_ShouldSucceed),

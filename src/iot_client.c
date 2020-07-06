@@ -7,6 +7,7 @@ Network n;
 certsParseMode parse_mode;
 int retryCount = 0;
 char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "", connectionStringBuff[256] = "";
+cJSON *eventDataObject;
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
@@ -22,7 +23,7 @@ int zclient_init_config_file(IOTclient *iot_client, char *MqttConfigFilePath, ce
     fseek(MqttConfigFile, 0, SEEK_END);
     long length = ftell(MqttConfigFile);
     fseek(MqttConfigFile, 0, SEEK_SET);
-    char buffer[length+2];
+    char buffer[length + 2];
     if (buffer)
     {
         fread(buffer, sizeof(char), length, MqttConfigFile);
@@ -44,6 +45,29 @@ int zclient_init_config_file(IOTclient *iot_client, char *MqttConfigFilePath, ce
     return zclient_init(iot_client, mqttUserName, mqttPassword, mode, ca_crt, client_cert, client_key, cert_password);
 }
 
+int populateConfigObject(char *MQTTUserName, Config *config)
+{
+    int len = strlen(MQTTUserName), itr_cnt = 0;
+    char *delim = "/", userName[len];
+    strcpy(userName, MQTTUserName);
+    char *ptr = strtok(userName, delim);
+    cloneString(&config->hostname, ptr);
+    while (ptr != NULL)
+    {
+        ptr = strtok(NULL, delim);
+        itr_cnt++;
+        if (itr_cnt == 3)
+        {
+            cloneString(&config->client_id, ptr);
+        }
+    }
+    if (itr_cnt != 5)
+    {
+        return ZFAILURE;
+    }
+    return ZSUCCESS;
+}
+
 int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     //TODO:1
@@ -62,16 +86,12 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
         return ZFAILURE;
     }
 
-    Config config = {NULL, NULL, 0};
-    int str_array_size = 0;
-    char **string_array = stringSplit(MQTTUserName, '/', &str_array_size);
-    if (str_array_size != 5)
+    Config config = {"", "", "", "", 0};
+    if (populateConfigObject(MQTTUserName, &config) == ZFAILURE)
     {
         log_error("MQTTUsername is Malformed.");
         return ZFAILURE;
     }
-    cloneString(&config.hostname, trim(string_array[0]));
-    cloneString(&config.client_id, trim(string_array[3]));
     cloneString(&config.auth_token, trim(MQTTPassword));
     cloneString(&config.MqttUserName, trim(MQTTUserName));
     log_error("client_id:%s", config.client_id);
@@ -109,6 +129,10 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
     {
         log_error("Can't create cJSON object");
         return ZFAILURE;
+    }
+    if (eventDataObject == NULL)
+    {
+        eventDataObject = cJSON_CreateObject();
     }
     iot_client->current_state = INITIALIZED;
     log_info("Client Initialized!");
@@ -329,6 +353,137 @@ int zclient_dispatch(IOTclient *client)
     return zclient_publish(client, payload);
 }
 
+int zclient_addEventDataNumber(char *key, double val_number)
+{
+    if (eventDataObject == NULL)
+    {
+        eventDataObject = cJSON_CreateObject();
+    }
+
+    if (key == NULL || strcmp(key, "") == 0)
+    {
+        log_error("Key Can't be NULL");
+        return -1;
+    }
+    int rc = ZSUCCESS;
+    if (!cJSON_HasObjectItem(eventDataObject, key))
+    {
+        if (cJSON_AddNumberToObject(eventDataObject, key, val_number) == NULL)
+        {
+            log_error("Adding Number attribute failed\n");
+            rc = ZFAILURE;
+        }
+    }
+    else
+    {
+        cJSON_ReplaceItemInObject(eventDataObject, key, cJSON_CreateNumber(val_number));
+    }
+    return rc;
+}
+
+int zclient_addEventDataString(char *key, char *val_string)
+{
+    if (eventDataObject == NULL)
+    {
+        eventDataObject = cJSON_CreateObject();
+    }
+    if (key == NULL || strcmp(key, "") == 0 || val_string == NULL || strcmp(val_string, "") == 0)
+    {
+        log_error("Key or Value Can't be NULL");
+        return -1;
+    }
+    int rc = ZSUCCESS;
+    if (!cJSON_HasObjectItem(eventDataObject, key))
+    {
+        if (cJSON_AddStringToObject(eventDataObject, key, val_string) == NULL)
+        {
+            log_error("Adding String attribute failed\n");
+            rc = ZFAILURE;
+        }
+    }
+    else
+    {
+        cJSON_ReplaceItemInObject(eventDataObject, key, cJSON_CreateString(val_string));
+    }
+    return rc;
+}
+
+int zclient_dispatchEventFromEventDataObject(IOTclient *client, char *eventType, char *eventDescription, char *assetName)
+{
+    char *eventDataJSONString = cJSON_Print(eventDataObject);
+    int rc = zclient_dispatchEventFromJSONString(client, eventType, eventDescription, eventDataJSONString, assetName);
+    cJSON_Delete(eventDataObject);
+    eventDataObject = cJSON_CreateObject();
+    return rc;
+}
+
+int zclient_dispatchEventFromJSONString(IOTclient *client, char *eventType, char *eventDescription, char *eventDataJSONString, char *assetName)
+{
+    int rc = validateClientState(client);
+    if (rc != 0)
+    {
+        return rc;
+    }
+    if (client->current_state != CONNECTED)
+    {
+        log_debug("Can not dispatch, since connection is lost/not established");
+        return ZFAILURE;
+    }
+    cJSON *dataObject = cJSON_Parse(eventDataJSONString);
+    if (dataObject == NULL)
+    {
+        log_error("Can not dispatch Event as Event Data JSON string is not parsable.");
+        return ZFAILURE;
+    }
+    time_t curtime;
+    char *payload;
+    time(&curtime);
+    char *time_val = strtok(ctime(&curtime), "\n");
+    MQTTMessage pubmsg;
+    cJSON *eventObject = cJSON_CreateObject();
+    if (eventType == NULL || strcmp(eventType, "") == 0 || eventDescription == NULL)
+    {
+        log_error("Can not dispatch Event with Empty EventType or Description.");
+        return ZFAILURE;
+    }
+    cJSON_AddStringToObject(eventObject, "event_type", eventType);
+    cJSON_AddStringToObject(eventObject, "event_descr", eventDescription);
+    cJSON_AddStringToObject(eventObject, "event_timestamp", time_val);
+    cJSON_AddItemToObject(eventObject, "event_data", dataObject);
+    if (strcmp(assetName, "") == 0 || assetName == NULL)
+    {
+        payload = cJSON_Print(eventObject);
+    }
+    else
+    {
+        cJSON *eventDispatchObject = cJSON_CreateObject();
+        cJSON_AddItemReferenceToObject(eventDispatchObject, assetName, eventObject);
+        payload = cJSON_Print(eventDispatchObject);
+    }
+    pubmsg.id = 1234;
+    pubmsg.dup = '0';
+    pubmsg.qos = 1;
+    pubmsg.retained = '0';
+    pubmsg.payload = payload;
+    pubmsg.payloadlen = strlen(payload);
+    rc = MQTTPublish(&(client->mqtt_client), eventTopic, &pubmsg);
+    //TODO: check for connection and retry to send the message once the conn got restroed.
+    if (rc == ZSUCCESS)
+    {
+        log_debug("Event dispatched \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, eventTopic);
+    }
+    else if (client->mqtt_client.isconnected == 0)
+    {
+        client->current_state = DISCONNECTED;
+        log_error("Error on dispatchEvent due to lost connection. Error code: %d", rc);
+    }
+    else
+    {
+        log_error("Error on dispatchEvent. Error code: %d", rc);
+    }
+    return rc;
+}
+
 int zclient_subscribe(IOTclient *client, messageHandler on_message)
 {
     int rc = validateClientState(client);
@@ -453,14 +608,14 @@ cJSON *addAssetNameTopayload(IOTclient *client, char *assetName)
     }
 }
 
-int zclient_addNumber(IOTclient *client, char *val_name, int val_int, char *assetName)
+int zclient_addNumber(IOTclient *client, char *key, double val, char *assetName)
 {
     int rc = validateClientState(client);
     if (rc != 0)
     {
         return rc;
     }
-    if (val_name == NULL)
+    if (key == NULL)
     {
         return -1;
     }
@@ -468,9 +623,9 @@ int zclient_addNumber(IOTclient *client, char *val_name, int val_int, char *asse
     cJSON *obj = addAssetNameTopayload(client, assetName);
     rc = ZSUCCESS;
 
-    if (!cJSON_HasObjectItem(obj, val_name))
+    if (!cJSON_HasObjectItem(obj, key))
     {
-        if (cJSON_AddNumberToObject(obj, val_name, val_int) == NULL)
+        if (cJSON_AddNumberToObject(obj, key, val) == NULL)
         {
             log_error("Adding int attribute failed\n");
             rc = ZFAILURE;
@@ -478,20 +633,19 @@ int zclient_addNumber(IOTclient *client, char *val_name, int val_int, char *asse
     }
     else
     {
-        cJSON *temp = cJSON_CreateNumber(val_int);
-        cJSON_ReplaceItemInObject(obj, val_name, temp);
+        cJSON_ReplaceItemInObject(obj, key, cJSON_CreateNumber(val));
     }
     return rc;
 }
 
-int zclient_addString(IOTclient *client, char *val_name, char *val_string, char *assetName)
+int zclient_addString(IOTclient *client, char *key, char *val_string, char *assetName)
 {
     int rc = validateClientState(client);
     if (rc != 0)
     {
         return rc;
     }
-    if (val_name == NULL)
+    if (key == NULL)
     {
         return -1;
     }
@@ -499,9 +653,9 @@ int zclient_addString(IOTclient *client, char *val_name, char *val_string, char 
     cJSON *obj = addAssetNameTopayload(client, assetName);
     rc = ZSUCCESS;
 
-    if (!cJSON_HasObjectItem(obj, val_name))
+    if (!cJSON_HasObjectItem(obj, key))
     {
-        if (cJSON_AddStringToObject(obj, val_name, val_string) == NULL)
+        if (cJSON_AddStringToObject(obj, key, val_string) == NULL)
         {
             log_error("Adding string attribute failed\n");
             rc = ZFAILURE;
@@ -509,15 +663,14 @@ int zclient_addString(IOTclient *client, char *val_name, char *val_string, char 
     }
     else
     {
-        cJSON *temp = cJSON_CreateString(val_string);
-        cJSON_ReplaceItemInObject(obj, val_name, temp);
+        cJSON_ReplaceItemInObject(obj, key, cJSON_CreateString(val_string));
     }
     return rc;
 }
 
-int zclient_markDataPointAsError(IOTclient *client, char *val_name, char *assetName)
+int zclient_markDataPointAsError(IOTclient *client, char *key, char *assetName)
 {
-    return zclient_addString(client, val_name, "<ERROR>", assetName);
+    return zclient_addString(client, key, "<ERROR>", assetName);
 }
 
 /*
