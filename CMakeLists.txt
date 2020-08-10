@@ -73,6 +73,7 @@ ENDIF(ENABLE_TLS)
 
 LIST(APPEND Z_IOT_SOURCES
             "src/iot_client.c"
+            "src/message_handler.c"
             "src/log.c"
             "src/utils.c")
 

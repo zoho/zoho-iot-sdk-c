@@ -16,8 +16,9 @@
 
 #define topic_pre (char *)"/devices"
 #define data_topic (char *)"/telemetry"
-#define command_topic (char *)"/command"
+#define command_topic (char *)"/commands"
 #define event_topic (char *)"/events"
+#define command_ack_topic (char *)"/commands/ack"
 
 #define zclient_dispatchEventFromJSONString(...) zclient_dispatchEventFromJSONStringWithAsset(__VA_ARGS__, NULL)
 #define zclient_dispatchEventFromJSONStringWithAsset(client, eventType, eventDescription, eventDataJSONString, assettName, ...) zclient_dispatchEventFromJSONString(client, eventType, eventDescription, eventDataJSONString, assettName)
@@ -69,9 +70,9 @@ typedef struct
     Config config;
     ConnectionState current_state;
     Payload message;
-#if defined(SECURE_CONNECTION)
+    #if defined(SECURE_CONNECTION)
     Certificates certs;
-#endif
+    #endif
 } IOTclient;
 
 int zclient_init_config_file(IOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode);
