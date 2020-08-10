@@ -1,4 +1,5 @@
 #include "iot_client.h"
+#include "message_handler.h"
 #include "sys/socket.h"
 #include "unistd.h"
 
@@ -6,8 +7,9 @@
 Network n;
 certsParseMode parse_mode;
 int retryCount = 0;
-char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "", connectionStringBuff[256] = "";
-cJSON *eventDataObject;
+char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "";
+char commandAckTopic[100] = "", connectionStringBuff[256] = "";
+cJSON * eventDataObject;
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
@@ -86,7 +88,7 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
         return ZFAILURE;
     }
 
-    Config config = {"", "", "", "", 0};
+    Config config ={ "", "", "", "", 0 };
     if (populateConfigObject(MQTTUserName, &config) == ZFAILURE)
     {
         log_error("MQTTUsername is Malformed.");
@@ -99,19 +101,20 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
     //Populating dynamic topic names based on its deviceID
     sprintf(dataTopic, "%s/%s%s", topic_pre, config.client_id, data_topic);
     sprintf(commandTopic, "%s/%s%s", topic_pre, config.client_id, command_topic);
+    sprintf(commandAckTopic, "%s/%s%s", topic_pre, config.client_id, command_ack_topic);
     sprintf(eventTopic, "%s/%s%s", topic_pre, config.client_id, event_topic);
 
     config.retry_limit = 5;
     iot_client->config = config;
     parse_mode = mode;
-#if defined(SECURE_CONNECTION)
+    #if defined(SECURE_CONNECTION)
     if (ca_crt == NULL || (mode == REFERENCE && access(ca_crt, F_OK) == -1))
     {
         log_error("RootCA file is not found/can't be accessed");
         return ZFAILURE;
     }
     iot_client->certs.ca_crt = ca_crt;
-#if defined(USE_CLIENT_CERTS)
+    #if defined(USE_CLIENT_CERTS)
     if (client_cert == NULL || client_key == NULL || cert_password == NULL || (mode == REFERENCE && (access(client_cert, F_OK) == -1)) || (mode == REFERENCE && (access(client_key, F_OK) == -1)))
     {
         log_error("Client key or Client certificate is not found/can't be accessed");
@@ -120,8 +123,8 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
     iot_client->certs.client_cert = client_cert;
     iot_client->certs.client_key = client_key;
     iot_client->certs.cert_password = cert_password;
-#endif
-#endif
+    #endif
+    #endif
 
     //TODO: freeup config.
     iot_client->message.data = cJSON_CreateObject();
@@ -134,6 +137,7 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
     {
         eventDataObject = cJSON_CreateObject();
     }
+    initMessageHandler(iot_client, commandTopic, commandAckTopic);
     iot_client->current_state = INITIALIZED;
     log_info("Client Initialized!");
     return ZSUCCESS;
@@ -191,11 +195,11 @@ int zclient_connect(IOTclient *client)
     log_info("Preparing Network..");
     NetworkInit(&n);
 
-#if defined(SECURE_CONNECTION)
+    #if defined(SECURE_CONNECTION)
     rc = NetworkConnect(&n, client->config.hostname, port, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
-#else
+    #else
     rc = NetworkConnect(&n, client->config.hostname, port);
-#endif
+    #endif
     if (rc != ZSUCCESS)
     {
         log_error("Error Connecting Network.. %d ", rc);
@@ -307,17 +311,10 @@ int zclient_publish(IOTclient *client, char *payload)
         return ZFAILURE;
     }
     rc = ZFAILURE;
-    MQTTMessage pubmsg;
+
     //TODO:remove hardcoded values of id etc and get from structure copied from config.h
     //TODO: confirm the below parameters with Hub. Especially the pubmessageID
-
-    pubmsg.id = 1234;
-    pubmsg.dup = '0';
-    pubmsg.qos = 1;
-    pubmsg.retained = '0';
-
-    pubmsg.payload = payload;
-    pubmsg.payloadlen = strlen(payload);
+    MQTTMessage pubmsg ={ 1234, '0', 1, '0', payload, strlen(payload) };
     rc = MQTTPublish(&(client->mqtt_client), dataTopic, &pubmsg);
     //TODO: check for connection and retry to send the message once the conn got restroed.
     if (rc == ZSUCCESS)
@@ -439,7 +436,6 @@ int zclient_dispatchEventFromJSONString(IOTclient *client, char *eventType, char
     char *payload;
     time(&curtime);
     char *time_val = strtok(ctime(&curtime), "\n");
-    MQTTMessage pubmsg;
     cJSON *eventObject = cJSON_CreateObject();
     if (eventType == NULL || strcmp(eventType, "") == 0 || eventDescription == NULL)
     {
@@ -460,12 +456,7 @@ int zclient_dispatchEventFromJSONString(IOTclient *client, char *eventType, char
         cJSON_AddItemReferenceToObject(eventDispatchObject, assetName, eventObject);
         payload = cJSON_Print(eventDispatchObject);
     }
-    pubmsg.id = 1234;
-    pubmsg.dup = '0';
-    pubmsg.qos = 1;
-    pubmsg.retained = '0';
-    pubmsg.payload = payload;
-    pubmsg.payloadlen = strlen(payload);
+    MQTTMessage pubmsg = { 1234, '0', 1, '0', payload, strlen(payload) };
     rc = MQTTPublish(&(client->mqtt_client), eventTopic, &pubmsg);
     //TODO: check for connection and retry to send the message once the conn got restroed.
     if (rc == ZSUCCESS)
@@ -497,7 +488,8 @@ int zclient_subscribe(IOTclient *client, messageHandler on_message)
         return ZFAILURE;
     }
     //TODO: add basic validation & callback method and append it on error logs.
-    rc = MQTTSubscribe(&(client->mqtt_client), commandTopic, QOS0, on_message);
+    rc = MQTTSubscribe(&(client->mqtt_client), commandTopic, QOS0, onMessageReceived);
+    setMessageHandler(on_message);
     if (rc == ZSUCCESS)
     {
         log_info("Subscribed on \x1b[36m '%s' \x1b[0m", commandTopic);
