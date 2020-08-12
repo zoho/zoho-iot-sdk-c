@@ -19,3 +19,8 @@ char *trim(char *s)
   }
   return strndup(s, l);
 }
+
+int isStringValid(char *string)
+{
+  return (string == NULL || strcmp(string, "") == 0) ? 0 : 1;
+}

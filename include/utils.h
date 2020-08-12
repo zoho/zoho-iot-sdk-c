@@ -5,3 +5,4 @@
 
 void cloneString(char **clone, char *source);
 char *trim(char *s);
+int isStringValid(char *value);

@@ -364,6 +364,50 @@ static void DispatchEventFromJSONString_WithproperEventDataWithAndWithOutAssetNa
     assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), "assetName"), ZSUCCESS);
 }
 
+// PUBLISH COMMAND ACK
+
+static void PublishCommandAck_OnCallingBeforeInitialization_ShouldFail(void **state)
+{
+    // PublishCommandAck with out initializing should Fail.
+    IOTclient client;
+    assert_int_equal(zclient_publishCommandAck(&client, "", 1001, "response message"), -2);
+}
+
+static void PublishCommandAck_WithNoConnection_ShouldFail(void **state)
+{
+    // PublishCommandAck with out establishing connection should Fail.
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    assert_int_equal(zclient_publishCommandAck(&client, "", 1001, "response message"), ZFAILURE);
+}
+
+static void PublishCommandAck_WithproperArguments_ShouldSucceed(void **state)
+{
+    // PublishCommandAck with proper arguments should succeed.
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTPublish, ZSUCCESS);
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_publishCommandAck(&client, "correlation_id", 1001, "response message"), ZSUCCESS);
+    assert_int_equal(zclient_publishCommandAck(&client, "correlation_id", 1001, ""), ZSUCCESS);
+}
+
+static void PublishCommandAck_WithNullOrEmptyproperArguments_ShouldFail(void **state)
+{
+    // PublishCommandAck with Improper Null or empty arguments should Fail.
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_publishCommandAck(&client, "", 1001, "response message"), ZFAILURE);
+    assert_int_equal(zclient_publishCommandAck(&client, "", 1001, "response message"), ZFAILURE);
+    assert_int_equal(zclient_publishCommandAck(&client, "correlation_id", 1001, NULL), ZFAILURE);
+    assert_int_equal(zclient_publishCommandAck(&client, NULL, 1001, ""), ZFAILURE);
+}
+
 // SUBSCRIBE :
 
 static void SubscribeMethod_OnCallingBeforeInitialization_ShouldFail()
@@ -380,9 +424,9 @@ static void SubscribeMethod_OnNullArguments_ShouldFail(void **state)
     messageHandler msghnd;
     assert_int_equal(zclient_subscribe(NULL, msghnd), ZFAILURE);
     // Subscribe returns Failure for Null messageHandler .
-    //     IOTclient client;
-    //     zclient_init(&client, mqttUserName , mqttPassword , EMBED, "","","","");
-    //     assert_int_equal(zclient_subscribe(&client,NULL),-1);
+    IOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    assert_int_equal(zclient_subscribe(&client, NULL), -1);
 }
 
 void message_handler(MessageData *data) {}
@@ -721,8 +765,7 @@ static void SetRetryCountMethod_WithAppropriateArguments_ShouldSucceed(void **st
 
 int main(void)
 {
-    const struct CMUnitTest sdk_basic_tests[] =
-    {
+    const struct CMUnitTest sdk_basic_tests[] = {
         cmocka_unit_test(InitMethod_OnNullArguments_ShouldFail),
         cmocka_unit_test(InitConfigFileMethod_OnNullArguments_ShouldFail),
         cmocka_unit_test(InitConfigFileMethod_OnProperArguments_ShouldSucceed),
@@ -758,6 +801,10 @@ int main(void)
         cmocka_unit_test(DispatchEventEventDataObject_WithNoConnection_ShouldFail),
         cmocka_unit_test(DispatchEventFromEventDataObject_WithImproperArgumentsOrEventDataWithAndWithOutAssetName_ShouldFail),
         cmocka_unit_test(AddEventDataString_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
+        cmocka_unit_test(PublishCommandAck_OnCallingBeforeInitialization_ShouldFail),
+        cmocka_unit_test(PublishCommandAck_WithNoConnection_ShouldFail),
+        cmocka_unit_test(PublishCommandAck_WithproperArguments_ShouldSucceed),
+        cmocka_unit_test(PublishCommandAck_WithNullOrEmptyproperArguments_ShouldFail),
         cmocka_unit_test(SubscribeMethod_OnCallingBeforeInitialization_ShouldFail),
         cmocka_unit_test(SubscribeMethod_OnNullArguments_ShouldFail),
         cmocka_unit_test(SubscribeMethod_WithNonNullArguments_ShouldSucceed),
@@ -790,7 +837,7 @@ int main(void)
         cmocka_unit_test(SetRetryCountMethod_CalledWithoutInitializingClient_ShouldFail),
         cmocka_unit_test(SetRetryCountMethod_WithNullArguments_ShouldFail),
         cmocka_unit_test(SetRetryCountMethod_WithNegativeCount_ShouldFail_DefaultValueIsUnchanged),
-        cmocka_unit_test(SetRetryCountMethod_WithAppropriateArguments_ShouldSucceed) };
+        cmocka_unit_test(SetRetryCountMethod_WithAppropriateArguments_ShouldSucceed)};
     cmocka_set_message_output(CM_OUTPUT_XML);
     return cmocka_run_group_tests(sdk_basic_tests, NULL, NULL);
 }
