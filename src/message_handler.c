@@ -36,7 +36,11 @@ void onMessageReceived(MessageData *md)
                 cJSON_AddNumberToObject(commandAckObj, "status_code", COMMAND_RECIEVED_ACK_CODE);
                 cJSON_AddStringToObject(commandAckObj, "response", "");
             }
-            MQTTMessage pubmsg ={ 1234, '0', 1, '0' };
+            MQTTMessage pubmsg;
+            pubmsg.id = 1234;
+            pubmsg.qos = 1;
+            pubmsg.dup = '0';
+            pubmsg.retained = '0';
             pubmsg.payload = cJSON_Print(commandAckObject);
             pubmsg.payloadlen = strlen(pubmsg.payload);
             MQTTPublish(&(iot_client->mqtt_client), handler_command_ack_topic, &pubmsg);

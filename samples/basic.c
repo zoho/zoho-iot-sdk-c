@@ -9,6 +9,8 @@
 #endif
 volatile int ctrl_flag = 0;
 
+IOTclient client;
+
 void message_handler(MessageData *data)
 {
     char payload[data->message->payloadlen];
@@ -18,6 +20,7 @@ void message_handler(MessageData *data)
     strncat(topic, data->topicName->lenstring.data, data->topicName->lenstring.len);
     strncat(payload, data->message->payload, data->message->payloadlen);
     log_debug("\n\n Got new message on '%s'\n%s \n\n", topic, payload);
+    log_debug("Second level Command Ack status : %d", zclient_publishCommandAck(&client, "123456tui-orpm123", SUCCESFULLY_EXECUTED, "Command based task Executed."));
 }
 
 void interruptHandler(int signo)
@@ -34,8 +37,6 @@ void interruptHandler(int signo)
 int main()
 {
     int rc = -1;
-    IOTclient client;
-
     signal(SIGINT, interruptHandler);
     signal(SIGTERM, interruptHandler);
 
@@ -43,13 +44,13 @@ int main()
     int temperature = 23, humidity = 56, pressure = 78;
     char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "", *pDeviceCertParsword = "";
 
-    #if defined(SECURE_CONNECTION)
+#if defined(SECURE_CONNECTION)
     pRootCACertLocation = CA_CRT;
-    #if defined(USE_CLIENT_CERTS)
+#if defined(USE_CLIENT_CERTS)
     pDeviceCertLocation = CLIENT_CRT;
     pDevicePrivateKeyLocation = CLIENT_KEY;
-    #endif
-    #endif
+#endif
+#endif
 
     //Update your DEVICE_ID AND AUTH_TOKEN below:
     rc = zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);

@@ -75,6 +75,17 @@ typedef struct
     #endif
 } IOTclient;
 
+typedef enum {
+    SUCCESFULLY_EXECUTED = 1001,
+    EXECUTION_FAILURE = 4000,
+    METHOD_NOT_FOUND = 4001,
+    EXECUTING_PREVIOUS_COMMAND = 4002,
+    INSUFFICIENT_INPUTS = 4003,
+    DEVICE_CONNECTIVITY_ISSUES = 4004,
+    PARTIAL_EXECUTION = 4005,
+    ALREADY_ON_SAME_STATE = 4006
+}commandAckResponseCodes;
+
 int zclient_init_config_file(IOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode);
 int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
 int zclient_connect(IOTclient *client);
@@ -91,6 +102,7 @@ int zclient_dispatchEventFromEventDataObject(IOTclient *client, char *eventType,
 int zclient_addEventDataNumber(char *key, double val);
 int zclient_addEventDataString(char *key, char *val);
 
+int zclient_publishCommandAck(IOTclient *client, char* correlation_id, commandAckResponseCodes status_code, char* responseMessage);
 void zclient_addConnectionParameter(char *connectionParamKey, char *connectionParamValue);
 int zclient_markDataPointAsError(IOTclient *client, char *key, char *assetName);
 // In add String method , assetName parameter as optional.

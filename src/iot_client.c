@@ -9,7 +9,7 @@ certsParseMode parse_mode;
 int retryCount = 0;
 char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "";
 char commandAckTopic[100] = "", connectionStringBuff[256] = "";
-cJSON * eventDataObject;
+cJSON *eventDataObject;
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
@@ -82,13 +82,13 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
         log_error("Client object is NULL");
         return ZFAILURE;
     }
-    if (MQTTUserName == NULL || !strcmp(MQTTUserName, "") || MQTTPassword == NULL || !strcmp(MQTTPassword, ""))
+    if (!isStringValid(MQTTUserName) || !isStringValid(MQTTPassword))
     {
         log_error("Device Credentials can't be NULL or Empty");
         return ZFAILURE;
     }
 
-    Config config ={ "", "", "", "", 0 };
+    Config config = {"", "", "", "", 0};
     if (populateConfigObject(MQTTUserName, &config) == ZFAILURE)
     {
         log_error("MQTTUsername is Malformed.");
@@ -96,8 +96,8 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
     }
     cloneString(&config.auth_token, trim(MQTTPassword));
     cloneString(&config.MqttUserName, trim(MQTTUserName));
-    log_error("client_id:%s", config.client_id);
-    log_error("hostname:%s", config.hostname);
+    log_debug("client_id:%s", config.client_id);
+    log_debug("hostname:%s", config.hostname);
     //Populating dynamic topic names based on its deviceID
     sprintf(dataTopic, "%s/%s%s", topic_pre, config.client_id, data_topic);
     sprintf(commandTopic, "%s/%s%s", topic_pre, config.client_id, command_topic);
@@ -107,14 +107,14 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
     config.retry_limit = 5;
     iot_client->config = config;
     parse_mode = mode;
-    #if defined(SECURE_CONNECTION)
+#if defined(SECURE_CONNECTION)
     if (ca_crt == NULL || (mode == REFERENCE && access(ca_crt, F_OK) == -1))
     {
         log_error("RootCA file is not found/can't be accessed");
         return ZFAILURE;
     }
     iot_client->certs.ca_crt = ca_crt;
-    #if defined(USE_CLIENT_CERTS)
+#if defined(USE_CLIENT_CERTS)
     if (client_cert == NULL || client_key == NULL || cert_password == NULL || (mode == REFERENCE && (access(client_cert, F_OK) == -1)) || (mode == REFERENCE && (access(client_key, F_OK) == -1)))
     {
         log_error("Client key or Client certificate is not found/can't be accessed");
@@ -123,8 +123,8 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
     iot_client->certs.client_cert = client_cert;
     iot_client->certs.client_key = client_key;
     iot_client->certs.cert_password = cert_password;
-    #endif
-    #endif
+#endif
+#endif
 
     //TODO: freeup config.
     iot_client->message.data = cJSON_CreateObject();
@@ -195,11 +195,11 @@ int zclient_connect(IOTclient *client)
     log_info("Preparing Network..");
     NetworkInit(&n);
 
-    #if defined(SECURE_CONNECTION)
+#if defined(SECURE_CONNECTION)
     rc = NetworkConnect(&n, client->config.hostname, port, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
-    #else
+#else
     rc = NetworkConnect(&n, client->config.hostname, port);
-    #endif
+#endif
     if (rc != ZSUCCESS)
     {
         log_error("Error Connecting Network.. %d ", rc);
@@ -314,7 +314,13 @@ int zclient_publish(IOTclient *client, char *payload)
 
     //TODO:remove hardcoded values of id etc and get from structure copied from config.h
     //TODO: confirm the below parameters with Hub. Especially the pubmessageID
-    MQTTMessage pubmsg ={ 1234, '0', 1, '0', payload, strlen(payload) };
+    MQTTMessage pubmsg;
+    pubmsg.id = 1234;
+    pubmsg.qos = 1;
+    pubmsg.dup = '0';
+    pubmsg.retained = '0';
+    pubmsg.payload = payload;
+    pubmsg.payloadlen = strlen(payload);
     rc = MQTTPublish(&(client->mqtt_client), dataTopic, &pubmsg);
     //TODO: check for connection and retry to send the message once the conn got restroed.
     if (rc == ZSUCCESS)
@@ -357,7 +363,7 @@ int zclient_addEventDataNumber(char *key, double val_number)
         eventDataObject = cJSON_CreateObject();
     }
 
-    if (key == NULL || strcmp(key, "") == 0)
+    if (!isStringValid(key))
     {
         log_error("Key Can't be NULL");
         return -1;
@@ -384,7 +390,7 @@ int zclient_addEventDataString(char *key, char *val_string)
     {
         eventDataObject = cJSON_CreateObject();
     }
-    if (key == NULL || strcmp(key, "") == 0 || val_string == NULL || strcmp(val_string, "") == 0)
+    if (!isStringValid(key) || !isStringValid(val_string))
     {
         log_error("Key or Value Can't be NULL");
         return -1;
@@ -437,7 +443,7 @@ int zclient_dispatchEventFromJSONString(IOTclient *client, char *eventType, char
     time(&curtime);
     char *time_val = strtok(ctime(&curtime), "\n");
     cJSON *eventObject = cJSON_CreateObject();
-    if (eventType == NULL || strcmp(eventType, "") == 0 || eventDescription == NULL)
+    if (!isStringValid(eventType) || eventDescription == NULL)
     {
         log_error("Can not dispatch Event with Empty EventType or Description.");
         return ZFAILURE;
@@ -446,7 +452,7 @@ int zclient_dispatchEventFromJSONString(IOTclient *client, char *eventType, char
     cJSON_AddStringToObject(eventObject, "event_descr", eventDescription);
     cJSON_AddStringToObject(eventObject, "event_timestamp", time_val);
     cJSON_AddItemToObject(eventObject, "event_data", dataObject);
-    if (strcmp(assetName, "") == 0 || assetName == NULL)
+    if (!isStringValid(assetName))
     {
         payload = cJSON_Print(eventObject);
     }
@@ -456,7 +462,13 @@ int zclient_dispatchEventFromJSONString(IOTclient *client, char *eventType, char
         cJSON_AddItemReferenceToObject(eventDispatchObject, assetName, eventObject);
         payload = cJSON_Print(eventDispatchObject);
     }
-    MQTTMessage pubmsg = { 1234, '0', 1, '0', payload, strlen(payload) };
+    MQTTMessage pubmsg;
+    pubmsg.id = 1234;
+    pubmsg.qos = 1;
+    pubmsg.dup = '0';
+    pubmsg.retained = '0';
+    pubmsg.payload = payload;
+    pubmsg.payloadlen = strlen(payload);
     rc = MQTTPublish(&(client->mqtt_client), eventTopic, &pubmsg);
     //TODO: check for connection and retry to send the message once the conn got restroed.
     if (rc == ZSUCCESS)
@@ -471,6 +483,52 @@ int zclient_dispatchEventFromJSONString(IOTclient *client, char *eventType, char
     else
     {
         log_error("Error on dispatchEvent. Error code: %d", rc);
+    }
+    return rc;
+}
+
+int zclient_publishCommandAck(IOTclient *client, char *correlation_id, commandAckResponseCodes status_code, char *responseMessage)
+{
+    int rc = validateClientState(client);
+    if (rc != 0)
+    {
+        return rc;
+    }
+    if (!isStringValid(correlation_id))
+    {
+        log_error("Correlation_id cannot be Null or empty in command Ack object");
+        return ZFAILURE;
+    }
+    if (responseMessage == NULL)
+    {
+        log_error("Response cannot be Null in command Ack object");
+        return ZFAILURE;
+    }
+    if (status_code != SUCCESFULLY_EXECUTED && (status_code < EXECUTION_FAILURE || status_code > ALREADY_ON_SAME_STATE))
+    {
+        log_error("Status code provided is not a valid in command Ack object");
+        return ZFAILURE;
+    }
+    cJSON *commandAckResponseObject = cJSON_CreateObject();
+    cJSON *commandAckObject = cJSON_AddObjectToObject(commandAckResponseObject, correlation_id);
+    cJSON_AddNumberToObject(commandAckObject, "status_code", status_code);
+    cJSON_AddStringToObject(commandAckObject, "response", responseMessage);
+    char *payload = cJSON_Print(commandAckResponseObject);
+    MQTTMessage pubmsg;
+    pubmsg.id = 1234;
+    pubmsg.qos = 1;
+    pubmsg.dup = '0';
+    pubmsg.retained = '0';
+    pubmsg.payload = payload;
+    pubmsg.payloadlen = strlen(payload);
+    rc = MQTTPublish(&(client->mqtt_client), commandAckTopic, &pubmsg);
+    if (rc == ZSUCCESS)
+    {
+        log_debug("Command Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, eventTopic);
+    }
+    else
+    {
+        log_error("Error on publishing command Ack. Error code: %d", rc);
     }
     return rc;
 }
@@ -586,7 +644,7 @@ int zclient_setRetrycount(IOTclient *client, int count)
 
 cJSON *addAssetNameTopayload(IOTclient *client, char *assetName)
 {
-    if (assetName != NULL && strcmp(assetName, "") != 0)
+    if (isStringValid(assetName))
     {
         if (!cJSON_HasObjectItem(client->message.data, assetName))
         {
@@ -607,7 +665,7 @@ int zclient_addNumber(IOTclient *client, char *key, double val, char *assetName)
     {
         return rc;
     }
-    if (key == NULL)
+    if (!isStringValid(key))
     {
         return -1;
     }
@@ -637,7 +695,7 @@ int zclient_addString(IOTclient *client, char *key, char *val_string, char *asse
     {
         return rc;
     }
-    if (key == NULL)
+    if (!isStringValid(key))
     {
         return -1;
     }
