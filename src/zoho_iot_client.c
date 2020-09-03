@@ -1,5 +1,5 @@
-#include "iot_client.h"
-#include "message_handler.h"
+#include "zoho_iot_client.h"
+#include "zoho_message_handler.h"
 #include "sys/socket.h"
 #include "unistd.h"
 
@@ -14,7 +14,7 @@ cJSON *eventDataObject;
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
 
-int zclient_init_config_file(IOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode)
+int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode)
 {
     FILE *MqttConfigFile = fopen(MqttConfigFilePath, "rb");
     if (!MqttConfigFile)
@@ -47,7 +47,7 @@ int zclient_init_config_file(IOTclient *iot_client, char *MqttConfigFilePath, ce
     return zclient_init(iot_client, mqttUserName, mqttPassword, mode, ca_crt, client_cert, client_key, cert_password);
 }
 
-int populateConfigObject(char *MQTTUserName, Config *config)
+int populateConfigObject(char *MQTTUserName, Zconfig *config)
 {
     int len = strlen(MQTTUserName), itr_cnt = 0;
     char *delim = "/", userName[len];
@@ -70,7 +70,7 @@ int populateConfigObject(char *MQTTUserName, Config *config)
     return ZSUCCESS;
 }
 
-int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
+int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     //TODO:1
     // All config.h and device related validations should be done here itself !
@@ -88,7 +88,7 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
         return ZFAILURE;
     }
 
-    Config config = {"", "", "", "", 0};
+    Zconfig config = {"", "", "", "", 0};
     if (populateConfigObject(MQTTUserName, &config) == ZFAILURE)
     {
         log_error("MQTTUsername is Malformed.");
@@ -107,7 +107,7 @@ int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, 
     config.retry_limit = 5;
     iot_client->config = config;
     parse_mode = mode;
-#if defined(SECURE_CONNECTION)
+#if defined(ZSECURE_CONNECTION)
     if (ca_crt == NULL || (mode == REFERENCE && access(ca_crt, F_OK) == -1))
     {
         log_error("RootCA file is not found/can't be accessed");
@@ -158,7 +158,7 @@ char *formConnectionString(char *username)
     return connectionStringBuff;
 }
 
-int validateClientState(IOTclient *client)
+int validateClientState(ZohoIOTclient *client)
 {
     if (client == NULL)
     {
@@ -176,7 +176,7 @@ int validateClientState(IOTclient *client)
     }
 }
 
-int zclient_connect(IOTclient *client)
+int zclient_connect(ZohoIOTclient *client)
 {
     int rc = validateClientState(client);
     if (rc != 0)
@@ -195,10 +195,10 @@ int zclient_connect(IOTclient *client)
     log_info("Preparing Network..");
     NetworkInit(&n);
 
-#if defined(SECURE_CONNECTION)
-    rc = NetworkConnect(&n, client->config.hostname, port, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
+#if defined(ZSECURE_CONNECTION)
+    rc = NetworkConnect(&n, client->config.hostname, zport, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
 #else
-    rc = NetworkConnect(&n, client->config.hostname, port);
+    rc = NetworkConnect(&n, client->config.hostname, zport);
 #endif
     if (rc != ZSUCCESS)
     {
@@ -207,7 +207,7 @@ int zclient_connect(IOTclient *client)
     }
 
     //TODO: Handle the rc of ConnectNetwork().
-    log_info("Connecting to \x1b[32m %s : %d \x1b[0m", client->config.hostname, port);
+    log_info("Connecting to \x1b[32m %s : %d \x1b[0m", client->config.hostname, zport);
     MQTTClientInit(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
 
@@ -258,7 +258,7 @@ int zclient_connect(IOTclient *client)
     return rc;
 }
 
-int zclient_reconnect(IOTclient *client)
+int zclient_reconnect(ZohoIOTclient *client)
 {
     int delay = 5;
     int rc = validateClientState(client);
@@ -273,7 +273,7 @@ int zclient_reconnect(IOTclient *client)
         return ZSUCCESS;
     }
 
-    log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", client->config.hostname, port, delay);
+    log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", client->config.hostname, zport, delay);
     sleep(delay);
     rc = zclient_connect(client);
     if (rc == ZSUCCESS)
@@ -298,7 +298,7 @@ int zclient_reconnect(IOTclient *client)
     return rc;
 }
 
-int zclient_publish(IOTclient *client, char *payload)
+int zclient_publish(ZohoIOTclient *client, char *payload)
 {
     int rc = validateClientState(client);
     if (rc != 0)
@@ -339,7 +339,7 @@ int zclient_publish(IOTclient *client, char *payload)
     return rc;
 }
 
-int zclient_dispatch(IOTclient *client)
+int zclient_dispatch(ZohoIOTclient *client)
 {
     int rc = validateClientState(client);
     if (rc != 0)
@@ -411,7 +411,7 @@ int zclient_addEventDataString(char *key, char *val_string)
     return rc;
 }
 
-int zclient_dispatchEventFromEventDataObject(IOTclient *client, char *eventType, char *eventDescription, char *assetName)
+int zclient_dispatchEventFromEventDataObject(ZohoIOTclient *client, char *eventType, char *eventDescription, char *assetName)
 {
     char *eventDataJSONString = cJSON_Print(eventDataObject);
     int rc = zclient_dispatchEventFromJSONString(client, eventType, eventDescription, eventDataJSONString, assetName);
@@ -420,7 +420,7 @@ int zclient_dispatchEventFromEventDataObject(IOTclient *client, char *eventType,
     return rc;
 }
 
-int zclient_dispatchEventFromJSONString(IOTclient *client, char *eventType, char *eventDescription, char *eventDataJSONString, char *assetName)
+int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, char *eventDescription, char *eventDataJSONString, char *assetName)
 {
     int rc = validateClientState(client);
     if (rc != 0)
@@ -487,7 +487,7 @@ int zclient_dispatchEventFromJSONString(IOTclient *client, char *eventType, char
     return rc;
 }
 
-int zclient_publishCommandAck(IOTclient *client, char *correlation_id, commandAckResponseCodes status_code, char *responseMessage)
+int zclient_publishCommandAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage)
 {
     int rc = validateClientState(client);
     if (rc != 0)
@@ -533,7 +533,7 @@ int zclient_publishCommandAck(IOTclient *client, char *correlation_id, commandAc
     return rc;
 }
 
-int zclient_subscribe(IOTclient *client, messageHandler on_message)
+int zclient_subscribe(ZohoIOTclient *client, messageHandler on_message)
 {
     int rc = validateClientState(client);
     if (rc != 0)
@@ -565,7 +565,7 @@ int zclient_subscribe(IOTclient *client, messageHandler on_message)
     return rc;
 }
 
-int zclient_yield(IOTclient *client, int time_out)
+int zclient_yield(ZohoIOTclient *client, int time_out)
 {
     int rc = validateClientState(client);
     if (rc != 0)
@@ -605,7 +605,7 @@ int zclient_yield(IOTclient *client, int time_out)
     return rc;
 }
 
-int zclient_disconnect(IOTclient *client)
+int zclient_disconnect(ZohoIOTclient *client)
 {
     int rc = ZSUCCESS;
     if (client == NULL)
@@ -624,7 +624,7 @@ int zclient_disconnect(IOTclient *client)
     return rc;
 }
 
-int zclient_setRetrycount(IOTclient *client, int count)
+int zclient_setRetrycount(ZohoIOTclient *client, int count)
 {
     int rc = validateClientState(client);
     if (rc != 0)
@@ -642,7 +642,7 @@ int zclient_setRetrycount(IOTclient *client, int count)
     return ZSUCCESS;
 }
 
-cJSON *addAssetNameTopayload(IOTclient *client, char *assetName)
+cJSON *addAssetNameTopayload(ZohoIOTclient *client, char *assetName)
 {
     if (isStringValid(assetName))
     {
@@ -658,7 +658,7 @@ cJSON *addAssetNameTopayload(IOTclient *client, char *assetName)
     }
 }
 
-int zclient_addNumber(IOTclient *client, char *key, double val, char *assetName)
+int zclient_addNumber(ZohoIOTclient *client, char *key, double val, char *assetName)
 {
     int rc = validateClientState(client);
     if (rc != 0)
@@ -688,7 +688,7 @@ int zclient_addNumber(IOTclient *client, char *key, double val, char *assetName)
     return rc;
 }
 
-int zclient_addString(IOTclient *client, char *key, char *val_string, char *assetName)
+int zclient_addString(ZohoIOTclient *client, char *key, char *val_string, char *assetName)
 {
     int rc = validateClientState(client);
     if (rc != 0)
@@ -718,7 +718,7 @@ int zclient_addString(IOTclient *client, char *key, char *val_string, char *asse
     return rc;
 }
 
-int zclient_markDataPointAsError(IOTclient *client, char *key, char *assetName)
+int zclient_markDataPointAsError(ZohoIOTclient *client, char *key, char *assetName)
 {
     return zclient_addString(client, key, "<ERROR>", assetName);
 }

@@ -23,7 +23,7 @@
 #include "mbedtls/config.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
-#include "generic.h"
+#include "zclient_constants.h"
 #include <sys/time.h>
 
 typedef struct

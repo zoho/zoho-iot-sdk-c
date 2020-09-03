@@ -1,4 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10.2)
+SET(CMAKE_C_STANDARD 99)
+
 # Uncomment the below line and update it with your custom toolchain for cross compilation.
 # SET(CMAKE_TOOLCHAIN_FILE "./cross-compile/raspberry_pi/toolchain.cmake")
 
@@ -62,7 +64,7 @@ IF(ENABLE_TLS)
     FILE(GLOB MBEDTLS_SOURCES "lib/mbedtls/library/*.c")
     LIST(APPEND SDK_DEPENDENCIES ${MBEDTLS_SOURCES})
     LIST(APPEND NETWORK_SOURCES "src/tls_network.c")
-    LIST(APPEND FEATURES "-DSECURE_CONNECTION")
+    LIST(APPEND FEATURES "-DZSECURE_CONNECTION")
     IF(USE_CLIENT_CERTS)
         LIST(APPEND FEATURES "-DUSE_CLIENT_CERTS")
     ENDIF(USE_CLIENT_CERTS)
@@ -72,10 +74,10 @@ ELSE()
 ENDIF(ENABLE_TLS)
 
 LIST(APPEND Z_IOT_SOURCES
-            "src/iot_client.c"
-            "src/message_handler.c"
-            "src/log.c"
-            "src/utils.c")
+            "src/zoho_iot_client.c"
+            "src/zoho_message_handler.c"
+            "src/zoho_log.c"
+            "src/zoho_utils.c")
 
 LIST(APPEND SDK_DEPENDENCIES
             ${PAHO_SOURCES}

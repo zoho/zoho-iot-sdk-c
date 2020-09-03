@@ -1,5 +1,5 @@
-#ifndef GENERIC_H_
-#define GENERIC_H_
+#ifndef ZCLIENT_CONSTANTS_H_
+#define ZCLIENT_CONSTANTS_H_
 
 #define COMMAND_RECIEVED_ACK_CODE 1000
 typedef enum
@@ -15,4 +15,4 @@ typedef enum
     ZCONNECTION_ERROR = -2
 } transactionStatus;
 
-#endif //GENERIC_H_
+#endif //ZCLIENT_CONSTANTS_H_

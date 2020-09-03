@@ -26,8 +26,8 @@ IF(ENABLE_TLS)
         LIST(APPEND CERTS CLIENT_CRT CLIENT_KEY)
     ENDIF(USE_CLIENT_CERTS)
 
-    IF(EXISTS ${PROJECT_SOURCE_DIR}/include/certificates.h)
-        FILE(REMOVE ${PROJECT_SOURCE_DIR}/include/certificates.h)
+    IF(EXISTS ${PROJECT_SOURCE_DIR}/include/zclient_certificates.h)
+        FILE(REMOVE ${PROJECT_SOURCE_DIR}/include/zclient_certificates.h)
     ENDIF()
 
     FOREACH(CERT ${CERTS})
