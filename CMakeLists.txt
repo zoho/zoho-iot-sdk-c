@@ -43,9 +43,13 @@ SET(Z_LOG_LEVEL LOG_DEBUG)
 # Build mode, should be disabled on Production build.
 SET(CMAKE_BUILD_TYPE DEBUG)
 
+# Build samples
+OPTION(BUILD_SAMPLES "Build Samples" ON)
+
 MESSAGE(STATUS "TLS SUPPORT : " ${ENABLE_TLS})
 MESSAGE(STATUS "USE CLIENT CERTS : " ${USE_CLIENT_CERTS})
 MESSAGE(STATUS "LOG LEVEL : " ${Z_LOG_LEVEL})
+MESSAGE(STATUS "Build Samples : " ${BUILD_SAMPLES})
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 ADD_SUBDIRECTORY(cmake/setup)
@@ -91,10 +95,8 @@ ADD_LIBRARY(zoho_iot_sdk STATIC ${SDK_DEPENDENCIES})
 TARGET_COMPILE_DEFINITIONS(zoho_iot_sdk PUBLIC ${FEATURES})
 TARGET_LINK_LIBRARIES(zoho_iot_sdk)
 
-# Samples:
-
-# Basic example with TLS:
-ADD_SUBDIRECTORY(samples)
+# Project implementations:
+ADD_SUBDIRECTORY(projects)
 
 #Unit Test cases:
 IF(RUN_TESTS)
