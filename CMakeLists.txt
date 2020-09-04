@@ -1,10 +1,11 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10.2)
 SET(CMAKE_C_STANDARD 99)
 
-# Uncomment the below line and update it with your custom toolchain for cross compilation.
-# SET(CMAKE_TOOLCHAIN_FILE "./cross-compile/raspberry_pi/toolchain.cmake")
-
 PROJECT(zoho-iot-sdk-c)
+
+# For cross compilation call cmake appending -DCMAKE_TOOLCHAIN_FILE= toolchain.cmake for the corresponding target device.
+# Example implementation of toolchain.cmake file for some devices is available under cross-compile folder. 
+
 IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
     MESSAGE(FATAL_ERROR "
                     :::::::::::::::::::::::::

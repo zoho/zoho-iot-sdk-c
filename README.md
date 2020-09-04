@@ -25,6 +25,7 @@ This SDK has inbuilt support for JSON data format. It will allow you to effortle
 This SDK distributed in open sourced form for the effective portability to support variety of devices that runs on different platform and hardware architecture. It has been already built & well tested for the below devices:
 
 - Raspberry Pi
+- OpenWRT based device (Cloudgate from Option)
 
 ## Build Instructions
 
@@ -36,6 +37,10 @@ Make sure you are running Linux and the following packages are pre installed:
 - `unzip`
 - `curl`
 - `git`
+If you need to run the test the following packages are required in addition. 
+- `cmocka`
+- `lcov`
+- `covr`
 
 ### Getting the Source
 
@@ -73,28 +78,6 @@ SET(CLIENT_KEY "/home/user/mycerts/client.key")
 SET(CLIENT_CRT "/home/user/mycerts/client.crt")
 ```
 
-- **Cross Compile Options**
-
-To port this SDK to your custom devices, Refer & clone the cross compile configuration for Raspberry Pi from `cross-compile/raspberry_pi/toolchain.cmake`
-
-And update your custom tool-chain path:
-
-```
-#Update your tool-chain path below:
-SET (TOOLCHAIN_PATH "/home/user/rpi-toolchain")
-
-#Update your compiler name below:
-SET (TOOLCHAIN_COMPILER "arm-bcm2708/arm-linux-gnueabihf/bin/arm-linux-gnueabihf-gcc")
-```
-
-Configure your new tool-chain on `/CMakeLists.txt` as shown below
-
-```
-SET(CMAKE_TOOLCHAIN_FILE "./cross-compile/raspberry_pi/toolchain.cmake")
-```
-
-> The above line will be commented by default. Update and also un-comment it to enable cross compilation.
-
 - **Tying out the basic Example**
 
 This SDK has some default examples to try a basic connection. Please follow the steps to configure it:
@@ -125,3 +108,17 @@ make
 
 > The generated libraries and binary files can be found inside the build folder.
 > make sure you are in `build` folder and run `./basic_tls` command to tryout the basic example.
+
+ **Porting/Cross Compile Options :**
+
+Porting or cross-compile instructions are available for below platforms & devices:
+- **[Raspberry Pi](cross-compile/raspberry_pi/README.md)**
+- **[OpenWRT](cross-compile/OpenWRT/README.md)**
+
+To port this SDK to your custom devices, create a toolchain.cmake file containing the cross-compile configuration for the traget device.
+
+While invoking the build, append -DCMAKE_TOOLCHAIN_FILE= {path}/toolchain.cmake to the cmake command.
+```
+cmake .. -DCMAKE_TOOLCHAIN_FILE={path}/toolchain.cmake
+```
+Similar instructions can be followed to support any new custom platforms & devices.
