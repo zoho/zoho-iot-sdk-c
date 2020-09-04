@@ -1,8 +1,11 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10.2)
-# Uncomment the below line and update it with your custom toolchain for cross compilation.
-# SET(CMAKE_TOOLCHAIN_FILE "./cross-compile/raspberry_pi/toolchain.cmake")
+SET(CMAKE_C_STANDARD 99)
 
 PROJECT(zoho-iot-sdk-c)
+
+# For cross compilation call cmake appending -DCMAKE_TOOLCHAIN_FILE= toolchain.cmake for the corresponding target device.
+# Example implementation of toolchain.cmake file for some devices is available under cross-compile folder. 
+
 IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
     MESSAGE(FATAL_ERROR "
                     :::::::::::::::::::::::::
@@ -40,9 +43,13 @@ SET(Z_LOG_LEVEL LOG_DEBUG)
 # Build mode, should be disabled on Production build.
 SET(CMAKE_BUILD_TYPE DEBUG)
 
+# Build samples
+OPTION(BUILD_SAMPLES "Build Samples" ON)
+
 MESSAGE(STATUS "TLS SUPPORT : " ${ENABLE_TLS})
 MESSAGE(STATUS "USE CLIENT CERTS : " ${USE_CLIENT_CERTS})
 MESSAGE(STATUS "LOG LEVEL : " ${Z_LOG_LEVEL})
+MESSAGE(STATUS "Build Samples : " ${BUILD_SAMPLES})
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 ADD_SUBDIRECTORY(cmake/setup)
@@ -62,7 +69,7 @@ IF(ENABLE_TLS)
     FILE(GLOB MBEDTLS_SOURCES "lib/mbedtls/library/*.c")
     LIST(APPEND SDK_DEPENDENCIES ${MBEDTLS_SOURCES})
     LIST(APPEND NETWORK_SOURCES "src/tls_network.c")
-    LIST(APPEND FEATURES "-DSECURE_CONNECTION")
+    LIST(APPEND FEATURES "-DZSECURE_CONNECTION")
     IF(USE_CLIENT_CERTS)
         LIST(APPEND FEATURES "-DUSE_CLIENT_CERTS")
     ENDIF(USE_CLIENT_CERTS)
@@ -72,10 +79,10 @@ ELSE()
 ENDIF(ENABLE_TLS)
 
 LIST(APPEND Z_IOT_SOURCES
-            "src/iot_client.c"
-            "src/message_handler.c"
-            "src/log.c"
-            "src/utils.c")
+            "src/zoho_iot_client.c"
+            "src/zoho_message_handler.c"
+            "src/zoho_log.c"
+            "src/zoho_utils.c")
 
 LIST(APPEND SDK_DEPENDENCIES
             ${PAHO_SOURCES}
@@ -88,10 +95,8 @@ ADD_LIBRARY(zoho_iot_sdk STATIC ${SDK_DEPENDENCIES})
 TARGET_COMPILE_DEFINITIONS(zoho_iot_sdk PUBLIC ${FEATURES})
 TARGET_LINK_LIBRARIES(zoho_iot_sdk)
 
-# Samples:
-
-# Basic example with TLS:
-ADD_SUBDIRECTORY(samples)
+# Project implementations:
+ADD_SUBDIRECTORY(projects)
 
 #Unit Test cases:
 IF(RUN_TESTS)

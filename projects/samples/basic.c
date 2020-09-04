@@ -1,15 +1,15 @@
-#include "iot_client.h"
+#include "zoho_iot_client.h"
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(SECURE_CONNECTION)
+#if defined(ZSECURE_CONNECTION)
 #if defined(EMBED_MODE)
-#include "certificates.h"
+#include "zclient_certificates.h"
 #endif
 #endif
 volatile int ctrl_flag = 0;
 
-IOTclient client;
+ZohoIOTclient client;
 
 void message_handler(MessageData *data)
 {
@@ -44,7 +44,7 @@ int main()
     int temperature = 23, humidity = 56, pressure = 78;
     char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "", *pDeviceCertParsword = "";
 
-#if defined(SECURE_CONNECTION)
+#if defined(ZSECURE_CONNECTION)
     pRootCACertLocation = CA_CRT;
 #if defined(USE_CLIENT_CERTS)
     pDeviceCertLocation = CLIENT_CRT;

@@ -1,17 +1,17 @@
-#ifndef IOT_CLIENT_H_
-#define IOT_CLIENT_H_
+#ifndef ZOHO_IOT_CLIENT_H_
+#define ZOHO_IOT_CLIENT_H_
 
 #include <MQTTClient.h>
-#include "log.h"
+#include "zoho_log.h"
 #include "cJSON.h"
-#include "utils.h"
-#include "generic.h"
+#include "zoho_utils.h"
+#include "zclient_constants.h"
 #include <time.h>
 
-#if defined(SECURE_CONNECTION)
-#define port (int)8883
+#if defined(ZSECURE_CONNECTION)
+#define zport (int)8883
 #else
-#define port (int)1883
+#define zport (int)1883
 #endif
 
 #define topic_pre (char *)"/devices"
@@ -39,43 +39,44 @@ typedef struct
     char *auth_token;
     char *MqttUserName;
     int retry_limit;
-} Config;
+} Zconfig;
 
-#if defined(SECURE_CONNECTION)
+#if defined(ZSECURE_CONNECTION)
 typedef struct
 {
     char *ca_crt;
     char *client_cert;
     char *client_key;
     char *cert_password;
-} Certificates;
+} ZclientCertificates;
 #endif
 
 typedef struct
 {
     cJSON *cJsonPayload;
     cJSON *data;
-} Payload;
+} Zpayload;
 
 typedef enum
 {
     INITIALIZED = 1,
     CONNECTED = 2,
     DISCONNECTED = 3
-} ConnectionState;
+} ZclientConnectionState;
 
 typedef struct
 {
     MQTTClient mqtt_client;
-    Config config;
-    ConnectionState current_state;
-    Payload message;
-    #if defined(SECURE_CONNECTION)
-    Certificates certs;
-    #endif
-} IOTclient;
+    Zconfig config;
+    ZclientConnectionState current_state;
+    Zpayload message;
+#if defined(ZSECURE_CONNECTION)
+    ZclientCertificates certs;
+#endif
+} ZohoIOTclient;
 
-typedef enum {
+typedef enum
+{
     SUCCESFULLY_EXECUTED = 1001,
     EXECUTION_FAILURE = 4000,
     METHOD_NOT_FOUND = 4001,
@@ -84,31 +85,31 @@ typedef enum {
     DEVICE_CONNECTIVITY_ISSUES = 4004,
     PARTIAL_EXECUTION = 4005,
     ALREADY_ON_SAME_STATE = 4006
-}commandAckResponseCodes;
+} ZcommandAckResponseCodes;
 
-int zclient_init_config_file(IOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode);
-int zclient_init(IOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
-int zclient_connect(IOTclient *client);
-int zclient_publish(IOTclient *client, char *payload);
-int zclient_disconnect(IOTclient *client);
-int zclient_subscribe(IOTclient *client, messageHandler on_message);
-int zclient_yield(IOTclient *client, int time_out);
+int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode);
+int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
+int zclient_connect(ZohoIOTclient *client);
+int zclient_publish(ZohoIOTclient *client, char *payload);
+int zclient_disconnect(ZohoIOTclient *client);
+int zclient_subscribe(ZohoIOTclient *client, messageHandler on_message);
+int zclient_yield(ZohoIOTclient *client, int time_out);
 //TODO: to be tested and removed.
-int zclient_reconnect(IOTclient *client);
-int zclient_dispatch(IOTclient *client);
+int zclient_reconnect(ZohoIOTclient *client);
+int zclient_dispatch(ZohoIOTclient *client);
 
-int zclient_dispatchEventFromJSONString(IOTclient *client, char *eventType, char *eventDescription, char *eventDataJSONString, char *assettName);
-int zclient_dispatchEventFromEventDataObject(IOTclient *client, char *eventType, char *eventDescription, char *assetName);
+int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, char *eventDescription, char *eventDataJSONString, char *assettName);
+int zclient_dispatchEventFromEventDataObject(ZohoIOTclient *client, char *eventType, char *eventDescription, char *assetName);
 int zclient_addEventDataNumber(char *key, double val);
 int zclient_addEventDataString(char *key, char *val);
 
-int zclient_publishCommandAck(IOTclient *client, char* correlation_id, commandAckResponseCodes status_code, char* responseMessage);
+int zclient_publishCommandAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage);
 void zclient_addConnectionParameter(char *connectionParamKey, char *connectionParamValue);
-int zclient_markDataPointAsError(IOTclient *client, char *key, char *assetName);
+int zclient_markDataPointAsError(ZohoIOTclient *client, char *key, char *assetName);
 // In add String method , assetName parameter as optional.
-int zclient_addString(IOTclient *client, char *key, char *val_string, char *assetName);
+int zclient_addString(ZohoIOTclient *client, char *key, char *val_string, char *assetName);
 // In add Number method , assetName parameter as optional.
-int zclient_addNumber(IOTclient *client, char *key, double val_int, char *assetName);
-int zclient_setRetrycount(IOTclient *client, int count);
+int zclient_addNumber(ZohoIOTclient *client, char *key, double val_int, char *assetName);
+int zclient_setRetrycount(ZohoIOTclient *client, int count);
 //char *zclient_getpayload();
-#endif //# IOT_CLIENT_H_
+#endif //# ZOHO_IOT_CLIENT_H_

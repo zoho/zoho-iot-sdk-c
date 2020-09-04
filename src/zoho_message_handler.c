@@ -1,6 +1,6 @@
-#include "message_handler.h"
+#include "zoho_message_handler.h"
 
-void initMessageHandler(IOTclient *client, char *comm_topic, char *comm_ack_topic)
+void initMessageHandler(ZohoIOTclient *client, char *comm_topic, char *comm_ack_topic)
 {
     iot_client = client;
     strcpy(handler_command_topic, comm_topic);

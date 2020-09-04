@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <log.h>
+#include <zoho_log.h>
 
 void TimerInit(Timer *run_timer)
 {
