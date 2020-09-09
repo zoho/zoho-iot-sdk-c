@@ -15,6 +15,9 @@ SET(ENV{STAGING_DIR} ${CMAKE_FIND_ROOT_PATH})
 
 SET(CMAKE_C_COMPILER ${CMAKE_FIND_ROOT_PATH}${TOOLCHAIN_COMPILER})
 
+# Additional flags for library compilation:
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE")
+
 # Look for programs in the build host directories.
 SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 
