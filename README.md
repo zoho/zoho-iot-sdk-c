@@ -82,7 +82,7 @@ SET(CLIENT_CRT "/home/user/mycerts/client.crt")
 
 This SDK has some default examples to try a basic connection. Please follow the steps to configure it:
 
-Edit the source of `basic.c` and include your deviceID and Token On line # 52
+Edit the source of `basic.c` and include your deviceID and Token On line # 56
 
 ```
 rc = zclient_init(&client, "<YOUR-DEVICE-ID>", "<YOUR-DEVICE-TOKEN>", REFERENCE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
@@ -107,7 +107,7 @@ make
 ```
 
 > The generated libraries and binary files can be found inside the build folder.
-> make sure you are in `build` folder and run `./basic_tls` command to tryout the basic example.
+> make sure you are in `build` folder and run `./basic` command to tryout the basic example.
 
  **Porting/Cross Compile Options :**
 

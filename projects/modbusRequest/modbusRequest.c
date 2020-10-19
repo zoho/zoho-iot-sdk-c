@@ -118,7 +118,7 @@ int main()
 
     while (ctrl_flag == 0)
     {
-        if (getTime() > poll_time + POLL_FREQUENCY) //check if it is time to dispatch data to Hub
+        if (getTime() > poll_time + POLL_FREQUENCY) //check if it is time for polling the data from the sensor
         {
             //Modbus implementation
             modbus_t *ctx;
