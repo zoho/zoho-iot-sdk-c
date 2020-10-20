@@ -94,8 +94,12 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
         log_error("MQTTUsername is Malformed.");
         return ZFAILURE;
     }
-    cloneString(&config.auth_token, trim(MQTTPassword));
-    cloneString(&config.MqttUserName, trim(MQTTUserName));
+    char *trimmedPassword = trim(MQTTPassword);
+    char *trimmedUserName = trim(MQTTUserName);
+    cloneString(&config.auth_token, trimmedPassword);
+    cloneString(&config.MqttUserName, trimmedUserName);
+    cJSON_free(trimmedPassword);
+    cJSON_free(trimmedUserName);
     log_debug("client_id:%s", config.client_id);
     log_debug("hostname:%s", config.hostname);
     //Populating dynamic topic names based on its deviceID
@@ -353,7 +357,9 @@ int zclient_dispatch(ZohoIOTclient *client)
     }
     //TODO: Add time stamp, Client ID
     char *payload = cJSON_Print(client->message.data);
-    return zclient_publish(client, payload);
+    int status = zclient_publish(client, payload);
+    cJSON_free(payload);
+    return status;
 }
 
 int zclient_addEventDataNumber(char *key, double val_number)
@@ -416,6 +422,7 @@ int zclient_dispatchEventFromEventDataObject(ZohoIOTclient *client, char *eventT
     char *eventDataJSONString = cJSON_Print(eventDataObject);
     int rc = zclient_dispatchEventFromJSONString(client, eventType, eventDescription, eventDataJSONString, assetName);
     cJSON_Delete(eventDataObject);
+    cJSON_free(eventDataJSONString);
     eventDataObject = cJSON_CreateObject();
     return rc;
 }
@@ -461,7 +468,9 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
         cJSON *eventDispatchObject = cJSON_CreateObject();
         cJSON_AddItemReferenceToObject(eventDispatchObject, assetName, eventObject);
         payload = cJSON_Print(eventDispatchObject);
+        cJSON_Delete(eventDispatchObject);
     }
+    cJSON_Delete(eventObject);
     MQTTMessage pubmsg;
     pubmsg.id = 1234;
     pubmsg.qos = 1;
@@ -484,6 +493,7 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
     {
         log_error("Error on dispatchEvent. Error code: %d", rc);
     }
+    cJSON_free(payload);
     return rc;
 }
 
@@ -648,7 +658,7 @@ cJSON *addAssetNameTopayload(ZohoIOTclient *client, char *assetName)
     {
         if (!cJSON_HasObjectItem(client->message.data, assetName))
         {
-            cJSON_AddItemReferenceToObject(client->message.data, assetName, cJSON_CreateObject());
+            cJSON_AddObjectToObject(client->message.data, assetName);
         }
         return cJSON_GetObjectItem(client->message.data, assetName);
     }

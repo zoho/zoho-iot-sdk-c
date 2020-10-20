@@ -71,7 +71,10 @@ int main()
     cJSON *obj = cJSON_CreateObject();
     cJSON_AddNumberToObject(obj, "Ac_speed", 1);
     cJSON_AddFalseToObject(obj, "Fan_Status");
-    zclient_dispatchEventFromJSONString(&client, "High Temperature", "Room+3 temperature is above normal", cJSON_Print(obj), "Room_3");
+    char *eventMsg = cJSON_Print(obj);
+    zclient_dispatchEventFromJSONString(&client, "High Temperature", "Room+3 temperature is above normal", eventMsg, "Room_3");
+    cJSON_free(eventMsg);
+    cJSON_Delete(obj);
     zclient_addEventDataNumber("Room1_temperature", 15);
     zclient_addEventDataString("Exhuast_speed", "Full");
     zclient_dispatchEventFromEventDataObject(&client, "Low Temperature", "Room+1 Temperature is below normal", "Floor_2");
