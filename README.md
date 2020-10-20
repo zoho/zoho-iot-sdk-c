@@ -85,7 +85,7 @@ This SDK has some default examples to try a basic connection. Please follow the 
 Edit the source of `basic.c` and include your deviceID and Token On line # 56
 
 ```
-rc = zclient_init(&client, "<YOUR-DEVICE-ID>", "<YOUR-DEVICE-TOKEN>", REFERENCE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
+rc = zclient_init(&client, "<YOUR-DEVICE-ID>", "<YOUR-DEVICE-TOKEN>", REFERENCE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword);
 ```
 
 ### Build the Source

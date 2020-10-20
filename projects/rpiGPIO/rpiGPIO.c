@@ -84,18 +84,18 @@ int main()
     signal(SIGTERM, interruptHandler);
 
     char *payload;
-    char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "", *pDeviceCertParsword = "";
+    char *pRootCACert = "", *pDeviceCert = "", *pDevicePrivateKey = "", *pDeviceCertParsword = "";
 
 #if defined(ZSECURE_CONNECTION)
-    pRootCACertLocation = CA_CRT;
+    pRootCACert = CA_CRT;
 #if defined(USE_CLIENT_CERTS)
-    pDeviceCertLocation = CLIENT_CRT;
-    pDevicePrivateKeyLocation = CLIENT_KEY;
+    pDeviceCert = CLIENT_CRT;
+    pDevicePrivateKey = CLIENT_KEY;
 #endif
 #endif
 
     // Initialize the ZohoIoTClient Library
-    rc = zclient_init(&client, MQTT_USER_NAME, MQTT_PASSWORD, CRT_PARSE_MODE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
+    rc = zclient_init(&client, MQTT_USER_NAME, MQTT_PASSWORD, CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword);
     if (rc != ZSUCCESS)
     {
         return 0;

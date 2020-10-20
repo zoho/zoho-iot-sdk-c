@@ -42,18 +42,18 @@ int main()
 
     char *payload;
     int temperature = 23, humidity = 56, pressure = 78;
-    char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "", *pDeviceCertParsword = "";
+    char *pRootCACert = "", *pDeviceCert = "", *pDevicePrivateKey = "", *pDeviceCertParsword = "";
 
 #if defined(ZSECURE_CONNECTION)
-    pRootCACertLocation = CA_CRT;
+    pRootCACert = CA_CRT;
 #if defined(USE_CLIENT_CERTS)
-    pDeviceCertLocation = CLIENT_CRT;
-    pDevicePrivateKeyLocation = CLIENT_KEY;
+    pDeviceCert = CLIENT_CRT;
+    pDevicePrivateKey = CLIENT_KEY;
 #endif
 #endif
 
     //Update your DEVICE_ID AND AUTH_TOKEN below:
-    rc = zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
+    rc = zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword);
     // rc = zclient_init_config_file(&client, "MQTTConfigFileName", CRT_PARSE_MODE);
     if (rc != ZSUCCESS)
     {
