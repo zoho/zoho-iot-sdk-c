@@ -122,3 +122,30 @@ While invoking the build, append -DCMAKE_TOOLCHAIN_FILE= {path}/toolchain.cmake 
 cmake .. -DCMAKE_TOOLCHAIN_FILE={path}/toolchain.cmake
 ```
 Similar instructions can be followed to support any new custom platforms & devices.
+
+ **Generate Exportable Library package:**
+
+For devices which comes up with the native SDK and for developers preferring to use any custom IDE can generate the Zoho IoT Library package folder containing the required dependency sources and include files by updating the value of Build Exportable Library to ON.
+
+```
+OPTION(BUILD_EXPORTABLE_LIB "Build Exportable Library" ON)
+```
+
+The Zoho IoT Library package will be created in the build directory when building the Zoho SDK library.
+
+The developers now can import this Zoho Library packages into their source folder directly and compile.
+
+While compiling include the Zoho SDK library necessary features like 
+
+- -DMQTTCLIENT_PLATFORM_HEADER=tls_config.h    
+- -DZ_LOG_LEVEL=LOG_DEBUG  
+
+Available Log levels:  LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL
+
+To enable TLS communication to the HUB, include the following features
+- -DZSECURE_CONNECTION
+- -DUSE_CLIENT_CERTS
+
+Include -DUSE_CLIENT_CERTS feature to use the client certificate for connecting the device to the HUB.   
+- -DCRT_PARSE_MODE=REFERENCE 
+The available Certificate parse mode are EMBED and REFERENCE. This can be used in the application program and is not required for building the library.

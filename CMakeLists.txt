@@ -46,6 +46,9 @@ SET(CMAKE_BUILD_TYPE DEBUG)
 # Build samples
 OPTION(BUILD_SAMPLES "Build Samples" ON)
 
+# Build Exportable Library sources
+OPTION(BUILD_EXPORTABLE_LIB "Build Exportable Library" OFF)
+
 MESSAGE(STATUS "TLS SUPPORT : " ${ENABLE_TLS})
 MESSAGE(STATUS "USE CLIENT CERTS : " ${USE_CLIENT_CERTS})
 MESSAGE(STATUS "LOG LEVEL : " ${Z_LOG_LEVEL})
@@ -94,6 +97,31 @@ LIST(APPEND SDK_DEPENDENCIES
 ADD_LIBRARY(zoho_iot_sdk STATIC ${SDK_DEPENDENCIES})
 TARGET_COMPILE_DEFINITIONS(zoho_iot_sdk PUBLIC ${FEATURES})
 TARGET_LINK_LIBRARIES(zoho_iot_sdk)
+
+IF (BUILD_EXPORTABLE_LIB)
+    add_custom_command(TARGET zoho_iot_sdk PRE_BUILD
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/ $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/src/
+                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/ $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/include/
+                       COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/*.c $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/src/          
+                       COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTClient-C/src/*.c $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/src/          
+                       COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/*.h $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/include/
+                       COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTClient-C/src/*.h $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/include/
+                       COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/cjson/cJSON.c $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/src/          
+                       COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/cjson/*.h $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/include/
+                      )
+    IF(ENABLE_TLS)
+         add_custom_command(TARGET zoho_iot_sdk PRE_BUILD
+                            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/mbedtls/library/*.c $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/src/         
+                            COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/include/mbedtls/
+                            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/mbedtls/include/mbedtls/*.h $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/include/mbedtls/ 
+                           )
+    ELSE()
+         add_custom_command(TARGET zoho_iot_sdk PRE_BUILD
+                            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTClient-C/src/linux/MQTTLinux.c $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/src/           
+                            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTClient-C/src/linux/*.h $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/include/ 
+                           )                               
+    ENDIF(ENABLE_TLS)
+ENDIF(BUILD_EXPORTABLE_LIB)
 
 # Project implementations:
 ADD_SUBDIRECTORY(projects)
