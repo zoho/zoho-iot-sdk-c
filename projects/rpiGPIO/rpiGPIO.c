@@ -2,7 +2,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(ZSECURE_CONNECTION)
+#if defined(Z_SECURE_CONNECTION)
 #if defined(EMBED_MODE)
 #include "zclient_certificates.h"
 #endif
@@ -84,18 +84,18 @@ int main()
     signal(SIGTERM, interruptHandler);
 
     char *payload;
-    char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "", *pDeviceCertParsword = "";
+    char *pRootCACert = "", *pDeviceCert = "", *pDevicePrivateKey = "", *pDeviceCertParsword = "";
 
-#if defined(ZSECURE_CONNECTION)
-    pRootCACertLocation = CA_CRT;
-#if defined(USE_CLIENT_CERTS)
-    pDeviceCertLocation = CLIENT_CRT;
-    pDevicePrivateKeyLocation = CLIENT_KEY;
+#if defined(Z_SECURE_CONNECTION)
+    pRootCACert = CA_CRT;
+#if defined(Z_USE_CLIENT_CERTS)
+    pDeviceCert = CLIENT_CRT;
+    pDevicePrivateKey = CLIENT_KEY;
 #endif
 #endif
 
     // Initialize the ZohoIoTClient Library
-    rc = zclient_init(&client, MQTT_USER_NAME, MQTT_PASSWORD, CRT_PARSE_MODE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
+    rc = zclient_init(&client, MQTT_USER_NAME, MQTT_PASSWORD, CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword);
     if (rc != ZSUCCESS)
     {
         return 0;
@@ -115,7 +115,7 @@ int main()
 
     while (ctrl_flag == 0)
     {
-        if (getTime() > poll_time + POLL_FREQUENCY) //check if it is time to dispatch data to Hub
+        if (getTime() > poll_time + POLL_FREQUENCY) //check if it is time for polling the data from the sensor
         {
             // Read the pin status
             door_status = gpioRead(GPIO_PIN);

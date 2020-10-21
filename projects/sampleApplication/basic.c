@@ -2,7 +2,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(ZSECURE_CONNECTION)
+#if defined(Z_SECURE_CONNECTION)
 #if defined(EMBED_MODE)
 #include "zclient_certificates.h"
 #endif
@@ -42,18 +42,18 @@ int main()
 
     char *payload;
     int temperature = 23, humidity = 56, pressure = 78;
-    char *pRootCACertLocation = "", *pDeviceCertLocation = "", *pDevicePrivateKeyLocation = "", *pDeviceCertParsword = "";
+    char *pRootCACert = "", *pDeviceCert = "", *pDevicePrivateKey = "", *pDeviceCertParsword = "";
 
-#if defined(ZSECURE_CONNECTION)
-    pRootCACertLocation = CA_CRT;
-#if defined(USE_CLIENT_CERTS)
-    pDeviceCertLocation = CLIENT_CRT;
-    pDevicePrivateKeyLocation = CLIENT_KEY;
+#if defined(Z_SECURE_CONNECTION)
+    pRootCACert = CA_CRT;
+#if defined(Z_USE_CLIENT_CERTS)
+    pDeviceCert = CLIENT_CRT;
+    pDevicePrivateKey = CLIENT_KEY;
 #endif
 #endif
 
     //Update your DEVICE_ID AND AUTH_TOKEN below:
-    rc = zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
+    rc = zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword);
     // rc = zclient_init_config_file(&client, "MQTTConfigFileName", CRT_PARSE_MODE);
     if (rc != ZSUCCESS)
     {
@@ -71,7 +71,10 @@ int main()
     cJSON *obj = cJSON_CreateObject();
     cJSON_AddNumberToObject(obj, "Ac_speed", 1);
     cJSON_AddFalseToObject(obj, "Fan_Status");
-    zclient_dispatchEventFromJSONString(&client, "High Temperature", "Room+3 temperature is above normal", cJSON_Print(obj), "Room_3");
+    char *eventMsg = cJSON_Print(obj);
+    zclient_dispatchEventFromJSONString(&client, "High Temperature", "Room+3 temperature is above normal", eventMsg, "Room_3");
+    cJSON_free(eventMsg);
+    cJSON_Delete(obj);
     zclient_addEventDataNumber("Room1_temperature", 15);
     zclient_addEventDataString("Exhuast_speed", "Full");
     zclient_dispatchEventFromEventDataObject(&client, "Low Temperature", "Room+1 Temperature is below normal", "Floor_2");

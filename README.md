@@ -59,7 +59,7 @@ git clone https://git.csez.zohocorpin.com/zoho/zoho-iot-sdk-c
 To enable TLS support, edit `CMakeList.txt` file and update the value of `Enable TLS for Secure connection` to `ON`.
 
 ```
-OPTION(ENABLE_TLS "Enable TLS for Secure connection" ON)
+OPTION(Z_ENABLE_TLS "Enable TLS for Secure connection" ON)
 ```
 
 Configure whether to use Client side certificates or not.
@@ -67,7 +67,7 @@ Configure whether to use Client side certificates or not.
 > Default mode will be Server side certificate if you leave this unchanged (OFF)
 
 ```
-OPTION(USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
+OPTION(Z_USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
 ```
 
 Mention the absolute location of your X.509 certificates on the below placeholders
@@ -82,10 +82,10 @@ SET(CLIENT_CRT "/home/user/mycerts/client.crt")
 
 This SDK has some default examples to try a basic connection. Please follow the steps to configure it:
 
-Edit the source of `basic.c` and include your deviceID and Token On line # 52
+Edit the source of `basic.c` and include your deviceID and Token On line # 56
 
 ```
-rc = zclient_init(&client, "<YOUR-DEVICE-ID>", "<YOUR-DEVICE-TOKEN>", REFERENCE, pRootCACertLocation, pDeviceCertLocation, pDevicePrivateKeyLocation, pDeviceCertParsword);
+rc = zclient_init(&client, "<YOUR-DEVICE-ID>", "<YOUR-DEVICE-TOKEN>", REFERENCE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword);
 ```
 
 ### Build the Source
@@ -107,7 +107,7 @@ make
 ```
 
 > The generated libraries and binary files can be found inside the build folder.
-> make sure you are in `build` folder and run `./basic_tls` command to tryout the basic example.
+> make sure you are in `build` folder and run `./basic` command to tryout the basic example.
 
  **Porting/Cross Compile Options :**
 
@@ -122,3 +122,30 @@ While invoking the build, append -DCMAKE_TOOLCHAIN_FILE= {path}/toolchain.cmake 
 cmake .. -DCMAKE_TOOLCHAIN_FILE={path}/toolchain.cmake
 ```
 Similar instructions can be followed to support any new custom platforms & devices.
+
+ **Generate Exportable Library package:**
+
+For devices which comes up with the native SDK and for developers preferring to use any custom IDE can generate the Zoho IoT Library package folder containing the required dependency sources and include files by updating the value of Build Exportable Library to ON.
+
+```
+OPTION(BUILD_EXPORTABLE_LIB "Build Exportable Library" ON)
+```
+
+The Zoho IoT Library package will be created in the build directory when building the Zoho SDK library.
+
+The developers now can import this Zoho Library packages into their source folder directly and compile.
+
+While compiling include the Zoho SDK library necessary features like 
+
+- -DMQTTCLIENT_PLATFORM_HEADER=tls_config.h    
+- -DZ_LOG_LEVEL=LOG_DEBUG  
+
+Available Log levels:  LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL
+
+To enable TLS communication to the HUB, include the following features
+- -DZ_SECURE_CONNECTION
+- -DZ_USE_CLIENT_CERTS
+
+Include -DZ_USE_CLIENT_CERTS feature to use the client certificate for connecting the device to the HUB.   
+- -DCRT_PARSE_MODE=REFERENCE 
+The available Certificate parse mode are EMBED and REFERENCE. This can be used in the application program and is not required for building the library.

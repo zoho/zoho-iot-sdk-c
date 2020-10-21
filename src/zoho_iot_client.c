@@ -94,8 +94,12 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
         log_error("MQTTUsername is Malformed.");
         return ZFAILURE;
     }
-    cloneString(&config.auth_token, trim(MQTTPassword));
-    cloneString(&config.MqttUserName, trim(MQTTUserName));
+    char *trimmedPassword = trim(MQTTPassword);
+    char *trimmedUserName = trim(MQTTUserName);
+    cloneString(&config.auth_token, trimmedPassword);
+    cloneString(&config.MqttUserName, trimmedUserName);
+    cJSON_free(trimmedPassword);
+    cJSON_free(trimmedUserName);
     log_debug("client_id:%s", config.client_id);
     log_debug("hostname:%s", config.hostname);
     //Populating dynamic topic names based on its deviceID
@@ -107,14 +111,14 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     config.retry_limit = 5;
     iot_client->config = config;
     parse_mode = mode;
-#if defined(ZSECURE_CONNECTION)
+#if defined(Z_SECURE_CONNECTION)
     if (ca_crt == NULL || (mode == REFERENCE && access(ca_crt, F_OK) == -1))
     {
         log_error("RootCA file is not found/can't be accessed");
         return ZFAILURE;
     }
     iot_client->certs.ca_crt = ca_crt;
-#if defined(USE_CLIENT_CERTS)
+#if defined(Z_USE_CLIENT_CERTS)
     if (client_cert == NULL || client_key == NULL || cert_password == NULL || (mode == REFERENCE && (access(client_cert, F_OK) == -1)) || (mode == REFERENCE && (access(client_key, F_OK) == -1)))
     {
         log_error("Client key or Client certificate is not found/can't be accessed");
@@ -195,7 +199,7 @@ int zclient_connect(ZohoIOTclient *client)
     log_info("Preparing Network..");
     NetworkInit(&n);
 
-#if defined(ZSECURE_CONNECTION)
+#if defined(Z_SECURE_CONNECTION)
     rc = NetworkConnect(&n, client->config.hostname, zport, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
 #else
     rc = NetworkConnect(&n, client->config.hostname, zport);
@@ -353,7 +357,9 @@ int zclient_dispatch(ZohoIOTclient *client)
     }
     //TODO: Add time stamp, Client ID
     char *payload = cJSON_Print(client->message.data);
-    return zclient_publish(client, payload);
+    int status = zclient_publish(client, payload);
+    cJSON_free(payload);
+    return status;
 }
 
 int zclient_addEventDataNumber(char *key, double val_number)
@@ -416,6 +422,7 @@ int zclient_dispatchEventFromEventDataObject(ZohoIOTclient *client, char *eventT
     char *eventDataJSONString = cJSON_Print(eventDataObject);
     int rc = zclient_dispatchEventFromJSONString(client, eventType, eventDescription, eventDataJSONString, assetName);
     cJSON_Delete(eventDataObject);
+    cJSON_free(eventDataJSONString);
     eventDataObject = cJSON_CreateObject();
     return rc;
 }
@@ -461,7 +468,9 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
         cJSON *eventDispatchObject = cJSON_CreateObject();
         cJSON_AddItemReferenceToObject(eventDispatchObject, assetName, eventObject);
         payload = cJSON_Print(eventDispatchObject);
+        cJSON_Delete(eventDispatchObject);
     }
+    cJSON_Delete(eventObject);
     MQTTMessage pubmsg;
     pubmsg.id = 1234;
     pubmsg.qos = 1;
@@ -484,6 +493,7 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
     {
         log_error("Error on dispatchEvent. Error code: %d", rc);
     }
+    cJSON_free(payload);
     return rc;
 }
 
@@ -648,7 +658,7 @@ cJSON *addAssetNameTopayload(ZohoIOTclient *client, char *assetName)
     {
         if (!cJSON_HasObjectItem(client->message.data, assetName))
         {
-            cJSON_AddItemReferenceToObject(client->message.data, assetName, cJSON_CreateObject());
+            cJSON_AddObjectToObject(client->message.data, assetName);
         }
         return cJSON_GetObjectItem(client->message.data, assetName);
     }

@@ -85,7 +85,7 @@ int init_tls(Network *n, certsParseMode mode, char *ca_crt, char *client_cert, c
     mbedtls_x509_crt_init(&(n->cacert));
     mbedtls_ctr_drbg_init(&(n->ctr_drbg));
     mbedtls_entropy_init(&(n->entropy));
-#if defined(USE_CLIENT_CERTS)
+#if defined(Z_USE_CLIENT_CERTS)
     mbedtls_x509_crt_init(&(n->clicert));
     mbedtls_pk_init(&(n->pkey));
 #endif
@@ -112,7 +112,7 @@ int init_tls(Network *n, certsParseMode mode, char *ca_crt, char *client_cert, c
         return -1;
     }
 
-#if defined(USE_CLIENT_CERTS)
+#if defined(Z_USE_CLIENT_CERTS)
 
     rc = (mode == EMBED) ? mbedtls_x509_crt_parse(&n->clicert, client_cert, strlen(client_cert) + 1) : mbedtls_x509_crt_parse_file(&n->clicert, client_cert);
 
@@ -215,7 +215,7 @@ int NetworkConnect(Network *n, char *addr, int port, certsParseMode mode, char *
         log_debug("Intializing TLS failed");
         return -1;
     }
-#if defined(USE_CLIENT_CERTS)
+#if defined(Z_USE_CLIENT_CERTS)
     if ((rc = mbedtls_ssl_conf_own_cert(&n->conf, &n->clicert, &n->pkey)) != 0)
     {
         log_trace("Conf own_cert failed. return code = 0x%x", -rc);
@@ -314,7 +314,7 @@ void NetworkDisconnect(Network *n)
     mbedtls_ssl_close_notify(&(n->ssl));
     mbedtls_net_free(&(n->server_fd));
     mbedtls_x509_crt_free(&(n->cacert));
-#if defined(USE_CLIENT_CERTS)
+#if defined(Z_USE_CLIENT_CERTS)
     mbedtls_x509_crt_free(&(n->clicert));
     mbedtls_pk_free(&(n->pkey));
 #endif
