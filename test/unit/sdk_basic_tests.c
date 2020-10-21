@@ -76,8 +76,8 @@ static void InitConfigFileMethod_OnProperArguments_withImproperKeys_ShouldFail(v
     assert_int_equal(zclient_init_config_file(&client, "../../../test/MqttConfig_Wrong_Format.json", EMBED), ZFAILURE);
 }
 
-#ifndef ZSECURE_CONNECTION
-#define ZSECURE_CONNECTION
+#ifndef Z_SECURE_CONNECTION
+#define Z_SECURE_CONNECTION
 #endif
 static void InitMethod_WithTLS_NullSeverCertificates_ShouldFail(void **State)
 {
@@ -86,8 +86,8 @@ static void InitMethod_WithTLS_NullSeverCertificates_ShouldFail(void **State)
     ZohoIOTclient client;
     assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, REFERENCE, NULL, "", "", ""), ZFAILURE);
 }
-#ifndef USE_CLIENT_CERTS
-#define USE_CLIENT_CERTS
+#ifndef Z_USE_CLIENT_CERTS
+#define Z_USE_CLIENT_CERTS
 #endif
 static void InitMethod_WithTLS_NullClientCertificates_ShouldFail(void **State)
 {
@@ -97,8 +97,8 @@ static void InitMethod_WithTLS_NullClientCertificates_ShouldFail(void **State)
     assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, REFERENCE, "/usr/device_certificate.pem", NULL, NULL, ""), ZFAILURE);
 }
 
-#undef USE_CLIENT_CERTS
-#undef ZSECURE_CONNECTION
+#undef Z_USE_CLIENT_CERTS
+#undef Z_SECURE_CONNECTION
 
 // CONNECT :
 
@@ -154,8 +154,8 @@ static void ConnectMethod_WithWrongCredentials_ShouldFail(void **state)
     assert_int_equal(zclient_connect(&client), 5);
 }
 
-#ifndef ZSECURE_CONNECTION
-#define ZSECURE_CONNECTION
+#ifndef Z_SECURE_CONNECTION
+#define Z_SECURE_CONNECTION
 #endif
 static void ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed(void **state)
 {
@@ -168,8 +168,8 @@ static void ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed(voi
     assert_int_equal(zclient_connect(&client), ZSUCCESS);
 }
 
-#ifndef USE_CLIENT_CERTS
-#define USE_CLIENT_CERTS
+#ifndef Z_USE_CLIENT_CERTS
+#define Z_USE_CLIENT_CERTS
 #endif
 static void ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed(void **state)
 {
@@ -182,8 +182,8 @@ static void ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed(voi
     assert_int_equal(zclient_connect(&client), ZSUCCESS);
 }
 
-#undef USE_CLIENT_CERTS
-#undef ZSECURE_CONNECTION
+#undef Z_USE_CLIENT_CERTS
+#undef Z_SECURE_CONNECTION
 
 // PUBLISH :
 

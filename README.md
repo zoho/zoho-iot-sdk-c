@@ -59,7 +59,7 @@ git clone https://git.csez.zohocorpin.com/zoho/zoho-iot-sdk-c
 To enable TLS support, edit `CMakeList.txt` file and update the value of `Enable TLS for Secure connection` to `ON`.
 
 ```
-OPTION(ENABLE_TLS "Enable TLS for Secure connection" ON)
+OPTION(Z_ENABLE_TLS "Enable TLS for Secure connection" ON)
 ```
 
 Configure whether to use Client side certificates or not.
@@ -67,7 +67,7 @@ Configure whether to use Client side certificates or not.
 > Default mode will be Server side certificate if you leave this unchanged (OFF)
 
 ```
-OPTION(USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
+OPTION(Z_USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
 ```
 
 Mention the absolute location of your X.509 certificates on the below placeholders
@@ -143,9 +143,9 @@ While compiling include the Zoho SDK library necessary features like
 Available Log levels:  LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL
 
 To enable TLS communication to the HUB, include the following features
-- -DZSECURE_CONNECTION
-- -DUSE_CLIENT_CERTS
+- -DZ_SECURE_CONNECTION
+- -DZ_USE_CLIENT_CERTS
 
-Include -DUSE_CLIENT_CERTS feature to use the client certificate for connecting the device to the HUB.   
+Include -DZ_USE_CLIENT_CERTS feature to use the client certificate for connecting the device to the HUB.   
 - -DCRT_PARSE_MODE=REFERENCE 
 The available Certificate parse mode are EMBED and REFERENCE. This can be used in the application program and is not required for building the library.

@@ -111,14 +111,14 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     config.retry_limit = 5;
     iot_client->config = config;
     parse_mode = mode;
-#if defined(ZSECURE_CONNECTION)
+#if defined(Z_SECURE_CONNECTION)
     if (ca_crt == NULL || (mode == REFERENCE && access(ca_crt, F_OK) == -1))
     {
         log_error("RootCA file is not found/can't be accessed");
         return ZFAILURE;
     }
     iot_client->certs.ca_crt = ca_crt;
-#if defined(USE_CLIENT_CERTS)
+#if defined(Z_USE_CLIENT_CERTS)
     if (client_cert == NULL || client_key == NULL || cert_password == NULL || (mode == REFERENCE && (access(client_cert, F_OK) == -1)) || (mode == REFERENCE && (access(client_key, F_OK) == -1)))
     {
         log_error("Client key or Client certificate is not found/can't be accessed");
@@ -199,7 +199,7 @@ int zclient_connect(ZohoIOTclient *client)
     log_info("Preparing Network..");
     NetworkInit(&n);
 
-#if defined(ZSECURE_CONNECTION)
+#if defined(Z_SECURE_CONNECTION)
     rc = NetworkConnect(&n, client->config.hostname, zport, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
 #else
     rc = NetworkConnect(&n, client->config.hostname, zport);

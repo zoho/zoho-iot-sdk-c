@@ -2,7 +2,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(ZSECURE_CONNECTION)
+#if defined(Z_SECURE_CONNECTION)
 #if defined(EMBED_MODE)
 #include "zclient_certificates.h"
 #endif
@@ -92,9 +92,9 @@ int main()
     char *payload;
     char *pRootCACert = "", *pDeviceCert = "", *pDevicePrivateKey = "", *pDeviceCertParsword = "";
 
-#if defined(ZSECURE_CONNECTION)
+#if defined(Z_SECURE_CONNECTION)
     pRootCACert = CA_CRT;
-#if defined(USE_CLIENT_CERTS)
+#if defined(Z_USE_CLIENT_CERTS)
     pDeviceCert = CLIENT_CRT;
     pDevicePrivateKey = CLIENT_KEY;
 #endif

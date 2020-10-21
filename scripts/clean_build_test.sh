@@ -5,7 +5,7 @@ rm -rf build
 set -e
 
 mkdir build && cd build
-cmake -DENABLE_TLS=ON -DUSE_CLIENT_CERTS=ON ..
+cmake -DZ_ENABLE_TLS=ON -DZ_USE_CLIENT_CERTS=ON ..
 make -j8
 
 echo "\n\n\nRunning Tests:\n"

@@ -31,8 +31,8 @@ IF(NOT UNZIP_FOUND OR NOT CURL_FOUND OR NOT PATCH_FOUND)
         )
 ENDIF()
 
-OPTION(ENABLE_TLS "Enable TLS for Secure connection" OFF)
-OPTION(USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
+OPTION(Z_ENABLE_TLS "Enable TLS for Secure connection" OFF)
+OPTION(Z_USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
 
 #For unit test cases:
 OPTION(RUN_TESTS "Run unit tests" ON)
@@ -49,8 +49,8 @@ OPTION(BUILD_SAMPLES "Build Samples" ON)
 # Build Exportable Library sources
 OPTION(BUILD_EXPORTABLE_LIB "Build Exportable Library" OFF)
 
-MESSAGE(STATUS "TLS SUPPORT : " ${ENABLE_TLS})
-MESSAGE(STATUS "USE CLIENT CERTS : " ${USE_CLIENT_CERTS})
+MESSAGE(STATUS "TLS SUPPORT : " ${Z_ENABLE_TLS})
+MESSAGE(STATUS "USE CLIENT CERTS : " ${Z_USE_CLIENT_CERTS})
 MESSAGE(STATUS "LOG LEVEL : " ${Z_LOG_LEVEL})
 MESSAGE(STATUS "Build Samples : " ${BUILD_SAMPLES})
 
@@ -67,19 +67,19 @@ SET(CJSON_SOURCES lib/cjson/cJSON.c)
 
 LIST(APPEND FEATURES "-DZ_LOG_LEVEL=${Z_LOG_LEVEL}")
 
-IF(ENABLE_TLS)
+IF(Z_ENABLE_TLS)
     INCLUDE_DIRECTORIES(lib/mbedtls/include/)
     FILE(GLOB MBEDTLS_SOURCES "lib/mbedtls/library/*.c")
     LIST(APPEND SDK_DEPENDENCIES ${MBEDTLS_SOURCES})
     LIST(APPEND NETWORK_SOURCES "src/tls_network.c")
-    LIST(APPEND FEATURES "-DZSECURE_CONNECTION")
-    IF(USE_CLIENT_CERTS)
-        LIST(APPEND FEATURES "-DUSE_CLIENT_CERTS")
-    ENDIF(USE_CLIENT_CERTS)
+    LIST(APPEND FEATURES "-DZ_SECURE_CONNECTION")
+    IF(Z_USE_CLIENT_CERTS)
+        LIST(APPEND FEATURES "-DZ_USE_CLIENT_CERTS")
+    ENDIF(Z_USE_CLIENT_CERTS)
 ELSE()
     INCLUDE_DIRECTORIES(lib/paho.mqtt/MQTTClient-C/src/linux)
     LIST(APPEND NETWORK_SOURCES "lib/paho.mqtt/MQTTClient-C/src/linux/MQTTLinux.c")
-ENDIF(ENABLE_TLS)
+ENDIF(Z_ENABLE_TLS)
 
 LIST(APPEND Z_IOT_SOURCES
             "src/zoho_iot_client.c"
@@ -109,7 +109,7 @@ IF (BUILD_EXPORTABLE_LIB)
                        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/cjson/cJSON.c $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/src/          
                        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/cjson/*.h $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/include/
                       )
-    IF(ENABLE_TLS)
+    IF(Z_ENABLE_TLS)
          add_custom_command(TARGET zoho_iot_sdk PRE_BUILD
                             COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/mbedtls/library/*.c $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/src/         
                             COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/include/mbedtls/
@@ -120,7 +120,7 @@ IF (BUILD_EXPORTABLE_LIB)
                             COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTClient-C/src/linux/MQTTLinux.c $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/src/           
                             COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTClient-C/src/linux/*.h $<TARGET_FILE_DIR:zoho_iot_sdk>/zoho_IoT_Library/include/ 
                            )                               
-    ENDIF(ENABLE_TLS)
+    ENDIF(Z_ENABLE_TLS)
 ENDIF(BUILD_EXPORTABLE_LIB)
 
 # Project implementations:

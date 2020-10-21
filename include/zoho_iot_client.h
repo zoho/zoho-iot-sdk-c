@@ -8,7 +8,7 @@
 #include "zclient_constants.h"
 #include <time.h>
 
-#if defined(ZSECURE_CONNECTION)
+#if defined(Z_SECURE_CONNECTION)
 #define zport (int)8883
 #else
 #define zport (int)1883
@@ -41,7 +41,7 @@ typedef struct
     int retry_limit;
 } Zconfig;
 
-#if defined(ZSECURE_CONNECTION)
+#if defined(Z_SECURE_CONNECTION)
 typedef struct
 {
     char *ca_crt;
@@ -70,7 +70,7 @@ typedef struct
     Zconfig config;
     ZclientConnectionState current_state;
     Zpayload message;
-#if defined(ZSECURE_CONNECTION)
+#if defined(Z_SECURE_CONNECTION)
     ZclientCertificates certs;
 #endif
 } ZohoIOTclient;
