@@ -16,6 +16,9 @@ cJSON *eventDataObject;
 
 int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode)
 {
+    log_initialize();
+    log_info("\n\n\nSDK Initializing..");
+
     FILE *MqttConfigFile = fopen(MqttConfigFilePath, "rb");
     if (!MqttConfigFile)
     {
@@ -75,8 +78,12 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     //TODO:1
     // All config.h and device related validations should be done here itself !
 
-    log_initialize();
-    log_info("\n\n\nSDK Initializing..");
+    if (!L.fp)
+    {
+        log_initialize();
+        log_info("\n\n\nSDK Initializing..");
+    }
+
     if (iot_client == NULL)
     {
         log_error("Client object is NULL");

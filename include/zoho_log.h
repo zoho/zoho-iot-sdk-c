@@ -4,8 +4,36 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#define LOG_PATH "./"
+#define LOG_PREFIX "zoho_SDK_logs"
+#define LOG_FORMAT ".txt"
+#define MAX_LOG_FILE_SIZE 100000 //file size in Bytes
+#define MAX_ROLLING_LOG_FILE 2   // No of rolling log file in addition to the main
+
 FILE *log_file;
 typedef void (*log_LockFn)(void *udata, int lock);
+
+static struct
+{
+    void *udata;
+    log_LockFn lock;
+    FILE *fp;
+    int level;
+    int quiet;
+    int fileLog;
+    char *logPath;
+    char *logPrefix;
+    int maxLogFileSize;
+    int maxRollingLogFile;
+} L;
+
+static const char *level_names[] = {
+    "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"};
+
+// #ifdef LOG_USE_COLOR
+static const char *level_colors[] = {
+    "\x1b[94m", "\x1b[36m", "\x1b[32m", "\x1b[33m", "\x1b[31m", "\x1b[35m"};
+// #endif
 
 enum
 {
@@ -31,6 +59,11 @@ void log_set_lock(log_LockFn fn);
 void log_set_fp(FILE *fp);
 void log_set_level(int level);
 void log_set_quiet(int enable);
+void log_set_fileLog(int enable);
+void log_set_logPath(char *path);
+void log_set_logPrefix(char *prefix);
+void log_set_maxLogSize(int size);
+void log_set_maxRollingLog(int size);
 void log_initialize();
 void log_free();
 
