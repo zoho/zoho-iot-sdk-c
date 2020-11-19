@@ -14,9 +14,9 @@ cJSON *eventDataObject;
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
 
-int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode)
+int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode, ZlogConfig *logConfig)
 {
-    log_initialize();
+    log_initialize(logConfig);
     log_info("\n\n\nSDK Initializing..");
 
     FILE *MqttConfigFile = fopen(MqttConfigFilePath, "rb");
@@ -73,14 +73,14 @@ int populateConfigObject(char *MQTTUserName, Zconfig *config)
     return ZSUCCESS;
 }
 
-int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
+int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password, ZlogConfig *logConfig)
 {
     //TODO:1
     // All config.h and device related validations should be done here itself !
 
     if (!L.fp)
     {
-        log_initialize();
+        log_initialize(logConfig);
         log_info("\n\n\nSDK Initializing..");
     }
 

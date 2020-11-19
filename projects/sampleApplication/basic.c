@@ -55,6 +55,32 @@ int main()
     //Update your DEVICE_ID AND AUTH_TOKEN below:
     rc = zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword);
     // rc = zclient_init_config_file(&client, "MQTTConfigFileName", CRT_PARSE_MODE);
+
+    /*
+    * If you want to override the default SDK logging configuration use the ZlogConfig object and 
+    * set the required configuration and pass it to the zclient_init (or) zclient_init_config_file function as follows 
+    * 
+    * ZlogConfig *logConfig = getZlogger();
+    * logConfig->enableFileLog = 1;
+    * logConfig->setQuiet = 1;
+    * logConfig ->logPath = "./"
+    * logConfig->logPrefix = "logFile_name";
+    * logConfig->maxLogFileSize = 100000;
+    * logConfig->maxRollingLogFile = 1;
+    * 
+    * zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword,logConfig);
+    *                                                                           (or)
+    * rc = zclient_init_config_file(&client, "MQTTConfigFileName", CRT_PARSE_MODE,logConfig);
+    * 
+    * enableFileLog     -> enables the file logging for the application
+    * setQuiet          -> disables the console print 
+    * logPath           -> location where the log to be created
+    * logPrefix         -> log file name
+    * maxLogFileSize    -> size of the log file in bytes
+    * maxRollingLogFile -> No of rolling log file to be created in addition to the main log file
+    * 
+    */
+
     if (rc != ZSUCCESS)
     {
         return 0;

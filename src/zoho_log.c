@@ -8,6 +8,10 @@
 #include <unistd.h>
 
 #include "zoho_log.h"
+#include "zoho_utils.h"
+
+// common static logconfig structure that the user can get using the function getZlogger() and configure the logging properties
+static ZlogConfig logConfig;
 
 static void lock(void)
 {
@@ -75,18 +79,29 @@ void log_set_maxRollingLog(int size)
   L.maxRollingLogFile = size;
 }
 
-void log_initialize()
+void log_initialize(ZlogConfig *logConfig)
 {
   //TODO: make ERROR as default level
-#if defined(Z_LOGGING)
-  log_set_fileLog(1);
-  log_set_logPath(LOG_PATH);
-  log_set_logPrefix(LOG_PREFIX);
-  log_set_maxLogSize(MAX_LOG_FILE_SIZE);
-  log_set_maxRollingLog(MAX_ROLLING_LOG_FILE);
   log_set_level(Z_LOG_LEVEL);
+  if (logConfig == NULL)
+  {
+#if defined(Z_LOGGING)
+    log_set_fileLog(1);
+    log_set_logPath(LOG_PATH);
+    log_set_logPrefix(LOG_PREFIX);
+    log_set_maxLogSize(MAX_LOG_FILE_SIZE);
+    log_set_maxRollingLog(MAX_ROLLING_LOG_FILE);
 #endif 
-
+  }
+  else
+  {
+    log_set_quiet(logConfig->setQuiet);
+    log_set_fileLog(logConfig->enableFileLog);
+    (logConfig->logPath == NULL || !isStringValid(logConfig->logPath)) ? log_set_logPath(LOG_PATH) : log_set_logPath(logConfig->logPath);
+    (logConfig->logPrefix == NULL || !isStringValid(logConfig->logPrefix)) ? log_set_logPrefix(LOG_PREFIX) : log_set_logPrefix(logConfig->logPrefix);
+    (logConfig->maxLogFileSize == 0) ? log_set_maxLogSize(MAX_LOG_FILE_SIZE) : log_set_maxLogSize(logConfig->maxLogFileSize);
+    log_set_maxRollingLog(logConfig->maxRollingLogFile);
+  }
   if (L.fileLog)
   {
     char currentLogFile[100];
@@ -162,7 +177,7 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
       struct stat buf;
       fstat(fileno(L.fp), &buf);
       size = buf.st_size;
-      // Implementation to check if the file is currently available
+      // Implementation to check if the file is currently available 
       if (buf.st_nlink == 0)
       {
         log_free();
@@ -225,4 +240,9 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
 
   /* Release lock */
   unlock();
+}
+
+ZlogConfig *getZlogger()
+{
+  return &logConfig;
 }

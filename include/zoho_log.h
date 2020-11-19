@@ -27,6 +27,17 @@ static struct
     int maxRollingLogFile;
 } L;
 
+typedef struct
+{
+    int setQuiet;
+    int level;
+    int enableFileLog;
+    char *logPath;
+    char *logPrefix;
+    int maxLogFileSize;
+    int maxRollingLogFile;
+} ZlogConfig;
+
 static const char *level_names[] = {
     "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"};
 
@@ -64,8 +75,9 @@ void log_set_logPath(char *path);
 void log_set_logPrefix(char *prefix);
 void log_set_maxLogSize(int size);
 void log_set_maxRollingLog(int size);
-void log_initialize();
+void log_initialize(ZlogConfig *logConfig);
 void log_free();
+ZlogConfig *getZlogger();
 
 void log_log(int level, const char *file, int line, const char *fmt, ...);
 
