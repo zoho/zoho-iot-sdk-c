@@ -25,7 +25,7 @@ static struct
     char *logPrefix;
     int maxLogFileSize;
     int maxRollingLogFile;
-} L;
+} Zlog;
 
 typedef struct
 {

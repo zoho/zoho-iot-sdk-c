@@ -51,13 +51,20 @@ int main()
     pDevicePrivateKey = CLIENT_KEY;
 #endif
 #endif
+    //
+    ZlogConfig *logConfig = getZlogger();
+    logConfig->enableFileLog = 1;
+    logConfig->logPrefix = "basic";
+    logConfig->logPath = "./";
+    logConfig->maxLogFileSize = 100000; // File size in bytes
+    logConfig->maxRollingLogFile = 2;
 
     //Update your DEVICE_ID AND AUTH_TOKEN below:
-    rc = zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword);
-    // rc = zclient_init_config_file(&client, "MQTTConfigFileName", CRT_PARSE_MODE);
+    rc = zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword, logConfig);
+    // rc = zclient_init_config_file(&client, "MQTTConfigFileName", CRT_PARSE_MODE,logConfig);
 
     /*
-    * If you want to override the default SDK logging configuration use the ZlogConfig object and 
+    * If you want to configure the SDK logger use the ZlogConfig object and 
     * set the required configuration and pass it to the zclient_init (or) zclient_init_config_file function as follows 
     * 
     * ZlogConfig *logConfig = getZlogger();
@@ -78,6 +85,18 @@ int main()
     * logPrefix         -> log file name
     * maxLogFileSize    -> size of the log file in bytes
     * maxRollingLogFile -> No of rolling log file to be created in addition to the main log file
+    * 
+    * The SDK default log configuration would be used when the ENABLE_Z_LOGGING option is set to ON and the init call is made without the log config as 
+    *  
+    * zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword);
+    *                                                                           (or)
+    * zclient_init_config_file(&client, "MQTTConfigFileName", CRT_PARSE_MODE);
+    * 
+    * The SDK logging default configuration is as follows 
+    * Path : "./"
+    * File name : "zoho_SDK_logs"
+    * Max log file size : 100 Kb
+    * No of rolling files : 2
     * 
     */
 

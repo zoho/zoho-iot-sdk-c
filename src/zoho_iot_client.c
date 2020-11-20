@@ -78,7 +78,7 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     //TODO:1
     // All config.h and device related validations should be done here itself !
 
-    if (!L.fp)
+    if (!Zlog.fp)
     {
         log_initialize(logConfig);
         log_info("\n\n\nSDK Initializing..");
