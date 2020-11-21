@@ -32,6 +32,14 @@
 #define zclient_markDataPointAsError(...) zclient_markDataPointAsErrorInAsset(__VA_ARGS__, NULL)
 #define zclient_markDataPointAsErrorInAsset(client, key, assetName, ...) zclient_markDataPointAsError(client, key, assetName)
 
+//TODO: Add provision to have zclient_init for Non-TLS with required arguments alone
+
+#define zclient_init(...) zclient_init_without_logConfig(__VA_ARGS__, NULL)
+#define zclient_init_without_logConfig(iot_client, MQTTUserName, MQTTPassword, mode, ca_crt, client_cert, client_key, cert_password, logConfig, ...) zclient_init(iot_client, MQTTUserName, MQTTPassword, mode, ca_crt, client_cert, client_key, cert_password, logConfig)
+
+#define zclient_init_config_file(...) zclient_init_config_file_without_logConfig(__VA_ARGS__, NULL)
+#define zclient_init_config_file_without_logConfig(iot_client, MqttConfigFilePath, mode, logConfig, ...) zclient_init_config_file(iot_client, MqttConfigFilePath, mode, logConfig)
+
 typedef struct
 {
     char *client_id;
@@ -87,8 +95,8 @@ typedef enum
     ALREADY_ON_SAME_STATE = 4006
 } ZcommandAckResponseCodes;
 
-int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode);
-int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
+int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode, ZlogConfig *logConfig);
+int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password, ZlogConfig *logConfig);
 int zclient_connect(ZohoIOTclient *client);
 int zclient_publish(ZohoIOTclient *client, char *payload);
 int zclient_disconnect(ZohoIOTclient *client);

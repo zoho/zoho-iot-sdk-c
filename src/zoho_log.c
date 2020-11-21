@@ -3,81 +3,119 @@
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "zoho_log.h"
+#include "zoho_utils.h"
 
-static struct
-{
-  void *udata;
-  log_LockFn lock;
-  FILE *fp;
-  int level;
-  int quiet;
-} L;
-
-static const char *level_names[] = {
-    "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"};
-
-// #ifdef LOG_USE_COLOR
-static const char *level_colors[] = {
-    "\x1b[94m", "\x1b[36m", "\x1b[32m", "\x1b[33m", "\x1b[31m", "\x1b[35m"};
-// #endif
+// common static logconfig structure that the user can get using the function getZlogger() and configure the logging properties
+static ZlogConfig logConfig;
 
 static void lock(void)
 {
-  if (L.lock)
+  if (Zlog.lock)
   {
-    L.lock(L.udata, 1);
+    Zlog.lock(Zlog.udata, 1);
   }
 }
 
 static void unlock(void)
 {
-  if (L.lock)
+  if (Zlog.lock)
   {
-    L.lock(L.udata, 0);
+    Zlog.lock(Zlog.udata, 0);
   }
 }
 
 void log_set_udata(void *udata)
 {
-  L.udata = udata;
+  Zlog.udata = udata;
 }
 
 void log_set_lock(log_LockFn fn)
 {
-  L.lock = fn;
+  Zlog.lock = fn;
 }
 
 void log_set_fp(FILE *fp)
 {
-  L.fp = fp;
+  Zlog.fp = fp;
 }
 
 void log_set_level(int level)
 {
-  L.level = level;
+  Zlog.level = level;
 }
 
 void log_set_quiet(int enable)
 {
-  L.quiet = enable ? 1 : 0;
+  Zlog.quiet = enable ? 1 : 0;
 }
 
-void log_initialize()
+void log_set_fileLog(int enable)
+{
+  Zlog.fileLog = enable ? 1 : 0;
+}
+
+void log_set_logPath(char *path)
+{
+  Zlog.logPath = path;
+}
+
+void log_set_logPrefix(char *prefix)
+{
+  Zlog.logPrefix = prefix;
+}
+
+void log_set_maxLogSize(int size)
+{
+  Zlog.maxLogFileSize = size;
+}
+
+void log_set_maxRollingLog(int size)
+{
+  Zlog.maxRollingLogFile = size;
+}
+
+void log_initialize(ZlogConfig *logConfig)
 {
   //TODO: make ERROR as default level
   log_set_level(Z_LOG_LEVEL);
-
-  //TODO: disable file logging. it might occupy huge memory on memory constrained devices.
-  log_file = fopen("./zoho_sdk.log", "a");
-  if (log_file)
+  if (logConfig == NULL)
   {
-    log_set_fp(log_file);
+#if defined(Z_LOGGING)
+    log_set_fileLog(1);
+    log_set_logPath(LOG_PATH);
+    log_set_logPrefix(LOG_PREFIX);
+    log_set_maxLogSize(MAX_LOG_FILE_SIZE);
+    log_set_maxRollingLog(MAX_ROLLING_LOG_FILE);
+#endif 
   }
   else
   {
-    log_warn("Error opening log file. Please check the permissions");
+    log_set_quiet(logConfig->setQuiet);
+    log_set_fileLog(logConfig->enableFileLog);
+    (logConfig->logPath == NULL || !isStringValid(logConfig->logPath)) ? log_set_logPath(LOG_PATH) : log_set_logPath(logConfig->logPath);
+    (logConfig->logPrefix == NULL || !isStringValid(logConfig->logPrefix)) ? log_set_logPrefix(LOG_PREFIX) : log_set_logPrefix(logConfig->logPrefix);
+    (logConfig->maxLogFileSize <= MAX_LOG_FILE_SIZE) ? log_set_maxLogSize(MAX_LOG_FILE_SIZE) : log_set_maxLogSize(logConfig->maxLogFileSize);
+    log_set_maxRollingLog(logConfig->maxRollingLogFile);
+  }
+  if (Zlog.fileLog)
+  {
+    char currentLogFile[100];
+    sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
+    log_file = fopen(currentLogFile, "a");
+    if (log_file)
+    {
+      log_set_fp(log_file);
+    }
+    else
+    {
+      log_warn("Error opening log file. Please check the permissions");
+      log_set_fileLog(0);
+    }
   }
 }
 
@@ -87,11 +125,12 @@ void log_free()
   {
     fclose(log_file);
   }
+  Zlog.fp = NULL;
 }
 
 void log_log(int level, const char *file, int line, const char *fmt, ...)
 {
-  if (level < L.level)
+  if (level < Zlog.level)
   {
     return;
   }
@@ -104,7 +143,7 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
   struct tm *lt = localtime(&t);
 
   /* Log to stderr */
-  if (!L.quiet)
+  if (!Zlog.quiet)
   {
     va_list args;
     char buf[16];
@@ -124,19 +163,86 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
   }
 
   /* Log to file */
-  if (L.fp)
+  if (Zlog.fileLog)
   {
     va_list args;
     char buf[32];
-    buf[strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", lt)] = '\0';
-    fprintf(L.fp, "%s %-5s %s:%d: ", buf, level_names[level], file, line);
+    buf[strftime(buf, sizeof(buf), "%d %b %Y %X", lt)] = '\0';
+    // buf[strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", lt)] = '\0';
+
+    char currentLogFile[100], tempFile[100];
+    int size = 0;
+    if (Zlog.fp)
+    {
+      struct stat buf;
+      fstat(fileno(Zlog.fp), &buf);
+      size = buf.st_size;
+      // Implementation to check if the file is currently available 
+      if (buf.st_nlink == 0)
+      {
+        log_free();
+      }
+    }
+
+    if (!Zlog.fp)
+    {
+      sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
+      log_file = fopen(currentLogFile, "a");
+      if (log_file)
+      {
+        log_set_fp(log_file);
+      }
+      else
+      {
+        log_warn("Error opening log file. Please check the permissions");
+        log_set_fileLog(1);
+      }
+    }
+
+    if (size > Zlog.maxLogFileSize)
+    {
+      log_free();
+
+      if (Zlog.maxRollingLogFile == 0)
+      {
+        sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
+        remove(currentLogFile);
+      }
+      else
+      {
+        int i;
+        for (i = (Zlog.maxRollingLogFile - 1); i >= 0; i--)
+        {
+          if (i == 0)
+          {
+            sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
+          }
+          else
+          {
+            sprintf(currentLogFile, "%s%s-%d%s", Zlog.logPath, Zlog.logPrefix, i, LOG_FORMAT);
+          }
+          sprintf(tempFile, "%s%s-%d%s", Zlog.logPath, Zlog.logPrefix, i + 1, LOG_FORMAT);
+          rename(currentLogFile, tempFile);
+        }
+      }
+      sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
+      log_file = fopen(currentLogFile, "a");
+      log_set_fp(log_file);
+    }
+
+    fprintf(Zlog.fp, "%s [%-5s] %s:%d: ", buf, level_names[level], file, line);
     va_start(args, fmt);
-    vfprintf(L.fp, fmt, args);
+    vfprintf(Zlog.fp, fmt, args);
     va_end(args);
-    fprintf(L.fp, "\n");
-    fflush(L.fp);
+    fprintf(Zlog.fp, "\n");
+    fflush(Zlog.fp);
   }
 
   /* Release lock */
   unlock();
+}
+
+ZlogConfig *getZlogger()
+{
+  return &logConfig;
 }

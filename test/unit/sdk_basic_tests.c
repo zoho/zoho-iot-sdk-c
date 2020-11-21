@@ -51,6 +51,40 @@ static void InitMethod_OnNullArguments_ShouldFail(void **state)
     assert_int_equal(zclient_init(&client, NULL, NULL, EMBED, "", "", "", ""), ZFAILURE);
 }
 
+static void InitMethod_with_LogConfig_OnNullArguments_ShouldFail(void **state)
+{
+    ZlogConfig *logConfig = getZlogger();
+    logConfig->enableFileLog = 1;
+    logConfig->logPrefix = "cmocka_test";
+    // Init returns failure as Client is NULL
+    assert_int_equal(zclient_init(NULL, mqttUserName, mqttPassword, EMBED, "", "", "", "", logConfig), ZFAILURE);
+
+    // Init returns failure as Device Credentials are NULL
+    ZohoIOTclient client;
+    assert_int_equal(zclient_init(&client, NULL, NULL, EMBED, "", "", "", "", logConfig), ZFAILURE);
+}
+
+static void InitMethod_OnProperArguments_ShouldSucceed(void **state)
+{
+    ZohoIOTclient client;
+    // Init returns Success by initialising client with proper arguments
+    assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", ""), ZSUCCESS);
+}
+
+static void InitMethod_with_LogConfig_OnProperArguments_ShouldSucceed(void **state)
+{
+    ZohoIOTclient client;
+    ZlogConfig *logConfig = getZlogger();
+    logConfig->enableFileLog = 1;
+    logConfig->logPrefix = "cmocka_test";
+
+    // Init returns Success by initialising client with proper arguments and setting the log config to NULL
+    assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, REFERENCE, "", "", "", "", logConfig), ZFAILURE);
+
+    // Init returns Success by initialising client with proper arguments and setting the log config
+    assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "", logConfig), ZSUCCESS);
+}
+
 static void InitConfigFileMethod_OnNullArguments_ShouldFail(void **state)
 {
     ZohoIOTclient client;
@@ -60,11 +94,34 @@ static void InitConfigFileMethod_OnNullArguments_ShouldFail(void **state)
     assert_int_equal(zclient_init_config_file(&client, "", EMBED), ZFAILURE);
 }
 
+static void InitConfigFileMethod_with_LogConfig_OnNullArguments_ShouldFail(void **state)
+{
+
+    ZohoIOTclient client;
+    ZlogConfig *logConfig = getZlogger();
+    logConfig->enableFileLog = 1;
+    logConfig->logPrefix = "cmocka_test";
+    // Init returns failure as FileName is NULL
+    assert_int_equal(zclient_init_config_file(NULL, NULL, EMBED), ZFAILURE);
+    // Init returns failure as FileName is Empty
+    assert_int_equal(zclient_init_config_file(&client, "", EMBED), ZFAILURE);
+}
+
 static void InitConfigFileMethod_OnProperArguments_ShouldSucceed(void **state)
 {
     ZohoIOTclient client;
     // Init returns Success by initialising client with proper file contents.
     assert_int_equal(zclient_init_config_file(&client, "../../../test/MqttConfig.json", EMBED), ZSUCCESS);
+}
+
+static void InitConfigFileMethod_with_LogConfig_OnProperArguments_ShouldSucceed(void **state)
+{
+    ZohoIOTclient client;
+    ZlogConfig *logConfig = getZlogger();
+    logConfig->enableFileLog = 1;
+    logConfig->logPrefix = "cmocka_test";
+    // Init returns Success by initialising client with proper file contents.
+    assert_int_equal(zclient_init_config_file(&client, "../../../test/MqttConfig.json", EMBED, logConfig), ZSUCCESS);
 }
 
 static void InitConfigFileMethod_OnProperArguments_withImproperKeys_ShouldFail(void **state)
@@ -767,9 +824,14 @@ int main(void)
 {
     const struct CMUnitTest sdk_basic_tests[] = {
         cmocka_unit_test(InitMethod_OnNullArguments_ShouldFail),
+        cmocka_unit_test(InitMethod_with_LogConfig_OnNullArguments_ShouldFail),
+        cmocka_unit_test(InitMethod_OnProperArguments_ShouldSucceed),
+        cmocka_unit_test(InitMethod_with_LogConfig_OnProperArguments_ShouldSucceed),
         cmocka_unit_test(InitConfigFileMethod_OnNullArguments_ShouldFail),
         cmocka_unit_test(InitConfigFileMethod_OnProperArguments_ShouldSucceed),
         cmocka_unit_test(InitConfigFileMethod_OnProperArguments_withImproperKeys_ShouldFail),
+        cmocka_unit_test(InitConfigFileMethod_with_LogConfig_OnNullArguments_ShouldFail),
+        cmocka_unit_test(InitConfigFileMethod_with_LogConfig_OnProperArguments_ShouldSucceed),
         cmocka_unit_test(InitMethod_WithTLS_NullSeverCertificates_ShouldFail),
         cmocka_unit_test(InitMethod_WithTLS_NullClientCertificates_ShouldFail),
         cmocka_unit_test(ConnectMethod_OnCallingBeforeInitialization_ShouldFail),
