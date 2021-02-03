@@ -788,37 +788,71 @@ static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
     assert_int_equal(zclient_reconnect(&client), ZSUCCESS);
 }
 
-// SET RETRY COUNT :
-
-static void SetRetryCountMethod_CalledWithoutInitializingClient_ShouldFail(void **state)
+static void ReconnectMethod_OnLostConnection_ShouldExponentiallyIncrease(void **state)
 {
-    // retry count method returns failure as client must be initialized .
-    ZohoIOTclient client;
-    assert_int_equal(zclient_setRetrycount(&client, 10), -2);
-}
-
-static void SetRetryCountMethod_WithNullArguments_ShouldFail(void **state)
-{
-    // set Retry count method fails since client is NULL.
-    assert_int_equal(zclient_setRetrycount(NULL, 10), ZFAILURE);
-}
-
-static void SetRetryCountMethod_WithNegativeCount_ShouldFail_DefaultValueIsUnchanged(void **state)
-{
-    // Retry count is set to default when negative value is set.
+    // Reconnect method with lost connection can Retry with increased delay.
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
-    assert_int_equal(zclient_setRetrycount(&client, -10), ZFAILURE);
+    client.current_state = DISCONNECTED;
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZFAILURE);
+    zclient_reconnect(&client);
+
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZFAILURE);
+    zclient_reconnect(&client);
+    assert_int_equal(client.ZretryInterval, 7);
+
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    zclient_reconnect(&client);
 }
 
-static void SetRetryCountMethod_WithAppropriateArguments_ShouldSucceed(void **state)
+static void GetRetryInterval_withNegativeValues_ShouldReturnDefaultValue(void **state)
 {
-    // Setting retry count with appropriate arguments succced.
-    ZohoIOTclient client;
-    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
-    zclient_setRetrycount(&client, 10);
-    assert_int_equal(client.config.retry_limit, 10);
+    // Get Retry Interval with Negative arguments should return default min retry interval
+    assert_int_equal(getRetryInterval(-1),MIN_RETRY_INTERVAL);
 }
+
+static void GetRetryInterval_withValuesGreaterthenMaxRetryInterval_ShouldReturnDefaultValue(void **state)
+{
+    // Get Retry Interval with interval > MAX_RETRY_INTERVAL should return default MAX_RETRY_INTERVAL
+    assert_int_equal(getRetryInterval(2000),MAX_RETRY_INTERVAL);
+}
+
+
+//
+//// SET RETRY COUNT : Retry mechanism changed to indefinite exponential retry.
+//
+//static void SetRetryCountMethod_CalledWithoutInitializingClient_ShouldFail(void **state)
+//{
+//    // retry count method returns failure as client must be initialized .
+//    ZohoIOTclient client;
+//    assert_int_equal(zclient_setRetrycount(&client, 10), -2);
+//}
+//
+//static void SetRetryCountMethod_WithNullArguments_ShouldFail(void **state)
+//{
+//    // set Retry count method fails since client is NULL.
+//    assert_int_equal(zclient_setRetrycount(NULL, 10), ZFAILURE);
+//}
+//
+//static void SetRetryCountMethod_WithNegativeCount_ShouldFail_DefaultValueIsUnchanged(void **state)
+//{
+//    // Retry count is set to default when negative value is set.
+//    ZohoIOTclient client;
+//    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+//    assert_int_equal(zclient_setRetrycount(&client, -10), ZFAILURE);
+//}
+//
+//static void SetRetryCountMethod_WithAppropriateArguments_ShouldSucceed(void **state)
+//{
+//    // Setting retry count with appropriate arguments succced.
+//    ZohoIOTclient client;
+//    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+//    zclient_setRetrycount(&client, 10);
+//    assert_int_equal(client.config.retry_limit, 10);
+//}
 
 int main(void)
 {
@@ -896,10 +930,14 @@ int main(void)
         cmocka_unit_test(ReconnectMethod_OnNullArguments_ShouldFail),
         cmocka_unit_test(ReconnectMethod_OnCallingBeforeInitialization_ShouldFail),
         cmocka_unit_test(ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed),
-        cmocka_unit_test(SetRetryCountMethod_CalledWithoutInitializingClient_ShouldFail),
-        cmocka_unit_test(SetRetryCountMethod_WithNullArguments_ShouldFail),
-        cmocka_unit_test(SetRetryCountMethod_WithNegativeCount_ShouldFail_DefaultValueIsUnchanged),
-        cmocka_unit_test(SetRetryCountMethod_WithAppropriateArguments_ShouldSucceed)};
+        cmocka_unit_test(ReconnectMethod_OnLostConnection_ShouldExponentiallyIncrease),
+        cmocka_unit_test(GetRetryInterval_withNegativeValues_ShouldReturnDefaultValue),
+        cmocka_unit_test(GetRetryInterval_withValuesGreaterthenMaxRetryInterval_ShouldReturnDefaultValue),
+//        cmocka_unit_test(SetRetryCountMethod_CalledWithoutInitializingClient_ShouldFail),
+//        cmocka_unit_test(SetRetryCountMethod_WithNullArguments_ShouldFail),
+//        cmocka_unit_test(SetRetryCountMethod_WithNegativeCount_ShouldFail_DefaultValueIsUnchanged),
+//        cmocka_unit_test(SetRetryCountMethod_WithAppropriateArguments_ShouldSucceed)
+};
     cmocka_set_message_output(CM_OUTPUT_XML);
     return cmocka_run_group_tests(sdk_basic_tests, NULL, NULL);
 }

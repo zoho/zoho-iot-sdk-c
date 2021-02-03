@@ -24,3 +24,20 @@ int isStringValid(char *string)
 {
   return (string == NULL || strcmp(string, "") == 0) ? 0 : 1;
 }
+
+int getRetryInterval(int curr_delay)
+{
+  if ( curr_delay <= 0)
+  {
+    return MIN_RETRY_INTERVAL;
+  }
+  if (curr_delay < MAX_RETRY_INTERVAL)
+  {
+    curr_delay = curr_delay * 1.2;
+    return (int)curr_delay;
+  }
+  else
+  {
+    return MAX_RETRY_INTERVAL;
+  }
+}
