@@ -62,7 +62,6 @@ int64_t retrieveByte(int rc, int size, uint16_t tab_rp_registers[])
 unsigned long long getTime()
 {
     struct timeval tv;
-    struct tm *tm;
     gettimeofday(&tv, NULL);
     unsigned long long seconds = (unsigned long long)(tv.tv_sec);
     return seconds;

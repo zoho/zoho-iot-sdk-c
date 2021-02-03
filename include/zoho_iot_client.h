@@ -78,6 +78,7 @@ typedef struct
     Zconfig config;
     ZclientConnectionState current_state;
     Zpayload message;
+    int ZretryInterval;
 #if defined(Z_SECURE_CONNECTION)
     ZclientCertificates certs;
 #endif
@@ -118,6 +119,6 @@ int zclient_markDataPointAsError(ZohoIOTclient *client, char *key, char *assetNa
 int zclient_addString(ZohoIOTclient *client, char *key, char *val_string, char *assetName);
 // In add Number method , assetName parameter as optional.
 int zclient_addNumber(ZohoIOTclient *client, char *key, double val_int, char *assetName);
-int zclient_setRetrycount(ZohoIOTclient *client, int count);
+//int zclient_setRetrycount(ZohoIOTclient *client, int count);
 //char *zclient_getpayload();
 #endif //# ZOHO_IOT_CLIENT_H_

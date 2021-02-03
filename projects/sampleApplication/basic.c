@@ -9,7 +9,13 @@
 #endif
 volatile int ctrl_flag = 0;
 
+// Zoho client struct to handle the Communication with the HUB
 ZohoIOTclient client;
+
+// Intervals in which the telemetry data needs to be dispatched to the hub
+#define DISPATCH_INTERVAL 30 // Dispatch data every 30 sec
+// Frequency in which the data needs to be fetched
+#define POLL_FREQUENCY 5 // poll data every 5 sec
 
 void message_handler(MessageData *data)
 {
@@ -34,9 +40,19 @@ void interruptHandler(int signo)
     }
 }
 
+//Function gets the current time in seconds
+unsigned long long getTime()
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    unsigned long long seconds = (unsigned long long)(tv.tv_sec);
+    return seconds;
+}
+
 int main()
 {
     int rc = -1;
+    unsigned long long poll_time = 0;
     signal(SIGINT, interruptHandler);
     signal(SIGTERM, interruptHandler);
 
@@ -126,23 +142,27 @@ int main()
 
     while (ctrl_flag == 0)
     {
-        temperature += 2;
-        humidity *= 2;
-        pressure -= 5;
-        rc = zclient_addNumber(&client, "temperature", temperature);
-        rc = zclient_addNumber(&client, "humidity", humidity, "room1");
-        rc = zclient_addNumber(&client, "pressure", pressure, "room2");
-        rc = zclient_markDataPointAsError(&client, "mositure", "room2");
-        rc = zclient_markDataPointAsError(&client, "air_quality");
-        rc = zclient_addString(&client, "status", "OK");
-
-        //payload = zclient_getpayload();
-        //rc = zclient_publish(&client, payload);
-        rc = zclient_dispatch(&client);
-        rc = zclient_yield(&client, 300);
-        if (rc == ZCONNECTION_ERROR)
+        if (getTime() > poll_time + POLL_FREQUENCY) //check if it is time for polling the data from the sensor
         {
-            break;
+            temperature += 2;
+            humidity *= 2;
+            pressure -= 5;
+            rc = zclient_addNumber(&client, "temperature", temperature);
+            rc = zclient_addNumber(&client, "humidity", humidity, "room1");
+            rc = zclient_addNumber(&client, "pressure", pressure, "room2");
+            rc = zclient_markDataPointAsError(&client, "mositure", "room2");
+            rc = zclient_markDataPointAsError(&client, "air_quality");
+            rc = zclient_addString(&client, "status", "OK");
+
+            //payload = zclient_getpayload();
+            //rc = zclient_publish(&client, payload);
+            rc = zclient_dispatch(&client);
+            poll_time = getTime();
+        }
+        rc = zclient_yield(&client, 300);
+        while (rc != ZSUCCESS && ctrl_flag == 0)
+        {
+            rc = zclient_reconnect(&client);
         }
     }
 

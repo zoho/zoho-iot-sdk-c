@@ -101,6 +101,7 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
         log_error("MQTTUsername is Malformed.");
         return ZFAILURE;
     }
+    iot_client->ZretryInterval = MIN_RETRY_INTERVAL;
     char *trimmedPassword = trim(MQTTPassword);
     char *trimmedUserName = trim(MQTTUserName);
     cloneString(&config.auth_token, trimmedPassword);
@@ -271,7 +272,6 @@ int zclient_connect(ZohoIOTclient *client)
 
 int zclient_reconnect(ZohoIOTclient *client)
 {
-    int delay = 5;
     int rc = validateClientState(client);
     if (rc != 0)
     {
@@ -283,27 +283,23 @@ int zclient_reconnect(ZohoIOTclient *client)
         log_info("Client already Connected");
         return ZSUCCESS;
     }
-
-    log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", client->config.hostname, zport, delay);
+    log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", client->config.hostname, zport, client->ZretryInterval);
+    int delay = client->ZretryInterval;
     sleep(delay);
     rc = zclient_connect(client);
     if (rc == ZSUCCESS)
     {
         client->current_state = CONNECTED;
         retryCount = 0;
+        client->ZretryInterval = MIN_RETRY_INTERVAL;
         return ZSUCCESS;
     }
+    client->ZretryInterval = getRetryInterval(client->ZretryInterval);
     retryCount++;
     log_info("retryCount :%d", retryCount);
     if (client->current_state != DISCONNECTED && client->current_state != CONNECTED)
     {
         log_info("Retrying indefinetely");
-        return ZCONNECTION_ERROR;
-    }
-
-    if (retryCount > client->config.retry_limit)
-    {
-        log_info("Retry limit Exceeded");
         return ZCONNECTION_ERROR;
     }
     return rc;
@@ -596,8 +592,7 @@ int zclient_yield(ZohoIOTclient *client, int time_out)
     }
     if (client->current_state == DISCONNECTED)
     {
-        rc = zclient_reconnect(client);
-        return rc;
+        rc = zclient_connect(client);
     }
 
     rc = MQTTYield(&client->mqtt_client, time_out);
@@ -641,23 +636,23 @@ int zclient_disconnect(ZohoIOTclient *client)
     return rc;
 }
 
-int zclient_setRetrycount(ZohoIOTclient *client, int count)
-{
-    int rc = validateClientState(client);
-    if (rc != 0)
-    {
-        return rc;
-    }
-
-    if (count < 0)
-    {
-        log_info("Retry limit value given is < 0 , so set to default value :%d", client->config.retry_limit);
-        return ZFAILURE;
-    }
-
-    client->config.retry_limit = count;
-    return ZSUCCESS;
-}
+//int zclient_setRetrycount(ZohoIOTclient *client, int count)
+//{
+//    int rc = validateClientState(client);
+//    if (rc != 0)
+//    {
+//        return rc;
+//    }
+//
+//    if (count < 0)
+//    {
+//        log_info("Retry limit value given is < 0 , so set to default value :%d", client->config.retry_limit);
+//        return ZFAILURE;
+//    }
+//
+//    client->config.retry_limit = count;
+//    return ZSUCCESS;
+//}
 
 cJSON *addAssetNameTopayload(ZohoIOTclient *client, char *assetName)
 {
