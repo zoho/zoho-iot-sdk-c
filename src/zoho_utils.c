@@ -33,7 +33,7 @@ int getRetryInterval(int curr_delay)
   }
   if (curr_delay < MAX_RETRY_INTERVAL)
   {
-    curr_delay = curr_delay * 1.2;
+    curr_delay = curr_delay * 2;
     return (int)curr_delay;
   }
   else

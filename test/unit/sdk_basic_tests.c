@@ -801,25 +801,20 @@ static void ReconnectMethod_OnLostConnection_ShouldExponentiallyIncrease(void **
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZFAILURE);
     zclient_reconnect(&client);
-    assert_int_equal(client.ZretryInterval, 7);
-
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
-    zclient_reconnect(&client);
+    assert_int_equal(client.ZretryInterval, 8);
 }
 
 static void GetRetryInterval_withNegativeValues_ShouldReturnDefaultValue(void **state)
 {
     // Get Retry Interval with Negative arguments should return default min retry interval
-    assert_int_equal(getRetryInterval(-1),MIN_RETRY_INTERVAL);
+    assert_int_equal(getRetryInterval(-1), MIN_RETRY_INTERVAL);
 }
 
 static void GetRetryInterval_withValuesGreaterthenMaxRetryInterval_ShouldReturnDefaultValue(void **state)
 {
     // Get Retry Interval with interval > MAX_RETRY_INTERVAL should return default MAX_RETRY_INTERVAL
-    assert_int_equal(getRetryInterval(2000),MAX_RETRY_INTERVAL);
+    assert_int_equal(getRetryInterval(2000), MAX_RETRY_INTERVAL);
 }
-
 
 //
 //// SET RETRY COUNT : Retry mechanism changed to indefinite exponential retry.
@@ -937,7 +932,7 @@ int main(void)
 //        cmocka_unit_test(SetRetryCountMethod_WithNullArguments_ShouldFail),
 //        cmocka_unit_test(SetRetryCountMethod_WithNegativeCount_ShouldFail_DefaultValueIsUnchanged),
 //        cmocka_unit_test(SetRetryCountMethod_WithAppropriateArguments_ShouldSucceed)
-};
+    };
     cmocka_set_message_output(CM_OUTPUT_XML);
     return cmocka_run_group_tests(sdk_basic_tests, NULL, NULL);
 }
