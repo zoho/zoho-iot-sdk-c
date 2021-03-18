@@ -777,6 +777,18 @@ static void ReconnectMethod_OnCallingBeforeInitialization_ShouldFail()
     assert_int_equal(zclient_reconnect(&client), -2);
 }
 
+static void GetRetryInterval_withNegativeValues_ShouldReturnDefaultValue(void **state)
+{
+    // Get Retry Interval with Negative arguments should return default min retry interval
+    assert_int_equal(getRetryInterval(-1), MIN_RETRY_INTERVAL);
+}
+
+static void GetRetryInterval_withValuesGreaterthenMaxRetryInterval_ShouldReturnDefaultValue(void **state)
+{
+    // Get Retry Interval with interval > MAX_RETRY_INTERVAL should return default MAX_RETRY_INTERVAL
+    assert_int_equal(getRetryInterval(2000), MAX_RETRY_INTERVAL);
+}
+
 static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
 {
     // Reconnect method with lost connection can Retry connection and succeed.
@@ -785,6 +797,8 @@ static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     client.current_state = DISCONNECTED;
+    zclient_reconnect(&client);
+    sleep(3);
     assert_int_equal(zclient_reconnect(&client), ZSUCCESS);
 }
 
@@ -797,23 +811,9 @@ static void ReconnectMethod_OnLostConnection_ShouldExponentiallyIncrease(void **
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZFAILURE);
     zclient_reconnect(&client);
-
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZFAILURE);
+    sleep(5);
     zclient_reconnect(&client);
-    assert_int_equal(client.ZretryInterval, 8);
-}
-
-static void GetRetryInterval_withNegativeValues_ShouldReturnDefaultValue(void **state)
-{
-    // Get Retry Interval with Negative arguments should return default min retry interval
-    assert_int_equal(getRetryInterval(-1), MIN_RETRY_INTERVAL);
-}
-
-static void GetRetryInterval_withValuesGreaterthenMaxRetryInterval_ShouldReturnDefaultValue(void **state)
-{
-    // Get Retry Interval with interval > MAX_RETRY_INTERVAL should return default MAX_RETRY_INTERVAL
-    assert_int_equal(getRetryInterval(2000), MAX_RETRY_INTERVAL);
+    assert_int_equal(client.ZretryInterval, 4);
 }
 
 //

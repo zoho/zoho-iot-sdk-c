@@ -6,6 +6,7 @@
 //TODO: read from config file.
 Network n;
 certsParseMode parse_mode;
+time_t start_time = 0;
 int retryCount = 0;
 char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "";
 char commandAckTopic[100] = "", connectionStringBuff[256] = "";
@@ -270,6 +271,14 @@ int zclient_connect(ZohoIOTclient *client)
     return rc;
 }
 
+unsigned long long getCurrentTime()
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    unsigned long long seconds = (unsigned long long)(tv.tv_sec);
+    return seconds;
+}
+
 int zclient_reconnect(ZohoIOTclient *client)
 {
     int rc = validateClientState(client);
@@ -280,29 +289,36 @@ int zclient_reconnect(ZohoIOTclient *client)
 
     if (client->current_state == CONNECTED)
     {
-        log_info("Client already Connected");
         return ZSUCCESS;
     }
-    log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", client->config.hostname, zport, client->ZretryInterval);
+    if (start_time == 0)
+    {
+        start_time = getCurrentTime();
+    }
     int delay = client->ZretryInterval;
-    sleep(delay);
-    rc = zclient_connect(client);
-    if (rc == ZSUCCESS)
+    if (getCurrentTime() - start_time > delay)
     {
-        client->current_state = CONNECTED;
-        retryCount = 0;
-        client->ZretryInterval = MIN_RETRY_INTERVAL;
-        return ZSUCCESS;
+        rc = zclient_connect(client);
+        if (rc == ZSUCCESS)
+        {
+            client->current_state = CONNECTED;
+            retryCount = 0;
+            start_time = 0;
+            client->ZretryInterval = MIN_RETRY_INTERVAL;
+            return ZSUCCESS;
+        }
+        start_time = getCurrentTime();
+        client->ZretryInterval = getRetryInterval(client->ZretryInterval);
+        retryCount++;
+        log_info("retryCount :%d", retryCount);
+        log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", client->config.hostname, zport, client->ZretryInterval);
+        if (client->current_state != DISCONNECTED && client->current_state != CONNECTED)
+        {
+            log_info("Retrying indefinetely");
+            return ZCONNECTION_ERROR;
+        }
     }
-    client->ZretryInterval = getRetryInterval(client->ZretryInterval);
-    retryCount++;
-    log_info("retryCount :%d", retryCount);
-    if (client->current_state != DISCONNECTED && client->current_state != CONNECTED)
-    {
-        log_info("Retrying indefinetely");
-        return ZCONNECTION_ERROR;
-    }
-    return rc;
+    return ZFAILURE;
 }
 
 int zclient_publish(ZohoIOTclient *client, char *payload)
@@ -590,10 +606,10 @@ int zclient_yield(ZohoIOTclient *client, int time_out)
         log_error("timeout can't be Zero or Negative");
         return ZFAILURE;
     }
-    if (client->current_state == DISCONNECTED)
-    {
-        rc = zclient_connect(client);
-    }
+    // if (client->current_state == DISCONNECTED)
+    // {
+    //     rc = zclient_connect(client);
+    // }
 
     rc = MQTTYield(&client->mqtt_client, time_out);
     if (rc == ZSUCCESS)
@@ -605,7 +621,7 @@ int zclient_yield(ZohoIOTclient *client, int time_out)
         if (client->mqtt_client.isconnected == 0)
         {
             client->current_state = DISCONNECTED;
-            log_error("Error on Yielding due to lost connection. Error code: %d", rc);
+            // log_error("Error on Yielding due to lost connection. Error code: %d", rc);
             return ZFAILURE;
         }
     }
