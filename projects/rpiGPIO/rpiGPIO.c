@@ -114,8 +114,11 @@ int main()
 
     while (ctrl_flag == 0)
     {
+        // If Connection is already available, then retryring to connect inside function is ignored
+        rc = zclient_reconnect(&client);
         if (getTime() > poll_time + POLL_FREQUENCY) //check if it is time for polling the data from the sensor
         {
+            log_debug("Polling datapoints");
             // Read the pin status
             door_status = gpioRead(GPIO_PIN);
 
@@ -143,11 +146,10 @@ int main()
             }
             poll_time = getTime();
         }
-
-        rc = zclient_yield(&client, 300);
-        while (rc != ZSUCCESS && ctrl_flag == 0)
+        if (client.current_state == CONNECTED)
         {
-            rc = zclient_reconnect(&client);
+            // Yielding only on available connection
+            rc = zclient_yield(&client, 300);
         }
     }
 
