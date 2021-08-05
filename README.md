@@ -36,7 +36,9 @@ Make sure you are running Linux and the following packages are pre installed:
 - `CMake` - https://cmake.org
 - `unzip`
 - `curl`
+- `patch`
 - `git`
+
 If you need to run the test the following packages are required in addition. 
 - `cmocka`
 - `lcov`
@@ -53,6 +55,12 @@ git clone https://git.csez.zohocorpin.com/zoho/zoho-iot-sdk-c
 ```
 
 ### Configure Build parameters
+- **Unit Test Support**
+
+Disable Running test cases by changing RUN_TESTS from 'ON' to 'OFF' 
+```
+OPTION(RUN_TESTS "Run unit tests" OFF)
+```
 
 - **TLS support**
 
@@ -78,16 +86,6 @@ SET(CLIENT_KEY "/home/user/mycerts/client.key")
 SET(CLIENT_CRT "/home/user/mycerts/client.crt")
 ```
 
-- **Tying out the basic Example**
-
-This SDK has some default examples to try a basic connection. Please follow the steps to configure it:
-
-Edit the source of `basic.c` and include your deviceID and Token On line # 56
-
-```
-rc = zclient_init(&client, "<YOUR-DEVICE-ID>", "<YOUR-DEVICE-TOKEN>", REFERENCE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword);
-```
-
 ### Build the Source
 
 All the dependent libraries would be automatically downloaded during build .To redownload any dependent library, clear lib folder.
@@ -107,7 +105,20 @@ make
 ```
 
 > The generated libraries and binary files can be found inside the build folder.
-> make sure you are in `build` folder and run `./basic` command to tryout the basic example.
+
+### Tying out the basic Example
+
+This SDK has some default examples to try a basic connection. Please follow the steps to configure it:
+
+Edit the source of `basic.c` and include your MqttUserName and Token On line # 80
+
+```
+rc = zclient_init(&client, "<YOUR-DEVICE-MQTT-USERNAME>", "<YOUR-DEVICE-TOKEN>", REFERENCE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword,logConfig);
+```
+in non-TLS mode , ensure that all the following variables pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword are empty.
+Edit the logconfig structure in case of changes in logfile size , location and name.
+
+> make sure you are in `build` folder and look for the projects folder and enter into SampleApplication folder and run `./basic` command to tryout the basic example.
 
  **Porting/Cross Compile Options :**
 
