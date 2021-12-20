@@ -5,7 +5,16 @@ rm -rf build
 set -e
 
 mkdir build && cd build
-cmake -DZ_ENABLE_TLS=ON -DZ_USE_CLIENT_CERTS=ON ..
+
+if [ $# -eq 0 ]
+  then
+    cmake ..
+  else
+    echo "using build parameters:  ${1}"
+    cmake $1 ..
+fi
+
+#cmake -DZ_ENABLE_TLS=ON -DZ_USE_CLIENT_CERTS=ON ..
 make -j8
 
 echo "\n\n\nRunning Tests:\n"
