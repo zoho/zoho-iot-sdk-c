@@ -40,7 +40,7 @@ IF(Z_ENABLE_TLS)
 ENDIF(Z_ENABLE_TLS)
 
 # Uncomment the below if the library is required only for this project and comment the library include in the project root CMakeList.txt file
-# INCLUDE(../lib/libmodbus.cmake)
+INCLUDE(../lib/libmodbus.cmake)
 
 ADD_EXECUTABLE(modbusRequest modbusRequest.c)
 TARGET_COMPILE_DEFINITIONS(modbusRequest PUBLIC ${FEATURES})

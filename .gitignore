@@ -11,5 +11,5 @@ zoho_sdk.log
 src/certs
 .gradle/
 #sample Project dependancies
-projects/lib/libmodbus-*
-projects/rpiGPIO/lib/pigpio-master
+projects/rpi_DHT11/lib/*
+projects/modbusRequest/lib/*

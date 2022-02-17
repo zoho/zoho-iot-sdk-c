@@ -13,7 +13,7 @@ IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/lib/${PIGPIO_LIBRARY})
     IF(NOT ${STATUS} EQUAL 0)
         MESSAGE(
             FATAL_ERROR
-                "Failed to fetch pigpio-master or Download manually to lib folder under the RpiGPIO folder."
+                "Failed to fetch pigpio-master or Download manually to lib folder under the rpi_DHT11 folder."
             )
     ENDIF()
 

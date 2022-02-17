@@ -34,8 +34,8 @@ ENDIF()
 OPTION(Z_ENABLE_TLS "Enable TLS for Secure connection" OFF)
 OPTION(Z_USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
 
-#For unit test cases:
-OPTION(RUN_TESTS "Run unit tests" ON)
+#To enable unit test cases:
+OPTION(RUN_TESTS "Run unit tests" OFF)
 
 # Set Log level to LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL.
 SET(Z_LOG_LEVEL LOG_DEBUG)
@@ -46,17 +46,15 @@ OPTION(ENABLE_Z_LOGGING "Create logs for Application" OFF)
 # Build mode, should be disabled on Production build.
 SET(CMAKE_BUILD_TYPE DEBUG)
 
-# Build samples
-OPTION(BUILD_SAMPLES "Build Samples" ON)
-
 # Build Exportable Library sources
 OPTION(BUILD_EXPORTABLE_LIB "Build Exportable Library" OFF)
-
+MESSAGE(STATUS "===========================")
+MESSAGE(STATUS "ZOHO-IOT-SDK CONFIGURATOINS")
+MESSAGE(STATUS "===========================")
 MESSAGE(STATUS "TLS SUPPORT : " ${Z_ENABLE_TLS})
 MESSAGE(STATUS "USE CLIENT CERTS : " ${Z_USE_CLIENT_CERTS})
 MESSAGE(STATUS "LOG LEVEL : " ${Z_LOG_LEVEL})
 MESSAGE(STATUS "GENERATE APPLICATION LOGS : " ${ENABLE_Z_LOGGING})
-MESSAGE(STATUS "BUILD SAMPLES : " ${BUILD_SAMPLES})
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 ADD_SUBDIRECTORY(cmake/setup)

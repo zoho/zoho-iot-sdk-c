@@ -34,12 +34,20 @@ This SDK distributed in open sourced form for the effective portability to suppo
 Make sure you are running Linux and the following packages are pre installed:
 
 - `CMake` - https://cmake.org
+- `build-essential`
 - `unzip`
 - `curl`
 - `patch`
 - `git`
 
-If you need to run the test the following packages are required in addition. 
+> Here is the command to install all dependencies: 
+> 
+>`sudo apt update && sudo apt install cmake build-essential unzip curl patch git`
+
+>NOTE: This SDK is developed and tested on GCC & G++ version 8. If you face any build issues on the different versions, then try again with the specified version.
+
+If you need to run the tests, the following packages are required in addition.
+
 - `cmocka`
 - `lcov`
 - `covr`
@@ -55,30 +63,29 @@ git clone https://git.csez.zohocorpin.com/zoho/zoho-iot-sdk-c
 ```
 
 ### Configure Build parameters
+Edit `CMakeList.txt` file located on root to update the below build configurations:
 - **Unit Test Support**
 
-Disable Running test cases by changing RUN_TESTS from 'ON' to 'OFF' 
+Enable Running test cases by changing RUN_TESTS option from 'OFF' to 'ON'
+
 ```
-OPTION(RUN_TESTS "Run unit tests" OFF)
+OPTION(RUN_TESTS "Run unit tests" ON)
 ```
 
 - **TLS support**
 
-To enable TLS support, edit `CMakeList.txt` file and update the value of `Enable TLS for Secure connection` to `ON`.
+To enable TLS support, update the value of `Enable TLS for Secure connection` to `ON`.
 
 ```
 OPTION(Z_ENABLE_TLS "Enable TLS for Secure connection" ON)
 ```
 
-Configure whether to use Client side certificates or not.
-
-> Default mode will be Server side certificate if you leave this unchanged (OFF)
+Configure whether to use TLS Client certificates or not.
 
 ```
 OPTION(Z_USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
 ```
-
-Mention the absolute location of your X.509 certificates on the below placeholders
+If TLS mode enabled, update your X.509certificate locations as shown below:
 
 ```
 SET(CA_CRT "/home/user/mycerts/rootCA.crt")
@@ -88,7 +95,7 @@ SET(CLIENT_CRT "/home/user/mycerts/client.crt")
 
 ### Build the Source
 
-All the dependent libraries would be automatically downloaded during build .To redownload any dependent library, clear lib folder.
+All the dependent libraries would be automatically downloaded during build .To re-download any dependent library, clear lib folder.
 
 Create a build folder to keep all the temporary build configurations
 
@@ -106,19 +113,23 @@ make
 
 > The generated libraries and binary files can be found inside the build folder.
 
-### Tying out the basic Example
+### Tying out the included Examples
 
-This SDK has some default examples to try a basic connection. Please follow the steps to configure it:
+This SDK has some implementation examples located on `projects` directory. 
 
-Edit the source of `basic.c` and include your MqttUserName and Token On line # 80
+All the examples are commented/excluded out from build process by default in `build/CMakeLists.txt`. Required examples needs to be uncommented before initiating the build.
+Follow the instructions to try the basic connectivity example.
+
+Edit `projects/basic/basic.c` and update your ``MqttUserName`` and ``DeviceToken`` On line # 80
 
 ```
-rc = zclient_init(&client, "<YOUR-DEVICE-MQTT-USERNAME>", "<YOUR-DEVICE-TOKEN>", REFERENCE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword,logConfig);
+zclient_init(&client, "<YOUR-DEVICE-MQTT-USERNAME>", "<YOUR-DEVICE-TOKEN>", CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword, logConfig);
 ```
-in non-TLS mode , ensure that all the following variables pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword are empty.
-Edit the logconfig structure in case of changes in logfile size , location and name.
+For non-TLS mode , Certificate related arguments such as pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertPassword can be empty.
 
-> make sure you are in `build` folder and look for the projects folder and enter into SampleApplication folder and run `./basic` command to tryout the basic example.
+Edit the logconfig structure in case of changes in logfile name, size and location.
+
+> Once the build process completed, the generated binaries can be found at `build/projects` folder. Swtich to `build/basic` folder and run `./basic` to execute the basic example.
 
  **Porting/Cross Compile Options :**
 
@@ -153,7 +164,7 @@ While compiling include the Zoho SDK library necessary features like
 
 Available Log levels:  LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL
 
-To enable TLS communication to the HUB, include the following features
+To enable TLS communication, include the following features
 - -DZ_SECURE_CONNECTION
 - -DZ_USE_CLIENT_CERTS
 

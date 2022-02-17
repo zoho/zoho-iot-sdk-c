@@ -14,9 +14,6 @@ SET(CMAKE_C_COMPILER ${CMAKE_FIND_ROOT_PATH}${TOOLCHAIN_COMPILER})
 SET(HOST_FLAG "arm-linux-gnueabihf")
 SET(ADDITIONAL_CONFIG_FLAG ac_cv_func_malloc_0_nonnull=yes ac_cv_func_realloc_0_nonnull=yes )
 
-# Build Sample specific for Raspberry Pi
-OPTION(SAMPLES_FOR_PI "Build Samples for RPi" ON)
-
 # Look for programs in the build host directories.
 SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 
