@@ -1,6 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10.2)
 SET(CMAKE_C_STANDARD 99)
-
+set(CMAKE_C_FLAGS "-fcommon")
 PROJECT(zoho-iot-sdk-c)
 
 # For cross compilation call cmake appending -DCMAKE_TOOLCHAIN_FILE= toolchain.cmake for the corresponding target device.
