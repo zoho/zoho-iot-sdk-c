@@ -24,6 +24,7 @@ IF(NOT EXISTS ${PROJECT_SOURCE_DIR}/lib/paho.mqtt)
                     RESULT_VARIABLE PATCH_STATUS)
     IF(NOT ${PATCH_STATUS} EQUAL 0)
         MESSAGE(FATAL_ERROR "Failed to apply patch on paho.mqtt.embedded-c library.")
+        FILE(REMOVE_RECURSE ${PROJECT_SOURCE_DIR}/lib/paho.mqtt)
     ENDIF()
 ENDIF()
 
@@ -42,6 +43,7 @@ IF(NOT EXISTS ${PROJECT_SOURCE_DIR}/lib/cjson)
             FATAL_ERROR
                 "Failed to fetch cjson library,mention appropriate version or Download manually to lib folder."
             )
+            
     ENDIF()
 
     EXECUTE_PROCESS(COMMAND unzip -q ${CJSON_VERSION}.zip -d ${PROJECT_SOURCE_DIR}/lib)
@@ -60,13 +62,12 @@ IF(NOT EXISTS ${PROJECT_SOURCE_DIR}/lib/mbedtls)
                     RESULT_VARIABLE status)
 
     IF(NOT ${STATUS} EQUAL 0)
-        MESSAGE(
-            FATAL_ERROR
+        MESSAGE(FATAL_ERROR
                 "Failed to fetch mbedtls library,mention appropriate version or Download manually to lib folder."
             )
     ENDIF()
 
-    EXECUTE_PROCESS(COMMAND unzip -q ${MBED_TLS_VERSION}.zip -d ${PROJECT_SOURCE_DIR}/lib)
+    EXECUTE_PROCESS(COMMAND unzip -q ${MBED_TLS_VERSION}.zip -d ${PROJECT_SOURCE_DIR}/lib )
     FILE(REMOVE ${PROJECT_BINARY_DIR}/${MBED_TLS_VERSION}.zip)
     FILE(RENAME ${PROJECT_SOURCE_DIR}/lib/mbedtls-${MBED_TLS_VERSION} ${PROJECT_SOURCE_DIR}/lib/mbedtls)
 ENDIF()
