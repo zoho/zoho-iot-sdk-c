@@ -4,10 +4,12 @@
 #include "zoho_iot_client.h"
 
 ZohoIOTclient *iot_client;
-char handler_command_topic[100], handler_command_ack_topic[100];
-messageHandler on_message_handler;
-void initMessageHandler(ZohoIOTclient *client, char *commandTopic, char *commandAckTopic);
-void setMessageHandler(messageHandler message_handler);
+char handler_command_topic[100], handler_command_ack_topic[100],handler_config_topic[100], handler_config_ack_topic[100];
+messageHandler on_command_message_handler;
+messageHandler on_config_message_handler;
+void initMessageHandler(ZohoIOTclient *client, char *commandTopic, char *commandAckTopic,char *configTopic,char *configAckTopic);
+void setCommandMessageHandler(messageHandler message_handler);
+void setConfigMessageHandler(messageHandler message_handler);
 void onMessageReceived(MessageData *md);
 
 #endif //# ZOHO_MESSAGE_HANDLER_H_

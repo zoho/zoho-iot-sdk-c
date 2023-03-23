@@ -1,7 +1,7 @@
 #ifndef ZCLIENT_CONSTANTS_H_
 #define ZCLIENT_CONSTANTS_H_
 
-#define COMMAND_RECIEVED_ACK_CODE 1000
+#define RECIEVED_ACK_CODE 1000
 typedef enum
 {
     REFERENCE = 0,
