@@ -17,7 +17,7 @@ ZohoIOTclient client;
 // Frequency in which the data needs to be fetched
 #define POLL_FREQUENCY 5 // poll data every 5 sec
 
-void message_handler(MessageData *data)
+void message_command_handler(MessageData *data)
 {
     char payload[data->message->payloadlen];
     char topic[data->topicName->lenstring.len];
@@ -25,8 +25,8 @@ void message_handler(MessageData *data)
     *payload = '\0';
     strncat(topic, data->topicName->lenstring.data, data->topicName->lenstring.len);
     strncat(payload, data->message->payload, data->message->payloadlen);
-    log_debug("\n\n Got new message on '%s'\n%s \n\n", topic, payload);
-    log_debug("Second level Command Ack status : %d", zclient_publishCommandAck(&client, "123456tui-orpm123", SUCCESFULLY_EXECUTED, "Command based task Executed."));
+    log_debug("\n\n Got new command message on '%s'\n%s \n\n", topic, payload);
+    log_debug("Second level Command Ack status : %d", zclient_publishCommandAck(&client,payload, SUCCESFULLY_EXECUTED, "Command based task Executed."));
 }
 
 void interruptHandler(int signo)
@@ -128,7 +128,7 @@ int main()
         rc = zclient_reconnect(&client);
     }
 
-    rc = zclient_subscribe(&client, message_handler);
+    rc = zclient_command_subscribe(&client, message_command_handler);
 
     cJSON *obj = cJSON_CreateObject();
     cJSON_AddNumberToObject(obj, "Ac_speed", 1);

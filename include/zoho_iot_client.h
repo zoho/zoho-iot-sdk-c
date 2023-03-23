@@ -19,6 +19,8 @@
 #define command_topic (char *)"/commands"
 #define event_topic (char *)"/events"
 #define command_ack_topic (char *)"/commands/ack"
+#define config_topic (char *)"/configsettings"
+#define config_ack_topic (char *)"/configsettings/ack"
 
 #define zclient_dispatchEventFromJSONString(...) zclient_dispatchEventFromJSONStringWithAsset(__VA_ARGS__, NULL)
 #define zclient_dispatchEventFromJSONStringWithAsset(client, eventType, eventDescription, eventDataJSONString, assettName, ...) zclient_dispatchEventFromJSONString(client, eventType, eventDescription, eventDataJSONString, assettName)
@@ -28,6 +30,9 @@
 
 #define zclient_addString(...) zclient_addStringToAsset(__VA_ARGS__, NULL)
 #define zclient_addStringToAsset(client, key, val_string, assetName, ...) zclient_addString(client, key, val_string, assetName)
+
+#define zclient_addObject(...) zclient_addObjectToAsset(__VA_ARGS__, NULL)
+#define zclient_addObjectToAsset(client, key, val_object, assetName, ...) zclient_addObject(client, key, val_object, assetName)
 
 #define zclient_markDataPointAsError(...) zclient_markDataPointAsErrorInAsset(__VA_ARGS__, NULL)
 #define zclient_markDataPointAsErrorInAsset(client, key, assetName, ...) zclient_markDataPointAsError(client, key, assetName)
@@ -101,7 +106,8 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
 int zclient_connect(ZohoIOTclient *client);
 int zclient_publish(ZohoIOTclient *client, char *payload);
 int zclient_disconnect(ZohoIOTclient *client);
-int zclient_subscribe(ZohoIOTclient *client, messageHandler on_message);
+int zclient_command_subscribe(ZohoIOTclient *client, messageHandler on_message);
+int zclient_config_subscribe(ZohoIOTclient *client, messageHandler on_message);
 int zclient_yield(ZohoIOTclient *client, int time_out);
 //TODO: to be tested and removed.
 int zclient_reconnect(ZohoIOTclient *client);
@@ -111,14 +117,21 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
 int zclient_dispatchEventFromEventDataObject(ZohoIOTclient *client, char *eventType, char *eventDescription, char *assetName);
 int zclient_addEventDataNumber(char *key, double val);
 int zclient_addEventDataString(char *key, char *val);
+int zclient_addEventDataObject(char *key, cJSON* Object);
 
 int zclient_publishCommandAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage);
+int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage);
 void zclient_addConnectionParameter(char *connectionParamKey, char *connectionParamValue);
 int zclient_markDataPointAsError(ZohoIOTclient *client, char *key, char *assetName);
 // In add String method , assetName parameter as optional.
 int zclient_addString(ZohoIOTclient *client, char *key, char *val_string, char *assetName);
 // In add Number method , assetName parameter as optional.
 int zclient_addNumber(ZohoIOTclient *client, char *key, double val_int, char *assetName);
+// In add object method , assetName parameter as optional.
+int zclient_addObject(ZohoIOTclient *client, char *key, cJSON* val_object, char *assetName);
+
+cJSON* zclient_FormReceivedACK(char* payload);
+
 //int zclient_setRetrycount(ZohoIOTclient *client, int count);
 //char *zclient_getpayload();
 #endif //# ZOHO_IOT_CLIENT_H_

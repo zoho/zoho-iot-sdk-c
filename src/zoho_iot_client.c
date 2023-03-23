@@ -2,18 +2,21 @@
 #include "zoho_message_handler.h"
 #include "sys/socket.h"
 #include "unistd.h"
-
+#define MQTT_EMB_LOGGING
 //TODO: read from config file.
 Network n;
 certsParseMode parse_mode;
 time_t start_time = 0;
 int retryCount = 0;
-char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "";
-char commandAckTopic[100] = "", connectionStringBuff[256] = "";
+char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "",configTopic[100] = "";
+char commandAckTopic[100] = "",configAckTopic[100]="", connectionStringBuff[256] = "";
 cJSON *eventDataObject;
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
+
+cJSON* generateACKPayload(char* payload,ZcommandAckResponseCodes status_code, char *responseMessage);
+cJSON* generateProcessedACK(char* payload,ZcommandAckResponseCodes status_code, char *responseMessage);
 
 int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode, ZlogConfig *logConfig)
 {
@@ -116,6 +119,8 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     sprintf(commandTopic, "%s/%s%s", topic_pre, config.client_id, command_topic);
     sprintf(commandAckTopic, "%s/%s%s", topic_pre, config.client_id, command_ack_topic);
     sprintf(eventTopic, "%s/%s%s", topic_pre, config.client_id, event_topic);
+    sprintf(configTopic, "%s/%s%s", topic_pre,config.client_id, config_topic);
+    sprintf(configAckTopic, "%s/%s%s", topic_pre,config.client_id, config_ack_topic);
 
     config.retry_limit = 5;
     iot_client->config = config;
@@ -150,7 +155,7 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     {
         eventDataObject = cJSON_CreateObject();
     }
-    initMessageHandler(iot_client, commandTopic, commandAckTopic);
+    initMessageHandler(iot_client, commandTopic, commandAckTopic, configTopic,configAckTopic);
     iot_client->current_state = INITIALIZED;
     log_info("Client Initialized!");
     return ZSUCCESS;
@@ -158,15 +163,20 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
 
 void zclient_addConnectionParameter(char *connectionParamKey, char *connectionParamValue)
 {
-    sprintf(connectionStringBuff, "%s%s%s%s%s", connectionStringBuff, connectionParamKey, "=", connectionParamValue, "&");
+    strcat(connectionStringBuff, connectionParamKey);
+    strcat(connectionStringBuff, "=");
+    strcat(connectionStringBuff, connectionParamValue);
+    strcat(connectionStringBuff, "&");
 }
 
 char *formConnectionString(char *username)
 {
-    sprintf(connectionStringBuff, "%s%s", username, "?");
+    connectionStringBuff[0] = '\0'; // initialize global variable
+    strcat(connectionStringBuff, username);
+    strcat(connectionStringBuff, "?");
     zclient_addConnectionParameter("sdk_name", "zoho-iot-sdk-c");
     zclient_addConnectionParameter("sdk_version", "0.0.1");
-    //    zclient_addConnectionParams("sdk_url", "");
+    //zclient_addConnectionParams("sdk_url", "");
     connectionStringBuff[strlen(connectionStringBuff) - 1] = '\0';
     return connectionStringBuff;
 }
@@ -202,7 +212,7 @@ int zclient_connect(ZohoIOTclient *client)
         log_info("Client already Connected");
         return ZSUCCESS;
     }
-    unsigned const int buff_size = 10000;
+    unsigned const int buff_size = 30000;
     unsigned char buf[buff_size], readbuf[buff_size];
 
     log_info("Preparing Network..");
@@ -226,7 +236,7 @@ int zclient_connect(ZohoIOTclient *client)
 
     conn_data.MQTTVersion = 4;
     conn_data.cleansession = 1; //TODO: tobe confirmed with Hub
-    conn_data.keepAliveInterval = 60;
+    conn_data.keepAliveInterval = 120;
     conn_data.clientID.cstring = client->config.client_id;
     conn_data.willFlag = 0;
 
@@ -305,6 +315,14 @@ int zclient_reconnect(ZohoIOTclient *client)
             retryCount = 0;
             start_time = 0;
             client->ZretryInterval = MIN_RETRY_INTERVAL;
+            if(on_command_message_handler!= NULL)
+            {
+                zclient_command_subscribe(client, on_command_message_handler);
+            }
+            if(on_config_message_handler!=NULL)
+            {
+                zclient_config_subscribe(client, on_config_message_handler);
+            }
             return ZSUCCESS;
         }
         start_time = getCurrentTime();
@@ -338,7 +356,7 @@ int zclient_publish(ZohoIOTclient *client, char *payload)
     //TODO:remove hardcoded values of id etc and get from structure copied from config.h
     //TODO: confirm the below parameters with Hub. Especially the pubmessageID
     MQTTMessage pubmsg;
-    pubmsg.id = 1234;
+    pubmsg.id = rand()%10000;
     pubmsg.qos = 1;
     pubmsg.dup = '0';
     pubmsg.retained = '0';
@@ -405,6 +423,29 @@ int zclient_addEventDataNumber(char *key, double val_number)
     else
     {
         cJSON_ReplaceItemInObject(eventDataObject, key, cJSON_CreateNumber(val_number));
+    }
+    return rc;
+}
+int zclient_addEventDataObject(char *key, cJSON* Object)
+{
+    if (eventDataObject == NULL)
+    {
+        eventDataObject = cJSON_CreateObject();
+    }
+
+    if (!isStringValid(key))
+    {
+        log_error("Key Can't be NULL");
+        return -1;
+    }
+    int rc = ZSUCCESS;
+    if (!cJSON_HasObjectItem(eventDataObject, key))
+    {
+       cJSON_AddItemToObject(eventDataObject, key, Object);
+    }
+    else
+    {
+        cJSON_ReplaceItemInObject(eventDataObject, key,Object);
     }
     return rc;
 }
@@ -491,7 +532,7 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
     }
     cJSON_Delete(eventObject);
     MQTTMessage pubmsg;
-    pubmsg.id = 1234;
+    pubmsg.id = rand()%10000;
     pubmsg.qos = 1;
     pubmsg.dup = '0';
     pubmsg.retained = '0';
@@ -516,40 +557,24 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
     return rc;
 }
 
-int zclient_publishCommandAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage)
+int zclient_publishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage)
 {
     int rc = validateClientState(client);
     if (rc != 0)
     {
         return rc;
     }
-    if (!isStringValid(correlation_id))
-    {
-        log_error("Correlation_id cannot be Null or empty in command Ack object");
+    cJSON* Ack_payload = generateProcessedACK(payload,status_code, responseMessage);
+    if (Ack_payload == NULL) {
         return ZFAILURE;
     }
-    if (responseMessage == NULL)
-    {
-        log_error("Response cannot be Null in command Ack object");
-        return ZFAILURE;
-    }
-    if (status_code != SUCCESFULLY_EXECUTED && (status_code < EXECUTION_FAILURE || status_code > ALREADY_ON_SAME_STATE))
-    {
-        log_error("Status code provided is not a valid in command Ack object");
-        return ZFAILURE;
-    }
-    cJSON *commandAckResponseObject = cJSON_CreateObject();
-    cJSON *commandAckObject = cJSON_AddObjectToObject(commandAckResponseObject, correlation_id);
-    cJSON_AddNumberToObject(commandAckObject, "status_code", status_code);
-    cJSON_AddStringToObject(commandAckObject, "response", responseMessage);
-    char *payload = cJSON_Print(commandAckResponseObject);
     MQTTMessage pubmsg;
-    pubmsg.id = 1234;
+    pubmsg.id = rand()%10000;
     pubmsg.qos = 1;
     pubmsg.dup = '0';
     pubmsg.retained = '0';
-    pubmsg.payload = payload;
-    pubmsg.payloadlen = strlen(payload);
+    pubmsg.payload = cJSON_Print(Ack_payload);
+    pubmsg.payloadlen = strlen(pubmsg.payload);
     rc = MQTTPublish(&(client->mqtt_client), commandAckTopic, &pubmsg);
     if (rc == ZSUCCESS)
     {
@@ -561,8 +586,69 @@ int zclient_publishCommandAck(ZohoIOTclient *client, char *correlation_id, Zcomm
     }
     return rc;
 }
+int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage)
+{
+    
+    int rc = validateClientState(client);
+    if (rc != 0)
+    {
+        return rc;
+    }
+    cJSON* Ack_payload = generateProcessedACK(payload,status_code, responseMessage);
+    if (Ack_payload == NULL) {
+        return ZFAILURE;
+    }
+    MQTTMessage pubmsg;
+    pubmsg.id = rand()%10000;
+    pubmsg.qos = 1;
+    pubmsg.dup = '0';
+    pubmsg.retained = '0';
+    pubmsg.payload = cJSON_Print(Ack_payload);
+    pubmsg.payloadlen = strlen(pubmsg.payload);
+    rc = MQTTPublish(&(client->mqtt_client), configAckTopic, &pubmsg);
+    if (rc == ZSUCCESS)
+    {
+        log_debug("Config Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, eventTopic);
+    }
+    else
+    {
+        log_error("Error on publishing config Ack. Error code: %d", rc);
+    }
+    return rc;
+}
 
-int zclient_subscribe(ZohoIOTclient *client, messageHandler on_message)
+int zclient_command_subscribe(ZohoIOTclient *client, messageHandler on_message)
+{
+    int rc = validateClientState(client);
+    if (rc != 0)
+    {
+        return rc;
+    }
+    if (client->current_state != CONNECTED)
+    {
+        log_error("Can not subscribe, since connection is lost/not established");
+        return ZFAILURE;
+    }
+    //TODO: add basic validation & callback method and append it on error logs.
+    rc = MQTTSubscribe(&(client->mqtt_client), commandTopic, QOS0, onMessageReceived);
+    setCommandMessageHandler(on_message);
+    if (rc == ZSUCCESS)
+    {
+        log_info("Subscribed on \x1b[36m '%s' \x1b[0m", commandTopic);
+    }
+    else if (client->mqtt_client.isconnected == 0)
+    {
+        client->current_state = DISCONNECTED;
+        log_error("Error on Subscribe due to lost connection. Error code: %d", rc);
+    }
+    else
+    {
+        log_error("Error on Subscribe. Error code: %d", rc);
+    }
+
+    return rc;
+}
+int zclient_config_subscribe(ZohoIOTclient *client, messageHandler on_message)
 {
     int rc = validateClientState(client);
     if (rc != 0)
@@ -575,11 +661,11 @@ int zclient_subscribe(ZohoIOTclient *client, messageHandler on_message)
         return ZFAILURE;
     }
     //TODO: add basic validation & callback method and append it on error logs.
-    rc = MQTTSubscribe(&(client->mqtt_client), commandTopic, QOS0, onMessageReceived);
-    setMessageHandler(on_message);
+    rc = MQTTSubscribe(&(client->mqtt_client), configTopic, QOS0, onMessageReceived);
+    setConfigMessageHandler(on_message);
     if (rc == ZSUCCESS)
     {
-        log_info("Subscribed on \x1b[36m '%s' \x1b[0m", commandTopic);
+        log_info("Subscribed on \x1b[36m '%s' \x1b[0m", configTopic);
     }
     else if (client->mqtt_client.isconnected == 0)
     {
@@ -746,6 +832,30 @@ int zclient_addString(ZohoIOTclient *client, char *key, char *val_string, char *
     return rc;
 }
 
+int zclient_addObject(ZohoIOTclient *client, char *key, cJSON* val_object, char *assetName)
+{
+    int rc = validateClientState(client);
+    if (rc != 0)
+    {
+        return rc;
+    }
+    if (!isStringValid(key))
+    {
+        return -1;
+    }
+    cJSON *obj = addAssetNameTopayload(client, assetName);
+    rc = ZSUCCESS;
+    if (!cJSON_HasObjectItem(obj, key))
+    {
+        cJSON_AddItemToObject(obj, key, val_object);
+    }
+    else
+    {
+        cJSON_ReplaceItemInObject(obj, key,val_object);
+    }
+    return rc;
+}
+
 int zclient_markDataPointAsError(ZohoIOTclient *client, char *key, char *assetName)
 {
     return zclient_addString(client, key, "<ERROR>", assetName);
@@ -757,3 +867,43 @@ char *zclient_getpayload()
     return cJSON_Print(cJsonPayload);
 }
 */
+cJSON* zclient_FormReceivedACK(char* payload)
+{
+    return generateACKPayload(payload,RECIEVED_ACK_CODE ,"");
+}
+cJSON* generateProcessedACK(char* payload,ZcommandAckResponseCodes status_code, char *responseMessage)
+{
+    if (responseMessage == NULL)
+    {
+        log_error("Response cannot be Null in Ack object");
+       return NULL;
+    }
+    if (status_code != SUCCESFULLY_EXECUTED && (status_code < EXECUTION_FAILURE || status_code > ALREADY_ON_SAME_STATE))
+    {
+        log_error("Status code provided is not a valid in Ack object");
+        return NULL;
+    }
+    return generateACKPayload(payload,status_code ,responseMessage);
+}
+
+cJSON* generateACKPayload(char* payload,ZcommandAckResponseCodes status_code, char *responseMessage) {
+    
+    cJSON *commandMessageArray = cJSON_Parse(payload);
+    if (cJSON_IsArray(commandMessageArray) == 1) {
+        cJSON *commandAckObject = cJSON_CreateObject();
+        cJSON *commandMessage, *commandAckObj;
+        int len = cJSON_GetArraySize(commandMessageArray);
+        for (int iter = 0; iter < len; iter++) {
+            commandMessage = cJSON_GetArrayItem(commandMessageArray, iter);
+            char *correlation_id = cJSON_GetObjectItem(commandMessage, "correlation_id")->valuestring;
+            commandAckObj = cJSON_CreateObject();
+            cJSON_AddItemToObject(commandAckObject, correlation_id, commandAckObj);
+            cJSON_AddNumberToObject(commandAckObj, "status_code", status_code);
+            cJSON_AddStringToObject(commandAckObj, "response",responseMessage);
+        }
+        cJSON_Delete(commandMessageArray);
+        return commandAckObject;
+    }
+    cJSON_Delete(commandMessageArray);
+    return NULL;
+}
