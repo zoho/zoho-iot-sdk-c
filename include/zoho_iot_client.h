@@ -70,6 +70,12 @@ typedef struct
     cJSON *data;
 } Zpayload;
 
+typedef struct
+{
+    char *topic;
+    cJSON *ackPayload;
+} ZfailedACK;
+
 typedef enum
 {
     INITIALIZED = 1,

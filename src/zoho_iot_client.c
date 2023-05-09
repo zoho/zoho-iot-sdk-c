@@ -2,6 +2,7 @@
 #include "zoho_message_handler.h"
 #include "sys/socket.h"
 #include "unistd.h"
+#include <stdbool.h>
 #define MQTT_EMB_LOGGING
 //TODO: read from config file.
 Network n;
@@ -11,6 +12,8 @@ int retryCount = 0;
 char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "",configTopic[100] = "";
 char commandAckTopic[100] = "",configAckTopic[100]="", connectionStringBuff[256] = "";
 cJSON *eventDataObject;
+bool retryACK;
+ZfailedACK failedACK;
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
@@ -323,6 +326,28 @@ int zclient_reconnect(ZohoIOTclient *client)
             {
                 zclient_config_subscribe(client, on_config_message_handler);
             }
+            if(retryACK)
+            {
+                log_debug("Attempting to resend the ACK message that previously failed");
+                MQTTMessage pubmsg;
+                pubmsg.id = rand()%10000;
+                pubmsg.qos = 1;
+                pubmsg.dup = '0';
+                pubmsg.retained = '0';
+                pubmsg.payload = cJSON_Print(failedACK.ackPayload);
+                pubmsg.payloadlen = strlen(pubmsg.payload);
+                rc = MQTTPublish(&(client->mqtt_client), failedACK.topic, &pubmsg);
+                if(rc == ZSUCCESS)
+                {
+                    log_debug("Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", cJSON_Print(failedACK.ackPayload), failedACK.topic);
+                    free(failedACK.ackPayload);
+                    retryACK =false;
+                }
+                else{
+                    log_error("Error publishing Ack, Error code: %d", rc);
+                }
+                
+            }
             return ZSUCCESS;
         }
         start_time = getCurrentTime();
@@ -578,7 +603,15 @@ int zclient_publishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckR
     rc = MQTTPublish(&(client->mqtt_client), commandAckTopic, &pubmsg);
     if (rc == ZSUCCESS)
     {
-        log_debug("Command Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, eventTopic);
+        log_debug("Command Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, commandAckTopic);
+    }
+    else if (client->mqtt_client.isconnected == 0)
+    {
+        client->current_state = DISCONNECTED;
+        log_error("Error on publishing command ACK due to lost connection. Error code: %d", rc);
+        retryACK = true;
+        failedACK.ackPayload = cJSON_Duplicate(Ack_payload, 1);
+        failedACK.topic = commandAckTopic;
     }
     else
     {
@@ -608,7 +641,12 @@ int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckRe
     rc = MQTTPublish(&(client->mqtt_client), configAckTopic, &pubmsg);
     if (rc == ZSUCCESS)
     {
-        log_debug("Config Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, eventTopic);
+        log_debug("Config Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, configAckTopic);
+    }
+    else if (client->mqtt_client.isconnected == 0)
+    {
+        client->current_state = DISCONNECTED;
+        log_error("Error on publishing config ack due to lost connection. Error code: %d", rc);
     }
     else
     {
