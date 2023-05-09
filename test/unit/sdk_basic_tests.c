@@ -472,18 +472,18 @@ static void SubscribeMethod_OnCallingBeforeInitialization_ShouldFail()
     // Subscribing with out initializing client would return FAILURE
     ZohoIOTclient client;
     messageHandler msghnd;
-    assert_int_equal(zclient_subscribe(&client, msghnd), -2);
+    assert_int_equal(zclient_command_subscribe(&client, msghnd), -2);
 }
 
 static void SubscribeMethod_OnNullArguments_ShouldFail(void **state)
 {
     // Subscribe returns Failure for Null Client .
     messageHandler msghnd;
-    assert_int_equal(zclient_subscribe(NULL, msghnd), ZFAILURE);
+    assert_int_equal(zclient_command_subscribe(NULL, msghnd), ZFAILURE);
     // Subscribe returns Failure for Null messageHandler .
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
-    assert_int_equal(zclient_subscribe(&client, NULL), -1);
+    assert_int_equal(zclient_command_subscribe(&client, NULL), -1);
 }
 
 void message_handler(MessageData *data) {}
@@ -497,7 +497,7 @@ static void SubscribeMethod_WithLostConnection_ShouldFail(void **state)
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
-    assert_int_equal(zclient_subscribe(&client, message_handler), ZFAILURE);
+    assert_int_equal(zclient_command_subscribe(&client, message_handler), ZFAILURE);
 }
 
 static void SubscribeMethod_WithNonNullArguments_ShouldSucceed(void **state)
@@ -509,7 +509,7 @@ static void SubscribeMethod_WithNonNullArguments_ShouldSucceed(void **state)
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
-    assert_int_equal(zclient_subscribe(&client, message_handler), ZSUCCESS);
+    assert_int_equal(zclient_command_subscribe(&client, message_handler), ZSUCCESS);
 }
 
 // YIELD :
