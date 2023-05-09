@@ -31,10 +31,10 @@ ENDIF()
 # ----------------------------------------------
 # CJSON LIBRARY:
 IF(NOT EXISTS ${PROJECT_SOURCE_DIR}/lib/cjson)
-    SET(CJSON_VERSION v1.7.7)
+    SET(CJSON_VERSION 1.7.15)
     MESSAGE("\nDownloading cJSON-${CJSON_VERSION}\n")
     EXECUTE_PROCESS(COMMAND curl -LO
-                            https://github.com/DaveGamble/cJSON/archive/${CJSON_VERSION}.zip
+                            https://github.com/DaveGamble/cJSON/archive/v${CJSON_VERSION}.zip
                             # TIMEOUT 900
                     RESULT_VARIABLE status)
 
@@ -46,9 +46,9 @@ IF(NOT EXISTS ${PROJECT_SOURCE_DIR}/lib/cjson)
             
     ENDIF()
 
-    EXECUTE_PROCESS(COMMAND unzip -q ${CJSON_VERSION}.zip -d ${PROJECT_SOURCE_DIR}/lib)
-    FILE(REMOVE ${PROJECT_BINARY_DIR}/${CJSON_VERSION}.zip)
-    FILE(RENAME ${PROJECT_SOURCE_DIR}/lib/cJSON-1.7.7 ${PROJECT_SOURCE_DIR}/lib/cjson)
+    EXECUTE_PROCESS(COMMAND unzip -q v${CJSON_VERSION}.zip -d ${PROJECT_SOURCE_DIR}/lib)
+    FILE(REMOVE ${PROJECT_BINARY_DIR}/v${CJSON_VERSION}.zip)
+    FILE(RENAME ${PROJECT_SOURCE_DIR}/lib/cJSON-${CJSON_VERSION} ${PROJECT_SOURCE_DIR}/lib/cjson)
 ENDIF()
 
 # --------------------------------------------

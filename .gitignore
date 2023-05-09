@@ -5,7 +5,7 @@
 build
 remake.sh
 #downloaded project dependencies
-lib/*
+#lib/*
 .DS_Store
 zoho_sdk.log
 src/certs

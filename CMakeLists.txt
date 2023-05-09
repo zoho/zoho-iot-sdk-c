@@ -35,13 +35,13 @@ OPTION(Z_ENABLE_TLS "Enable TLS for Secure connection" OFF)
 OPTION(Z_USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
 
 #To enable unit test cases:
-OPTION(RUN_TESTS "Run unit tests" OFF)
+OPTION(RUN_TESTS "Run unit tests" ON)
 
 # Set Log level to LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL.
 SET(Z_LOG_LEVEL LOG_DEBUG)
 
 # Enable file logging with default SDK configuration, Can be overridden in the apllication using the ZlogConfig struct. 
-OPTION(ENABLE_Z_LOGGING "Create logs for Application" OFF)
+OPTION(ENABLE_Z_LOGGING "Create logs for Application" ON)
 
 # Build mode, should be disabled on Production build.
 SET(CMAKE_BUILD_TYPE DEBUG)
@@ -57,7 +57,9 @@ MESSAGE(STATUS "LOG LEVEL : " ${Z_LOG_LEVEL})
 MESSAGE(STATUS "GENERATE APPLICATION LOGS : " ${ENABLE_Z_LOGGING})
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
-ADD_SUBDIRECTORY(cmake/setup)
+
+#utility to update depedent libaries.
+#ADD_SUBDIRECTORY(cmake/setup)
 include(CodeCoverage)
 
 INCLUDE_DIRECTORIES(test include lib/cjson src)
