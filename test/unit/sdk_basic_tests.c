@@ -78,8 +78,8 @@ static void InitMethod_with_LogConfig_OnProperArguments_ShouldSucceed(void **sta
     logConfig->enableFileLog = 1;
     logConfig->logPrefix = "cmocka_test";
 
-    // Init returns Success by initialising client with proper arguments and setting the log config to NULL
-    assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, REFERENCE, "", "", "", "", logConfig), ZFAILURE);
+    // Init returns Success by initialising client with proper arguments and setting the log config
+    assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, REFERENCE, "", "", "", "", logConfig), ZSUCCESS);
 
     // Init returns Success by initialising client with proper arguments and setting the log config
     assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "", logConfig), ZSUCCESS);
@@ -133,9 +133,7 @@ static void InitConfigFileMethod_OnProperArguments_withImproperKeys_ShouldFail(v
     assert_int_equal(zclient_init_config_file(&client, "../../../test/MqttConfig_Wrong_Format.json", EMBED), ZFAILURE);
 }
 
-#ifndef Z_SECURE_CONNECTION
-#define Z_SECURE_CONNECTION
-#endif
+
 static void InitMethod_WithTLS_NullSeverCertificates_ShouldFail(void **State)
 {
 
@@ -143,9 +141,7 @@ static void InitMethod_WithTLS_NullSeverCertificates_ShouldFail(void **State)
     ZohoIOTclient client;
     assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, REFERENCE, NULL, "", "", ""), ZFAILURE);
 }
-#ifndef Z_USE_CLIENT_CERTS
-#define Z_USE_CLIENT_CERTS
-#endif
+
 static void InitMethod_WithTLS_NullClientCertificates_ShouldFail(void **State)
 {
 
@@ -154,8 +150,6 @@ static void InitMethod_WithTLS_NullClientCertificates_ShouldFail(void **State)
     assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, REFERENCE, "/usr/device_certificate.pem", NULL, NULL, ""), ZFAILURE);
 }
 
-#undef Z_USE_CLIENT_CERTS
-#undef Z_SECURE_CONNECTION
 
 // CONNECT :
 
@@ -211,9 +205,7 @@ static void ConnectMethod_WithWrongCredentials_ShouldFail(void **state)
     assert_int_equal(zclient_connect(&client), 5);
 }
 
-#ifndef Z_SECURE_CONNECTION
-#define Z_SECURE_CONNECTION
-#endif
+
 static void ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed(void **state)
 {
     // With Appropriate TLS Server Certificate and login credentials connect to HUB should succeed .
@@ -225,9 +217,7 @@ static void ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed(voi
     assert_int_equal(zclient_connect(&client), ZSUCCESS);
 }
 
-#ifndef Z_USE_CLIENT_CERTS
-#define Z_USE_CLIENT_CERTS
-#endif
+
 static void ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed(void **state)
 {
     // With Appropriate TLS Server and Client Certificates and login credentials connect to HUB should succeed .
@@ -239,8 +229,6 @@ static void ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed(voi
     assert_int_equal(zclient_connect(&client), ZSUCCESS);
 }
 
-#undef Z_USE_CLIENT_CERTS
-#undef Z_SECURE_CONNECTION
 
 // PUBLISH :
 
@@ -861,16 +849,12 @@ int main(void)
         cmocka_unit_test(InitConfigFileMethod_OnProperArguments_withImproperKeys_ShouldFail),
         cmocka_unit_test(InitConfigFileMethod_with_LogConfig_OnNullArguments_ShouldFail),
         cmocka_unit_test(InitConfigFileMethod_with_LogConfig_OnProperArguments_ShouldSucceed),
-        cmocka_unit_test(InitMethod_WithTLS_NullSeverCertificates_ShouldFail),
-        cmocka_unit_test(InitMethod_WithTLS_NullClientCertificates_ShouldFail),
         cmocka_unit_test(ConnectMethod_OnCallingBeforeInitialization_ShouldFail),
         cmocka_unit_test(ConnectMethod_OnNullArguments_ShouldFail),
         cmocka_unit_test(ConnectMethod_OnConnectOverExistingConnetion_ShouldSucceed),
         cmocka_unit_test(ConnectMethod_WithNonNullArguments_ShouldSucceed),
         cmocka_unit_test(ConnectMethod_WithLostNetworkConnection_ShouldFail),
         cmocka_unit_test(ConnectMethod_WithWrongCredentials_ShouldFail),
-        cmocka_unit_test(ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed),
-        cmocka_unit_test(ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed),
         cmocka_unit_test(PublishMethod_OnNullArguments_ShouldFail),
         cmocka_unit_test(PublishMethod_OnCallingBeforeInitialization_ShouldFail),
         cmocka_unit_test(PublishMethod_WithLostConnection_ShouldFail),
@@ -928,6 +912,17 @@ int main(void)
         cmocka_unit_test(ReconnectMethod_OnLostConnection_ShouldExponentiallyIncrease),
         cmocka_unit_test(GetRetryInterval_withNegativeValues_ShouldReturnDefaultValue),
         cmocka_unit_test(GetRetryInterval_withValuesGreaterthenMaxRetryInterval_ShouldReturnDefaultValue),
+
+#ifdef Z_SECURE_CONNECTION
+        cmocka_unit_test(ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed),
+        cmocka_unit_test(InitMethod_WithTLS_NullSeverCertificates_ShouldFail),
+
+#ifdef Z_USE_CLIENT_CERTS
+        cmocka_unit_test(InitMethod_WithTLS_NullClientCertificates_ShouldFail),
+        cmocka_unit_test(ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed),
+
+#endif
+#endif
 //        cmocka_unit_test(SetRetryCountMethod_CalledWithoutInitializingClient_ShouldFail),
 //        cmocka_unit_test(SetRetryCountMethod_WithNullArguments_ShouldFail),
 //        cmocka_unit_test(SetRetryCountMethod_WithNegativeCount_ShouldFail_DefaultValueIsUnchanged),
