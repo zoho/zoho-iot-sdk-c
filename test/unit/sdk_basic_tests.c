@@ -7,6 +7,8 @@
 #include "zclient_constants.h"
 #include "wrap_functions.h"
 
+#define ACK_SAMPLE_PAYLOAD (char *)"[{\"payload\":[{\"edge_command_key\":\"cname\",\"value\":\"4\"}],\"command_name\":\"cname\",\"correlation_id\":\"5f12bd40-f010-11ed-8a24-5354005d2854\"}]"
+
 int __wrap_MQTTConnect(MQTTClient *c, MQTTPacket_connectData *options)
 {
     return mock_type(int);
@@ -435,8 +437,8 @@ static void PublishCommandAck_WithproperArguments_ShouldSucceed(void **state)
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
-    assert_int_equal(zclient_publishCommandAck(&client, "correlation_id", 1001, "response message"), ZSUCCESS);
-    assert_int_equal(zclient_publishCommandAck(&client, "correlation_id", 1001, ""), ZSUCCESS);
+    assert_int_equal(zclient_publishCommandAck(&client, ACK_SAMPLE_PAYLOAD, 1001, "response message"), ZSUCCESS);
+    assert_int_equal(zclient_publishCommandAck(&client, ACK_SAMPLE_PAYLOAD, 1001, ""), ZSUCCESS);
 }
 
 static void PublishCommandAck_WithNullOrEmptyproperArguments_ShouldFail(void **state)
@@ -448,8 +450,7 @@ static void PublishCommandAck_WithNullOrEmptyproperArguments_ShouldFail(void **s
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
     assert_int_equal(zclient_publishCommandAck(&client, "", 1001, "response message"), ZFAILURE);
-    assert_int_equal(zclient_publishCommandAck(&client, "", 1001, "response message"), ZFAILURE);
-    assert_int_equal(zclient_publishCommandAck(&client, "correlation_id", 1001, NULL), ZFAILURE);
+    assert_int_equal(zclient_publishCommandAck(&client, "invalid json", 1001, NULL), ZFAILURE);
     assert_int_equal(zclient_publishCommandAck(&client, NULL, 1001, ""), ZFAILURE);
 }
 
@@ -782,6 +783,8 @@ static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
     // Reconnect method with lost connection can Retry connection and succeed.
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTSubscribe, ZSUCCESS);
+    
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     client.current_state = DISCONNECTED;
