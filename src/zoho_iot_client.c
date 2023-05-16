@@ -126,6 +126,7 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     sprintf(configAckTopic, "%s/%s%s", topic_pre,config.client_id, config_ack_topic);
 
     config.retry_limit = 5;
+    config.payload_size = default_payload_size;
     iot_client->config = config;
     parse_mode = mode;
 #if defined(Z_SECURE_CONNECTION)
@@ -162,6 +163,28 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     iot_client->current_state = INITIALIZED;
     log_info("Client Initialized!");
     return ZSUCCESS;
+}
+
+int zclient_setPayloadSize(ZohoIOTclient *iot_client,int size)
+{
+    if(size > max_payload_size)
+    {
+        iot_client->config.payload_size = max_payload_size;
+        log_error("Message payload size %d is greater than max size %d ,continuing on max payload size",size,max_payload_size);
+        return -1;
+    }
+    else if(size<1)
+    {
+        iot_client->config.payload_size = default_payload_size;
+        log_error("Message payload size %d can't be less than 1 ,continuing on default payload size %d",size,default_payload_size);
+        return -1;
+    }
+    else
+    {
+        iot_client->config.payload_size = size;
+        log_debug("Message payload size updated to %d",iot_client->config.payload_size);
+        return 0;
+    }
 }
 
 void zclient_addConnectionParameter(char *connectionParamKey, char *connectionParamValue)
@@ -215,7 +238,7 @@ int zclient_connect(ZohoIOTclient *client)
         log_info("Client already Connected");
         return ZSUCCESS;
     }
-    unsigned const int buff_size = 30000;
+    unsigned const int buff_size = client->config.payload_size;
     unsigned char buf[buff_size], readbuf[buff_size];
 
     log_info("Preparing Network..");
@@ -234,7 +257,7 @@ int zclient_connect(ZohoIOTclient *client)
 
     //TODO: Handle the rc of ConnectNetwork().
     log_info("Connecting to \x1b[32m %s : %d \x1b[0m", client->config.hostname, zport);
-    MQTTClientInit(&client->mqtt_client, &n, 1000, buf, buff_size, readbuf, buff_size);
+    MQTTClientInit(&client->mqtt_client, &n, 10000, buf, buff_size, readbuf, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
 
     conn_data.MQTTVersion = 4;
@@ -387,6 +410,11 @@ int zclient_publish(ZohoIOTclient *client, char *payload)
     pubmsg.retained = '0';
     pubmsg.payload = payload;
     pubmsg.payloadlen = strlen(payload);
+    if(pubmsg.payloadlen>client->config.payload_size)
+    {
+        log_error("Error on Pubish,payload \x1b[31m(%d)\x1b[0m size is greater than client max payload size \x1b[31m(%d)\x1b[0m", pubmsg.payloadlen,client->config.payload_size);
+        return ZFAILURE;
+    }
     rc = MQTTPublish(&(client->mqtt_client), dataTopic, &pubmsg);
     //TODO: check for connection and retry to send the message once the conn got restroed.
     if (rc == ZSUCCESS)
@@ -563,6 +591,11 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
     pubmsg.retained = '0';
     pubmsg.payload = payload;
     pubmsg.payloadlen = strlen(payload);
+    if(pubmsg.payloadlen>client->config.payload_size)
+    {
+        log_error("Error on dispatchEvent, payload \x1b[31m(%d)\x1b[0m size is greater than client max payload size \x1b[31m(%d)\x1b[0m", pubmsg.payloadlen,client->config.payload_size);
+        return ZFAILURE;
+    }
     rc = MQTTPublish(&(client->mqtt_client), eventTopic, &pubmsg);
     //TODO: check for connection and retry to send the message once the conn got restroed.
     if (rc == ZSUCCESS)
@@ -647,6 +680,9 @@ int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckRe
     {
         client->current_state = DISCONNECTED;
         log_error("Error on publishing config ack due to lost connection. Error code: %d", rc);
+        retryACK = true;
+        failedACK.ackPayload = cJSON_Duplicate(Ack_payload, 1);
+        failedACK.topic = configAckTopic;
     }
     else
     {

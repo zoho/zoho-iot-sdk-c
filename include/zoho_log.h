@@ -7,7 +7,7 @@
 #define LOG_PATH "./"
 #define LOG_PREFIX "zoho_SDK_logs"
 #define LOG_FORMAT ".txt"
-#define MAX_LOG_FILE_SIZE 100000 //file size in Bytes
+#define MAX_LOG_FILE_SIZE  5242880  //file size in Bytes 5MB MAX
 #define MAX_ROLLING_LOG_FILE 2   // No of rolling log file in addition to the main
 
 FILE *log_file;

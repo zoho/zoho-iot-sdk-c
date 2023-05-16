@@ -35,13 +35,13 @@ OPTION(Z_ENABLE_TLS "Enable TLS for Secure connection" OFF)
 OPTION(Z_USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
 
 #To enable unit test cases:
-OPTION(RUN_TESTS "Run unit tests" ON)
+OPTION(Z_RUN_TESTS "Run unit tests" ON)
 
 # Set Log level to LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL.
 SET(Z_LOG_LEVEL LOG_DEBUG)
 
 # Enable file logging with default SDK configuration, Can be overridden in the apllication using the ZlogConfig struct. 
-OPTION(ENABLE_Z_LOGGING "Create logs for Application" ON)
+OPTION(Z_ENABLE_LOGGING "Create logs for Application" OFF)
 
 # Build mode, should be disabled on Production build.
 SET(CMAKE_BUILD_TYPE DEBUG)
@@ -54,7 +54,7 @@ MESSAGE(STATUS "===========================")
 MESSAGE(STATUS "TLS SUPPORT : " ${Z_ENABLE_TLS})
 MESSAGE(STATUS "USE CLIENT CERTS : " ${Z_USE_CLIENT_CERTS})
 MESSAGE(STATUS "LOG LEVEL : " ${Z_LOG_LEVEL})
-MESSAGE(STATUS "GENERATE APPLICATION LOGS : " ${ENABLE_Z_LOGGING})
+MESSAGE(STATUS "GENERATE APPLICATION LOGS : " ${Z_ENABLE_LOGGING})
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 
@@ -70,9 +70,9 @@ LIST(APPEND FEATURES "-DMQTTCLIENT_PLATFORM_HEADER=tls_config.h")
 SET(CJSON_SOURCES lib/cjson/cJSON.c)
 
 LIST(APPEND FEATURES "-DZ_LOG_LEVEL=${Z_LOG_LEVEL}")
-IF(ENABLE_Z_LOGGING)
+IF(Z_ENABLE_LOGGING)
     LIST(APPEND FEATURES "-DZ_LOGGING")
-ENDIF(ENABLE_Z_LOGGING)
+ENDIF(Z_ENABLE_LOGGING)
 
 IF(Z_ENABLE_TLS)
     INCLUDE_DIRECTORIES(lib/mbedtls/include/)
@@ -134,6 +134,6 @@ ENDIF(BUILD_EXPORTABLE_LIB)
 ADD_SUBDIRECTORY(projects)
 
 #Unit Test cases:
-IF(RUN_TESTS)
+IF(Z_RUN_TESTS)
     add_subdirectory(test/unit)
-ENDIF(RUN_TESTS)
+ENDIF(Z_RUN_TESTS)
