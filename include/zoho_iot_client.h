@@ -2,6 +2,7 @@
 #define ZOHO_IOT_CLIENT_H_
 
 #include <MQTTClient.h>
+#define MQTT_TASK 1
 #include "zoho_log.h"
 #include "cJSON.h"
 #include "zoho_utils.h"
@@ -14,6 +15,8 @@
 #define zport (int)1883
 #endif
 
+#define max_payload_size (int)100000
+#define default_payload_size (int)32000
 #define topic_pre (char *)"/devices"
 #define data_topic (char *)"/telemetry"
 #define command_topic (char *)"/commands"
@@ -52,6 +55,7 @@ typedef struct
     char *auth_token;
     char *MqttUserName;
     int retry_limit;
+    int payload_size;
 } Zconfig;
 
 #if defined(Z_SECURE_CONNECTION)
@@ -109,6 +113,7 @@ typedef enum
 
 int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode, ZlogConfig *logConfig);
 int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password, ZlogConfig *logConfig);
+int zclient_setMaxPayloadSize(ZohoIOTclient *iot_client,int size);
 int zclient_connect(ZohoIOTclient *client);
 int zclient_publish(ZohoIOTclient *client, char *payload);
 int zclient_disconnect(ZohoIOTclient *client);

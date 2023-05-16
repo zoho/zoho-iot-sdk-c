@@ -1,5 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10.2)
-IF(RUN_TESTS)
+IF(Z_RUN_TESTS)
     FIND_LIBRARY(CMOCKA_FOUND NAMES cmocka PATHS /usr/lib)
     FIND_PROGRAM(LCOV_FOUND NAMES lcov)
     FIND_PROGRAM(GCOVR_FOUND NAMES gcovr)
@@ -15,4 +15,4 @@ IF(RUN_TESTS)
    
     set_property(TARGET sdk_basic_tests PROPERTY LINK_FLAGS "${DEFAULT_LINK_FLAGS} -Wl,--wrap=NetworkConnect,--wrap=MQTTConnect,--wrap=MQTTSubscribe,--wrap=MQTTPublish,--wrap=MQTTDisconnect,--wrap=MQTTYield")
     target_link_libraries(sdk_basic_tests cmocka zoho_iot_sdk)
-ENDIF(RUN_TESTS)
+ENDIF(Z_RUN_TESTS)
