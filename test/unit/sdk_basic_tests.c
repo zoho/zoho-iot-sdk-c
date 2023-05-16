@@ -869,9 +869,9 @@ static void SetPayloadSize_withValueGreaterthenMaxPayloadSize_ShouldTakeMaxPaylo
 {
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
-    //client->config->payload_size set to max_payload_size if the value given is greater than max payload
+    //client->config->payload_size set to MAX_PAYLOAD_SIZE if the value given is greater than max payload
     zclient_setPayloadSize(&client,150000);
-    assert_int_equal(client.config.payload_size, max_payload_size);
+    assert_int_equal(client.config.payload_size, MAX_PAYLOAD_SIZE);
 
 }
 
@@ -879,9 +879,9 @@ static void SetPayloadSize_withValuelesserthenOne_ShouldTakeDefaultPayloadSize(v
 {
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
-    //client->config->payload_size set to default_payload_size if the value given is lesser than one
+    //client->config->payload_size set to DEFAULT_PAYLOAD_SIZE if the value given is lesser than one
     zclient_setPayloadSize(&client,0);
-    assert_int_equal(client.config.payload_size, default_payload_size);
+    assert_int_equal(client.config.payload_size, DEFAULT_PAYLOAD_SIZE);
 
 }
 
@@ -890,7 +890,7 @@ static void SetPayloadSize_withProperValue_ShouldTakeProperValue(void **state)
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     //client->config->payload_size set to given value if the given value is in range 1 to max payload
-    int size = (rand() % (max_payload_size - 1 + 1)) + 1;
+    int size = (rand() % (MAX_PAYLOAD_SIZE - 1 + 1)) + 1;
     zclient_setPayloadSize(&client,size);
     assert_int_equal(client.config.payload_size, size);
 
@@ -900,8 +900,8 @@ static void WithoutCalling_SetPayloadSize_ShouldTakeDefaultPayloadSize(void **st
 {
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
-    //client->config->payload_size set to default_payload_size if the set payload size is not called
-    assert_int_equal(client.config.payload_size, default_payload_size);
+    //client->config->payload_size set to DEFAULT_PAYLOAD_SIZE if the set payload size is not called
+    assert_int_equal(client.config.payload_size, DEFAULT_PAYLOAD_SIZE);
 }
 
 int main(void)

@@ -118,15 +118,15 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     log_debug("client_id:%s", config.client_id);
     log_debug("hostname:%s", config.hostname);
     //Populating dynamic topic names based on its deviceID
-    sprintf(dataTopic, "%s/%s%s", topic_pre, config.client_id, data_topic);
-    sprintf(commandTopic, "%s/%s%s", topic_pre, config.client_id, command_topic);
-    sprintf(commandAckTopic, "%s/%s%s", topic_pre, config.client_id, command_ack_topic);
-    sprintf(eventTopic, "%s/%s%s", topic_pre, config.client_id, event_topic);
-    sprintf(configTopic, "%s/%s%s", topic_pre,config.client_id, config_topic);
-    sprintf(configAckTopic, "%s/%s%s", topic_pre,config.client_id, config_ack_topic);
+    sprintf(dataTopic, "%s/%s%s", TOPIC_PRE, config.client_id, DATA_TOPIC);
+    sprintf(commandTopic, "%s/%s%s", TOPIC_PRE, config.client_id, COMMAND_TOPIC);
+    sprintf(commandAckTopic, "%s/%s%s", TOPIC_PRE, config.client_id, COMMAND_ACK_TOPIC);
+    sprintf(eventTopic, "%s/%s%s", TOPIC_PRE, config.client_id, EVENT_TOPIC);
+    sprintf(configTopic, "%s/%s%s", TOPIC_PRE,config.client_id, CONFIG_TOPIC);
+    sprintf(configAckTopic, "%s/%s%s", TOPIC_PRE,config.client_id, CONFIG_ACK_TOPIC);
 
     config.retry_limit = 5;
-    config.payload_size = default_payload_size;
+    config.payload_size = DEFAULT_PAYLOAD_SIZE;
     iot_client->config = config;
     parse_mode = mode;
 #if defined(Z_SECURE_CONNECTION)
@@ -167,16 +167,16 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
 
 int zclient_setPayloadSize(ZohoIOTclient *iot_client,int size)
 {
-    if(size > max_payload_size)
+    if(size > MAX_PAYLOAD_SIZE)
     {
-        iot_client->config.payload_size = max_payload_size;
-        log_error("Message payload size %d is greater than max size %d ,continuing on max payload size",size,max_payload_size);
+        iot_client->config.payload_size = MAX_PAYLOAD_SIZE;
+        log_error("Message payload size %d is greater than max size %d ,continuing on max payload size",size,MAX_PAYLOAD_SIZE);
         return -1;
     }
     else if(size<1)
     {
-        iot_client->config.payload_size = default_payload_size;
-        log_error("Message payload size %d can't be less than 1 ,continuing on default payload size %d",size,default_payload_size);
+        iot_client->config.payload_size = DEFAULT_PAYLOAD_SIZE;
+        log_error("Message payload size %d can't be less than 1 ,continuing on default payload size %d",size,DEFAULT_PAYLOAD_SIZE);
         return -1;
     }
     else
@@ -245,9 +245,9 @@ int zclient_connect(ZohoIOTclient *client)
     NetworkInit(&n);
 
 #if defined(Z_SECURE_CONNECTION)
-    rc = NetworkConnect(&n, client->config.hostname, zport, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
+    rc = NetworkConnect(&n, client->config.hostname, ZPORT, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
 #else
-    rc = NetworkConnect(&n, client->config.hostname, zport);
+    rc = NetworkConnect(&n, client->config.hostname, ZPORT);
 #endif
     if (rc != ZSUCCESS)
     {
@@ -256,7 +256,7 @@ int zclient_connect(ZohoIOTclient *client)
     }
 
     //TODO: Handle the rc of ConnectNetwork().
-    log_info("Connecting to \x1b[32m %s : %d \x1b[0m", client->config.hostname, zport);
+    log_info("Connecting to \x1b[32m %s : %d \x1b[0m", client->config.hostname, ZPORT);
     MQTTClientInit(&client->mqtt_client, &n, 10000, buf, buff_size, readbuf, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
 
@@ -377,7 +377,7 @@ int zclient_reconnect(ZohoIOTclient *client)
         client->ZretryInterval = getRetryInterval(client->ZretryInterval);
         retryCount++;
         log_info("retryCount :%d", retryCount);
-        log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", client->config.hostname, zport, client->ZretryInterval);
+        log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", client->config.hostname, ZPORT, client->ZretryInterval);
         if (client->current_state != DISCONNECTED && client->current_state != CONNECTED)
         {
             log_info("Retrying indefinetely");

@@ -103,7 +103,7 @@ int main()
     * maxLogFileSize    -> size of the log file in bytes
     * maxRollingLogFile -> No of rolling log file to be created in addition to the main log file
     * 
-    * The SDK default log configuration would be used when the ENABLE_Z_LOGGING option is set to ON and the init call is made without the log config as 
+    * The SDK default log configuration would be used when the Z_ENABLE_LOGGING option is set to ON and the init call is made without the log config as
     *  
     * zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword);
     *                                                                           (or)

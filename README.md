@@ -66,10 +66,10 @@ git clone https://git.csez.zohocorpin.com/zoho/zoho-iot-sdk-c
 Edit `CMakeList.txt` file located on root to update the below build configurations:
 - **Unit Test Support**
 
-Enable Running test cases by changing RUN_TESTS option from 'OFF' to 'ON'
+Enable Running test cases by changing Z_RUN_TESTS option from 'OFF' to 'ON'
 
 ```
-OPTION(RUN_TESTS "Run unit tests" ON)
+OPTION(Z_RUN_TESTS "Run unit tests" ON)
 ```
 
 - **TLS support**

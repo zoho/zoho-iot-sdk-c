@@ -44,6 +44,7 @@ SET(Z_LOG_LEVEL LOG_DEBUG)
 OPTION(Z_ENABLE_LOGGING "Create logs for Application" OFF)
 
 # Build mode, should be disabled on Production build.
+#DEBUG param is required for code coverage report generation.
 SET(CMAKE_BUILD_TYPE DEBUG)
 
 # Build Exportable Library sources
@@ -60,6 +61,7 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 
 #utility to update depedent libaries.
 #ADD_SUBDIRECTORY(cmake/setup)
+enable_testing()
 include(CodeCoverage)
 
 INCLUDE_DIRECTORIES(test include lib/cjson src)

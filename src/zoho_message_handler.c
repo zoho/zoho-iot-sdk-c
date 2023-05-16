@@ -3,10 +3,10 @@
 void initMessageHandler(ZohoIOTclient *client, char *comm_topic, char *comm_ack_topic, char *conf_topic, char *conf_ack_topic)
 {
     iot_client = client;
-    strcpy(handler_command_topic, comm_topic);
-    strcpy(handler_command_ack_topic, comm_ack_topic);
-    strcpy(handler_config_topic, conf_topic);
-    strcpy(handler_config_ack_topic, conf_ack_topic);
+    strcpy(handler_COMMAND_TOPIC, comm_topic);
+    strcpy(handler_COMMAND_ACK_TOPIC, comm_ack_topic);
+    strcpy(handler_CONFIG_TOPIC, conf_topic);
+    strcpy(handler_CONFIG_ACK_TOPIC, conf_ack_topic);
 }
 
 void setCommandMessageHandler(messageHandler message_handler)
@@ -28,7 +28,7 @@ void onMessageReceived(MessageData *md)
     strncat(topic, md->topicName->lenstring.data, md->topicName->lenstring.len);
     strncat(payload, md->message->payload, md->message->payloadlen);
 
-    if (strcmp(topic, handler_command_topic) == 0)
+    if (strcmp(topic, handler_COMMAND_TOPIC) == 0)
     {
         
         cJSON* commandAckObject = zclient_FormReceivedACK(payload);
@@ -40,12 +40,12 @@ void onMessageReceived(MessageData *md)
             pubmsg.retained = '0';
             pubmsg.payload = cJSON_Print(commandAckObject);
             pubmsg.payloadlen = strlen(pubmsg.payload);
-            MQTTPublish(&(iot_client->mqtt_client), handler_command_ack_topic, &pubmsg);
+            MQTTPublish(&(iot_client->mqtt_client), handler_COMMAND_ACK_TOPIC, &pubmsg);
             cJSON_Delete(commandAckObject);
             on_command_message_handler(md);
         }
     }
-    else if (strcmp(topic, handler_config_topic) == 0)
+    else if (strcmp(topic, handler_CONFIG_TOPIC) == 0)
     {
         cJSON* configAckObject = zclient_FormReceivedACK(payload);
         if (configAckObject != NULL) {
@@ -56,7 +56,7 @@ void onMessageReceived(MessageData *md)
             pubmsg.retained = '0';
             pubmsg.payload = cJSON_Print(configAckObject);
             pubmsg.payloadlen = strlen(pubmsg.payload);
-            MQTTPublish(&(iot_client->mqtt_client), handler_config_ack_topic, &pubmsg);
+            MQTTPublish(&(iot_client->mqtt_client), handler_CONFIG_ACK_TOPIC, &pubmsg);
             cJSON_Delete(configAckObject);
             on_config_message_handler(md);
         }

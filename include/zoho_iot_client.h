@@ -10,20 +10,20 @@
 #include <time.h>
 
 #if defined(Z_SECURE_CONNECTION)
-#define zport (int)8883
+#define ZPORT (int)8883
 #else
-#define zport (int)1883
+#define ZPORT (int)1883
 #endif
 
-#define max_payload_size (int)100000
-#define default_payload_size (int)32000
-#define topic_pre (char *)"/devices"
-#define data_topic (char *)"/telemetry"
-#define command_topic (char *)"/commands"
-#define event_topic (char *)"/events"
-#define command_ack_topic (char *)"/commands/ack"
-#define config_topic (char *)"/configsettings"
-#define config_ack_topic (char *)"/configsettings/ack"
+#define MAX_PAYLOAD_SIZE (int)100000
+#define DEFAULT_PAYLOAD_SIZE (int)32000
+#define TOPIC_PRE (char *)"/devices"
+#define DATA_TOPIC (char *)"/telemetry"
+#define COMMAND_TOPIC (char *)"/commands"
+#define EVENT_TOPIC (char *)"/events"
+#define COMMAND_ACK_TOPIC (char *)"/commands/ack"
+#define CONFIG_TOPIC (char *)"/configsettings"
+#define CONFIG_ACK_TOPIC (char *)"/configsettings/ack"
 
 #define zclient_dispatchEventFromJSONString(...) zclient_dispatchEventFromJSONStringWithAsset(__VA_ARGS__, NULL)
 #define zclient_dispatchEventFromJSONStringWithAsset(client, eventType, eventDescription, eventDataJSONString, assettName, ...) zclient_dispatchEventFromJSONString(client, eventType, eventDescription, eventDataJSONString, assettName)
