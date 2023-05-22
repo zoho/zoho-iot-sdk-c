@@ -152,6 +152,12 @@ static void InitMethod_WithTLS_NullClientCertificates_ShouldFail(void **State)
     assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, REFERENCE, "/usr/device_certificate.pem", NULL, NULL, ""), ZFAILURE);
 }
 
+static void InitConfigFileMethod_OnWrongUserNameFormat_ShouldFail(void **state)
+{
+    ZohoIOTclient client;
+    // Init returns Success by initialising client with proper arguments
+    assert_int_equal(zclient_init(&client, "/domain_name/v1/devices/Extraword", mqttPassword, REFERENCE, "", "", "", ""), ZFAILURE);
+}
 
 // CONNECT :
 
@@ -282,6 +288,16 @@ static void PublishMethod_WithPayloadSizeGreaterThanDefinedPayloadSize_ShouldFai
     zclient_setPayloadSize(&client,5);
     zclient_connect(&client);
     assert_int_equal(zclient_publish(&client, "1234567"), ZFAILURE);
+}
+
+static void PublishMethod_ShouldFail_If_Client_is_On_Disconnected_State(void **state)
+{
+    // Publish method with ClientDisconnect will fail.
+
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+     client.current_state = DISCONNECTED;
+    assert_int_equal(zclient_publish(&client, "payload"), ZFAILURE);
 }
 // DISPATCH :
 
@@ -435,6 +451,21 @@ static void DispatchEventFromJSONString_WithPayloadSizeGreaterThanDefinedPayload
     cJSON_AddNumberToObject(obj, "key1", 123);
     assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), ""), ZFAILURE);
 }
+static void DispatchEventFromJSONString_should_fail_when_MQTTPublish_is_not_Succeeded(void **state)
+{
+    // DispatchEvent from json string with properEventData with and without AssetName should Succeed.
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTPublish, ZFAILURE);
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_connect(&client);
+    cJSON *obj = cJSON_CreateObject();
+    cJSON_AddNumberToObject(obj, "key1", 123);
+    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), ""), ZFAILURE);
+    cJSON_AddStringToObject(obj, "key1", "value1");
+    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), "assetName"), ZFAILURE);
+}
 
 // PUBLISH COMMAND ACK
 
@@ -479,6 +510,18 @@ static void PublishCommandAck_WithNullOrEmptyproperArguments_ShouldFail(void **s
     assert_int_equal(zclient_publishCommandAck(&client, NULL, 1001, ""), ZFAILURE);
 }
 
+static void PublishCommandAck_WithoutMQTTPublish_ShouldFail(void **state)
+{
+    // PublishCommandAck with proper arguments should succeed.
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTPublish, ZFAILURE);
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_publishCommandAck(&client, ACK_SAMPLE_PAYLOAD, 1001, "response message"), ZFAILURE);
+    assert_int_equal(zclient_publishCommandAck(&client, ACK_SAMPLE_PAYLOAD, 1001, ""), ZFAILURE);
+}
 // SUBSCRIBE :
 
 static void SubscribeMethod_OnCallingBeforeInitialization_ShouldFail()
@@ -497,7 +540,7 @@ static void SubscribeMethod_OnNullArguments_ShouldFail(void **state)
     // Subscribe returns Failure for Null messageHandler .
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
-    assert_int_equal(zclient_command_subscribe(&client, NULL), -1);
+    assert_int_equal(zclient_command_subscribe(&client, NULL), ZFAILURE);
 }
 
 void message_handler(MessageData *data) {}
@@ -543,7 +586,7 @@ static void YieldMethod_OnNullArguments_ShouldFail(void **state)
     //Yield returns Failure for non positive timeout.
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
-    assert_int_equal(zclient_yield(&client, 0), ZFAILURE);
+    assert_int_equal(zclient_yield(&client,ZSUCCESS), ZFAILURE);
 }
 
 static void YieldMethod_OnNonNullArguments_ShouldSucceed(void **state)
@@ -659,38 +702,57 @@ static void AddNumberMethod_withEmptyAssetNameArgument_ShouldAddKeyToData(void *
 // ADD EVENTDATA NUMBER :
 static void AddEventDataNumber_WithProperArguments_ShouldSucceed(void **state)
 {
+     extern cJSON *eventDataObject;
+    eventDataObject=NULL;
     // AddEventDataNumber with Proper argument should add data to EventDataObject.
-    assert_int_equal(0, zclient_addEventDataNumber("key1", 123));
+    assert_int_equal(ZSUCCESS, zclient_addEventDataNumber("key1", 123));
 }
 
 static void AddEventDataNumber_WithImProperArguments_ShouldFail(void **state)
 {
     // AddEventDataNumber with ImProper arguments should Fail to add data to EventDataObject.
-    assert_int_equal(-1, zclient_addEventDataNumber(NULL, 123));
-    assert_int_equal(-1, zclient_addEventDataNumber("", 123));
+    assert_int_equal(ZFAILURE, zclient_addEventDataNumber(NULL, 123));
+    assert_int_equal(ZFAILURE, zclient_addEventDataNumber("", 123));
 }
 
-// ADD EVENTDATA STRING :
+
+static void AddEventDataString_InitializeEventDataObjectIsNull_WithProperArguments_ShouldSucceed(void **state)
+{
+    extern cJSON *eventDataObject;
+    eventDataObject=NULL;
+    assert_int_equal(ZSUCCESS, zclient_addEventDataString("key1", "value1"));
+}
+
 static void AddEventDataString_WithProperArguments_ShouldSucceed(void **state)
 {
     // AddEventDataString with Proper argument should add data to EventDataObject.
-    assert_int_equal(0, zclient_addEventDataString("key1", "value1"));
+    assert_int_equal(ZSUCCESS, zclient_addEventDataString("key1", "value1"));
 }
 
 static void AddEventDataString_WithImProperArguments_ShouldFail(void **state)
 {
     // AddEventDataString with ImProper arguments should Fail to add data to EventDataObject.
-    assert_int_equal(-1, zclient_addEventDataString("", "value1"));
-    assert_int_equal(-1, zclient_addEventDataString(NULL, "value1"));
-    assert_int_equal(-1, zclient_addEventDataString(NULL, NULL));
-    assert_int_equal(-1, zclient_addEventDataString(NULL, ""));
+    assert_int_equal(ZFAILURE, zclient_addEventDataString("", "value1"));
+    assert_int_equal(ZFAILURE, zclient_addEventDataString(NULL, "value1"));
+    assert_int_equal(ZFAILURE, zclient_addEventDataString(NULL, NULL));
+    assert_int_equal(ZFAILURE, zclient_addEventDataString(NULL, ""));
 }
 
 static void AddEventDataString_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void **state)
 {
     zclient_addEventDataString("key1", "value1");
-    assert_int_equal(0, zclient_addEventDataString("key1", "value2"));
+    assert_int_equal(ZSUCCESS, zclient_addEventDataString("key1", "value2"));
 }
+
+static void AddEventDataObject_InitializeEventDataObjectIsNull_WithProperArguments_ShouldSucceed(void ** states){
+     extern cJSON *eventDataObject;
+    eventDataObject=NULL;
+     cJSON* Object=cJSON_CreateObject();
+     zclient_addEventDataObject("key1", Object);
+    assert_int_equal(ZSUCCESS, zclient_addEventDataObject("key1", Object));
+    assert_int_equal(ZFAILURE, zclient_addEventDataObject("", Object));
+}
+
 // ADD STRING :
 
 static void AddStringMethod_CalledWithoutInitialization_ShouldFail(void **state)
@@ -716,7 +778,7 @@ static void AddStringMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_addString(&client, "str_key", "str_val1");
     zclient_addString(&client, "str_key", "str_val2");
-    assert_int_equal(strcmp("str_val2", cJSON_GetObjectItem(client.message.data, "str_key")->valuestring), 0);
+    assert_int_equal(strcmp("str_val2", cJSON_GetObjectItem(client.message.data, "str_key")->valuestring),ZSUCCESS);
 }
 
 static void AddStringMethod_withNonNullAssetNameArgument_ShouldAddKeyToAssetObject_InData(void **state)
@@ -726,7 +788,7 @@ static void AddStringMethod_withNonNullAssetNameArgument_ShouldAddKeyToAssetObje
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_addString(&client, "key1", "str_val1", "asset1");
     cJSON *assetObj = cJSON_GetObjectItem(client.message.data, "asset1");
-    assert_int_equal(strcmp("str_val1", cJSON_GetObjectItem(assetObj, "key1")->valuestring), 0);
+    assert_int_equal(strcmp("str_val1", cJSON_GetObjectItem(assetObj, "key1")->valuestring), ZSUCCESS);
 }
 
 static void AddStringMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void **state)
@@ -737,7 +799,7 @@ static void AddStringMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldS
     zclient_addString(&client, "key1", "str_val1", "asset1");
     zclient_addString(&client, "key1", "str_val2", "asset1");
     cJSON *assetObj = cJSON_GetObjectItem(client.message.data, "asset1");
-    assert_int_equal(strcmp("str_val2", cJSON_GetObjectItem(assetObj, "key1")->valuestring), 0);
+    assert_int_equal(strcmp("str_val2", cJSON_GetObjectItem(assetObj, "key1")->valuestring), ZSUCCESS);
 }
 
 static void AddStringMethod_withEmptyAssetNameArgument_ShouldAddKeyToData(void **state)
@@ -746,7 +808,7 @@ static void AddStringMethod_withEmptyAssetNameArgument_ShouldAddKeyToData(void *
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_addString(&client, "key1", "str_val1", "");
-    assert_int_equal(strcmp("str_val1", cJSON_GetObjectItem(client.message.data, "key1")->valuestring), 0);
+    assert_int_equal(strcmp("str_val1", cJSON_GetObjectItem(client.message.data, "key1")->valuestring), ZSUCCESS);
 }
 
 // MARK DATAPOINT ERROR :
@@ -757,7 +819,7 @@ static void MarkDataPointAsError_withNonNullAssetNameArgument_ShouldAddErrorValu
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_markDataPointAsError(&client, "key1", "asset1");
     cJSON *assetObj = cJSON_GetObjectItem(client.message.data, "asset1");
-    assert_int_equal(strcmp("<ERROR>", cJSON_GetObjectItem(assetObj, "key1")->valuestring), 0);
+    assert_int_equal(strcmp("<ERROR>", cJSON_GetObjectItem(assetObj, "key1")->valuestring), ZSUCCESS);
 }
 
 static void MarkDataPointAsError_withNoOrNullAssetNameArgument_ShouldAddErrorValueToDataPoint(void **state)
@@ -765,7 +827,7 @@ static void MarkDataPointAsError_withNoOrNullAssetNameArgument_ShouldAddErrorVal
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_markDataPointAsError(&client, "key1");
-    assert_int_equal(strcmp("<ERROR>", cJSON_GetObjectItem(client.message.data, "key1")->valuestring), 0);
+    assert_int_equal(strcmp("<ERROR>", cJSON_GetObjectItem(client.message.data, "key1")->valuestring),ZSUCCESS);
 }
 
 // RECONNECT :
@@ -809,7 +871,7 @@ static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTSubscribe, ZSUCCESS);
-    
+    will_return_always(__wrap_MQTTPublish, ZSUCCESS);
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     client.current_state = DISCONNECTED;
@@ -830,6 +892,94 @@ static void ReconnectMethod_OnLostConnection_ShouldExponentiallyIncrease(void **
     sleep(5);
     zclient_reconnect(&client);
     assert_int_equal(client.ZretryInterval, 4);
+}
+
+static void ReconnectMethod_WithMQTTPublishFailure_OnLostConnection_ShouldRetryAndFails(void **state)
+{
+    // Reconnect method with lost connection can Retry connection and succeed.
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTSubscribe, ZSUCCESS);
+    will_return_always(__wrap_MQTTPublish, ZFAILURE);
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    client.current_state = DISCONNECTED;
+    zclient_reconnect(&client);
+    sleep(3);
+    assert_int_equal(zclient_reconnect(&client), ZSUCCESS);
+}
+
+//Config Publish
+static void zclient_publishConfigAck_should_MQTT_NotConnected_ShouldFail(void ** state)
+{
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTPublish, ZFAILURE);
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_publishConfigAck(&client, ACK_SAMPLE_PAYLOAD, 1001, "response message"),ZFAILURE);
+}
+
+static void zclient_publishConfigAck_withProperArguments_shouldSuccess(void ** state)
+{
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTPublish, ZSUCCESS);
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_publishConfigAck(&client, ACK_SAMPLE_PAYLOAD, 1001, "response message"),ZSUCCESS);
+}
+
+static void zclient_publishConfigAck_withNoConnection_shouldFail(void ** state){
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    assert_int_equal(zclient_publishConfigAck(&client, NULL, 1001, "response message"),ZFAILURE);
+}
+
+//Config Subscribe
+static void  config_subscribe_WithNonNullArguments_ShouldSucceed(void **state)
+{
+    // Subscribe method returns success with appropriate connection.
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTSubscribe, ZSUCCESS);
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal( zclient_config_subscribe(&client, message_handler), ZSUCCESS);
+}
+
+static void  config_subscribe_WithLostConnection_ShouldFail(void **state)
+{
+    // Subscribe method returns success with appropriate connection.
+    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTSubscribe, ZFAILURE);
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal( zclient_config_subscribe(&client, message_handler), ZFAILURE);
+}
+
+static void ConfigSubscribeMethod_OnCallingBeforeInitialization_ShouldFail()
+{
+    // Subscribing with out initializing client would return FAILURE
+    ZohoIOTclient client;
+    messageHandler msghnd;
+    assert_int_equal(zclient_config_subscribe(&client, msghnd), -2);
+}
+
+static void ConfigSubscribeMethod_OnNullArguments_ShouldFail(void **state)
+{
+    // Subscribe returns Failure for Null Client .
+    messageHandler msghnd;
+    assert_int_equal(zclient_config_subscribe(NULL, msghnd), ZFAILURE);
+    // Subscribe returns Failure for Null messageHandler .
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    assert_int_equal(zclient_config_subscribe(&client, NULL), ZFAILURE);
 }
 
 //
@@ -916,6 +1066,7 @@ int main(void)
         cmocka_unit_test(InitConfigFileMethod_OnProperArguments_withImproperKeys_ShouldFail),
         cmocka_unit_test(InitConfigFileMethod_with_LogConfig_OnNullArguments_ShouldFail),
         cmocka_unit_test(InitConfigFileMethod_with_LogConfig_OnProperArguments_ShouldSucceed),
+        cmocka_unit_test(InitConfigFileMethod_OnWrongUserNameFormat_ShouldFail),
         cmocka_unit_test(ConnectMethod_OnCallingBeforeInitialization_ShouldFail),
         cmocka_unit_test(ConnectMethod_OnNullArguments_ShouldFail),
         cmocka_unit_test(ConnectMethod_OnConnectOverExistingConnetion_ShouldSucceed),
@@ -926,6 +1077,7 @@ int main(void)
         cmocka_unit_test(PublishMethod_OnCallingBeforeInitialization_ShouldFail),
         cmocka_unit_test(PublishMethod_WithLostConnection_ShouldFail),
         cmocka_unit_test(PublishMethod_WithNonNullArguments_ShouldSucceed),
+        cmocka_unit_test(PublishMethod_ShouldFail_If_Client_is_On_Disconnected_State),
         cmocka_unit_test(DispatchMethod_OnCallingBeforeInitialization_ShouldFail),
         cmocka_unit_test(DispatchMethod_OnNullArguments_ShouldFail),
         cmocka_unit_test(DispatchMethod_WithNoConnection_ShouldFail),
@@ -934,6 +1086,8 @@ int main(void)
         cmocka_unit_test(AddEventDataNumber_WithProperArguments_ShouldSucceed),
         cmocka_unit_test(AddEventDataString_WithImProperArguments_ShouldFail),
         cmocka_unit_test(AddEventDataString_WithProperArguments_ShouldSucceed),
+        cmocka_unit_test(AddEventDataString_InitializeEventDataObjectIsNull_WithProperArguments_ShouldSucceed),
+        cmocka_unit_test(AddEventDataObject_InitializeEventDataObjectIsNull_WithProperArguments_ShouldSucceed),
         cmocka_unit_test(DispatchEventFromEventDataObject_WithProperConnectionWithAndWithOutAssetName_ShouldSucceed),
         cmocka_unit_test(DispatchEventFromJSONString_WithImproperEventDataWithAndWithOutAssetName_ShouldFail),
         cmocka_unit_test(DispatchEventFromJSONString_WithproperEventDataWithAndWithOutAssetName_ShouldSucceed),
@@ -942,11 +1096,13 @@ int main(void)
         cmocka_unit_test(DispatchEventFromEventDataObject_OnCallingBeforeInitialization_ShouldFail),
         cmocka_unit_test(DispatchEventEventDataObject_WithNoConnection_ShouldFail),
         cmocka_unit_test(DispatchEventFromEventDataObject_WithImproperArgumentsOrEventDataWithAndWithOutAssetName_ShouldFail),
+        cmocka_unit_test(DispatchEventFromJSONString_should_fail_when_MQTTPublish_is_not_Succeeded),
         cmocka_unit_test(AddEventDataString_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
         cmocka_unit_test(PublishCommandAck_OnCallingBeforeInitialization_ShouldFail),
         cmocka_unit_test(PublishCommandAck_WithNoConnection_ShouldFail),
         cmocka_unit_test(PublishCommandAck_WithproperArguments_ShouldSucceed),
         cmocka_unit_test(PublishCommandAck_WithNullOrEmptyproperArguments_ShouldFail),
+        cmocka_unit_test(PublishCommandAck_WithoutMQTTPublish_ShouldFail),
         cmocka_unit_test(SubscribeMethod_OnCallingBeforeInitialization_ShouldFail),
         cmocka_unit_test(SubscribeMethod_OnNullArguments_ShouldFail),
         cmocka_unit_test(SubscribeMethod_WithNonNullArguments_ShouldSucceed),
@@ -975,6 +1131,7 @@ int main(void)
         cmocka_unit_test(ReconnectMethod_WithExistingConnection_ShouldSucceed),
         cmocka_unit_test(ReconnectMethod_OnNullArguments_ShouldFail),
         cmocka_unit_test(ReconnectMethod_OnCallingBeforeInitialization_ShouldFail),
+        cmocka_unit_test(ReconnectMethod_WithMQTTPublishFailure_OnLostConnection_ShouldRetryAndFails),
         cmocka_unit_test(ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed),
         cmocka_unit_test(ReconnectMethod_OnLostConnection_ShouldExponentiallyIncrease),
         cmocka_unit_test(GetRetryInterval_withNegativeValues_ShouldReturnDefaultValue),
@@ -985,6 +1142,13 @@ int main(void)
         cmocka_unit_test(WithoutCalling_SetPayloadSize_ShouldTakeDefaultPayloadSize),
         cmocka_unit_test(PublishMethod_WithPayloadSizeGreaterThanDefinedPayloadSize_ShouldFail),
         cmocka_unit_test(DispatchEventFromJSONString_WithPayloadSizeGreaterThanDefinedPayloadSize_ShouldFail),
+        cmocka_unit_test(zclient_publishConfigAck_should_MQTT_NotConnected_ShouldFail),
+        cmocka_unit_test(zclient_publishConfigAck_withProperArguments_shouldSuccess),
+        cmocka_unit_test(zclient_publishConfigAck_withNoConnection_shouldFail),
+        cmocka_unit_test(config_subscribe_WithNonNullArguments_ShouldSucceed),
+        cmocka_unit_test(config_subscribe_WithLostConnection_ShouldFail),
+        cmocka_unit_test(ConfigSubscribeMethod_OnCallingBeforeInitialization_ShouldFail),
+        cmocka_unit_test(ConfigSubscribeMethod_OnNullArguments_ShouldFail),
 
 #ifdef Z_SECURE_CONNECTION
         cmocka_unit_test(ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed),
