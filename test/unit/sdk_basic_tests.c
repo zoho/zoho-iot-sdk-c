@@ -767,7 +767,8 @@ static void AddStringMethod_OnNullArguments_ShouldFail(void **state)
     // AddString with null key/value returns FAILURE
     ZohoIOTclient client;
     int rc = zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
-    zclient_addString(NULL, "Key", "value");
+    assert_int_equal(zclient_addString(NULL, "Key", "value"), ZFAILURE);
+    assert_int_equal(zclient_addString(&client, NULL,"value"), ZFAILURE);
     assert_int_equal(zclient_addString(&client, "Key", NULL), ZFAILURE);
 }
 
@@ -982,6 +983,53 @@ static void ConfigSubscribeMethod_OnNullArguments_ShouldFail(void **state)
     assert_int_equal(zclient_config_subscribe(&client, NULL), ZFAILURE);
 }
 
+//add Object
+static void AddObjectMethod_CalledWithoutInitialization_ShouldFail(void **state)
+{   
+    cJSON *obj = cJSON_CreateObject();
+    // Client must be initialized to add string to cjson payload.
+    ZohoIOTclient client;
+    assert_int_equal(zclient_addObject(&client, "key1", obj), -2);
+}
+
+static void AddObjectMethod_OnNullArguments_ShouldFail(void **state)
+{   
+    cJSON *obj = cJSON_CreateObject();
+    // AddObject with null key/value returns FAILURE
+    ZohoIOTclient client;
+    int rc = zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    assert_int_equal(zclient_addObject(&client, "", obj), ZFAILURE);
+}
+
+static void AddObjectMethod_withNonNullAssetNameArgument_ShouldSucceed(void **state)
+{   
+    cJSON *obj = cJSON_CreateObject();
+    // AddObject with non-null asset name argument should add value to asset name in data.
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    assert_int_equal(zclient_addObject(&client, "key1", obj, "asset1"), ZSUCCESS);
+}
+
+static void AddObjectMethod_withEmptyAssetNameArgument_ShouldSucceed(void **state)
+{   
+    cJSON *obj = cJSON_CreateObject();
+    // AddObject with empty asset name argument on adding key should add key to data.
+    ZohoIOTclient client;
+    zclient_init(&client,mqttUserName, " mqttPassword ", EMBED, "", "", "", "");
+    assert_int_equal(zclient_addObject(&client, "key1", obj, ""), ZSUCCESS);
+}
+
+static void AddObjectMethod_OnAddingSamekey_ShouldSucceed(void **state)
+{
+    cJSON *obj = cJSON_CreateObject();
+    // AddObject with same key returns SUCCESS , old value gets replaced.
+    ZohoIOTclient client;
+    cJSON *obj_2 = cJSON_CreateObject();
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_addObject(&client, "str_key", obj);
+    assert_int_equal(zclient_addObject(&client, "str_key", obj_2),ZSUCCESS);
+}
+
 //
 //// SET RETRY COUNT : Retry mechanism changed to indefinite exponential retry.
 //
@@ -1149,6 +1197,11 @@ int main(void)
         cmocka_unit_test(config_subscribe_WithLostConnection_ShouldFail),
         cmocka_unit_test(ConfigSubscribeMethod_OnCallingBeforeInitialization_ShouldFail),
         cmocka_unit_test(ConfigSubscribeMethod_OnNullArguments_ShouldFail),
+        cmocka_unit_test(AddObjectMethod_CalledWithoutInitialization_ShouldFail),
+        cmocka_unit_test(AddObjectMethod_OnNullArguments_ShouldFail),
+        cmocka_unit_test(AddObjectMethod_withNonNullAssetNameArgument_ShouldSucceed),
+        cmocka_unit_test(AddObjectMethod_withEmptyAssetNameArgument_ShouldSucceed),
+        cmocka_unit_test(AddObjectMethod_OnAddingSamekey_ShouldSucceed),
 
 #ifdef Z_SECURE_CONNECTION
         cmocka_unit_test(ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed),
