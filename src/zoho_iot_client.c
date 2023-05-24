@@ -899,6 +899,7 @@ int zclient_addString(ZohoIOTclient *client, char *key, char *val_string, char *
             rc = ZFAILURE;
         }
     }
+    //TODO: null check for object required
     else
     {
         cJSON_ReplaceItemInObject(obj, key, cJSON_CreateString(val_string));
@@ -919,6 +920,7 @@ int zclient_addObject(ZohoIOTclient *client, char *key, cJSON* val_object, char 
     }
     cJSON *obj = addAssetNameTopayload(client, assetName);
     rc = ZSUCCESS;
+    //TODO: null check for object required
     if (!cJSON_HasObjectItem(obj, key))
     {
         cJSON_AddItemToObject(obj, key, val_object);
