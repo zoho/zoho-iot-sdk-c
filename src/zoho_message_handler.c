@@ -42,6 +42,7 @@ void onMessageReceived(MessageData *md)
             pubmsg.payloadlen = strlen(pubmsg.payload);
             MQTTPublish(&(iot_client->mqtt_client), handler_COMMAND_ACK_TOPIC, &pubmsg);
             cJSON_Delete(commandAckObject);
+            free(pubmsg.payload);
             on_command_message_handler(md);
         }
     }
@@ -58,6 +59,7 @@ void onMessageReceived(MessageData *md)
             pubmsg.payloadlen = strlen(pubmsg.payload);
             MQTTPublish(&(iot_client->mqtt_client), handler_CONFIG_ACK_TOPIC, &pubmsg);
             cJSON_Delete(configAckObject);
+            free(pubmsg.payload);
             on_config_message_handler(md);
         }
     }
