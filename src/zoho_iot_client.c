@@ -165,7 +165,7 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     return ZSUCCESS;
 }
 
-int zclient_setPayloadSize(ZohoIOTclient *iot_client,int size)
+int zclient_setMaxPayloadSize(ZohoIOTclient *iot_client,int size)
 {
     if(size > MAX_PAYLOAD_SIZE)
     {
@@ -362,13 +362,14 @@ int zclient_reconnect(ZohoIOTclient *client)
                 rc = MQTTPublish(&(client->mqtt_client), failedACK.topic, &pubmsg);
                 if(rc == ZSUCCESS)
                 {
-                    log_debug("Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", cJSON_Print(failedACK.ackPayload), failedACK.topic);
-                    free(failedACK.ackPayload);
+                    log_debug("Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, failedACK.topic);
+                    cJSON_Delete(failedACK.ackPayload);
                     retryACK =false;
                 }
                 else{
                     log_error("Error publishing Ack, Error code: %d", rc);
                 }
+                free(pubmsg.payload);
                 
             }
             return ZSUCCESS;
@@ -448,7 +449,9 @@ int zclient_dispatch(ZohoIOTclient *client)
     //TODO: Add time stamp, Client ID
     char *payload = cJSON_Print(client->message.data);
     int status = zclient_publish(client, payload);
-    cJSON_free(payload);
+    free(payload);
+    cJSON_Delete(client->message.data);
+    client->message.data= NULL;
     return status;
 }
 
@@ -650,6 +653,8 @@ int zclient_publishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckR
     {
         log_error("Error on publishing command Ack. Error code: %d", rc);
     }
+    cJSON_Delete(Ack_payload);
+    free(pubmsg.payload);
     return rc;
 }
 int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage)
@@ -832,6 +837,11 @@ int zclient_disconnect(ZohoIOTclient *client)
 
 cJSON *addAssetNameTopayload(ZohoIOTclient *client, char *assetName)
 {
+    if(client->message.data == NULL)
+    {
+      client->message.data =cJSON_CreateObject();  
+    }
+
     if (isStringValid(assetName))
     {
         if (!cJSON_HasObjectItem(client->message.data, assetName))
@@ -921,13 +931,14 @@ int zclient_addObject(ZohoIOTclient *client, char *key, cJSON* val_object, char 
     cJSON *obj = addAssetNameTopayload(client, assetName);
     rc = ZSUCCESS;
     //TODO: null check for object required
+    cJSON* val_object_copy = cJSON_Duplicate(val_object, 1);  
     if (!cJSON_HasObjectItem(obj, key))
     {
-        cJSON_AddItemToObject(obj, key, val_object);
+        cJSON_AddItemToObject(obj, key, val_object_copy);
     }
     else
     {
-        cJSON_ReplaceItemInObject(obj, key,val_object);
+        cJSON_ReplaceItemInObject(obj, key,val_object_copy);
     }
     return rc;
 }

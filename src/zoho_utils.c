@@ -1,8 +1,22 @@
 #include "zoho_utils.h"
 #include <cJSON.h>
+#include "zoho_log.h"
 void cloneString(char **clone, char *source)
 {
-  *clone = cJSON_CreateString(source)->valuestring;
+    if (source == NULL) {
+        *clone = NULL;
+        return;
+    }
+
+    size_t length = strlen(source);
+    *clone = (char *)malloc((length + 1) * sizeof(char)); // +1 for the null terminator
+    if (*clone == NULL) {
+        // Failed to allocate memory
+        log_error("Failed to allocate memory for string clone");
+        return;
+    }
+
+    strcpy(*clone, source);
 }
 
 char *trim(char *s)
