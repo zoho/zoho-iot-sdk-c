@@ -95,6 +95,7 @@ void log_initialize(ZlogConfig *logConfig)
   }
   else
   {
+    log_free();
     log_set_quiet(logConfig->setQuiet);
     log_set_fileLog(logConfig->enableFileLog);
     (logConfig->logPath == NULL || !isStringValid(logConfig->logPath)) ? log_set_logPath(LOG_PATH) : log_set_logPath(logConfig->logPath);
