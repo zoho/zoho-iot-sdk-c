@@ -56,6 +56,8 @@ typedef struct
     char *MqttUserName;
     int retry_limit;
     int payload_size;
+    char *mqttBuff;
+    char *mqttReadBuff;
 } Zconfig;
 
 #if defined(Z_SECURE_CONNECTION)

@@ -239,7 +239,16 @@ int zclient_connect(ZohoIOTclient *client)
         return ZSUCCESS;
     }
     unsigned const int buff_size = client->config.payload_size;
-    unsigned char buf[buff_size], readbuf[buff_size];
+    if(client->config.mqttBuff != NULL)
+    {
+        free(client->config.mqttBuff);
+    }
+    if(client->config.mqttReadBuff != NULL)
+    {
+        free(client->config.mqttReadBuff);
+    }
+    client->config.mqttBuff = (char*)malloc(buff_size);
+    client->config.mqttReadBuff = (char*)malloc(buff_size);
 
     log_info("Preparing Network..");
     NetworkInit(&n);
@@ -257,12 +266,12 @@ int zclient_connect(ZohoIOTclient *client)
 
     //TODO: Handle the rc of ConnectNetwork().
     log_info("Connecting to \x1b[32m %s : %d \x1b[0m", client->config.hostname, ZPORT);
-    MQTTClientInit(&client->mqtt_client, &n, 10000, buf, buff_size, readbuf, buff_size);
+    MQTTClientInit(&client->mqtt_client, &n, 10000, client->config.mqttBuff, buff_size, client->config.mqttReadBuff, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
 
     conn_data.MQTTVersion = 4;
     conn_data.cleansession = 1; //TODO: tobe confirmed with Hub
-    conn_data.keepAliveInterval = 120;
+    conn_data.keepAliveInterval = 60;
     conn_data.clientID.cstring = client->config.client_id;
     conn_data.willFlag = 0;
 
@@ -385,6 +394,7 @@ int zclient_reconnect(ZohoIOTclient *client)
             return ZCONNECTION_ERROR;
         }
     }
+    usleep(200000);
     return ZFAILURE;
 }
 
@@ -993,4 +1003,31 @@ cJSON* generateACKPayload(char* payload,ZcommandAckResponseCodes status_code, ch
     }
     cJSON_Delete(commandMessageArray);
     return NULL;
+}
+int zclient_free(ZohoIOTclient *client)
+{
+    if (client == NULL)
+    {
+        log_error("Client object is NULL");
+        return ZFAILURE;
+    }
+    if (client->current_state == CONNECTED)
+    {
+        zclient_disconnect(client);
+    }
+    free(client->config.hostname);
+    free(client->config.client_id);
+    free(client->config.auth_token);
+    free(client->config.MqttUserName);
+    free(client->config.mqttBuff);
+    free(client->config.mqttReadBuff);
+    if(client->message.data != NULL)
+    {
+        cJSON_Delete(client->message.data);
+    }
+    if(eventDataObject != NULL)
+    {
+        cJSON_Delete(eventDataObject);
+    }
+    return ZSUCCESS;
 }
