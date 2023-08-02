@@ -285,7 +285,7 @@ static void PublishMethod_WithPayloadSizeGreaterThanDefinedPayloadSize_ShouldFai
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
-    zclient_setPayloadSize(&client,5);
+    zclient_setMaxPayloadSize(&client,5);
     zclient_connect(&client);
     assert_int_equal(zclient_publish(&client, "1234567"), ZFAILURE);
 }
@@ -395,7 +395,7 @@ static void DispatchEventFromJSONString_OnCallingBeforeInitialization_ShouldFail
     ZohoIOTclient client;
     cJSON *obj = cJSON_CreateObject();
     cJSON_AddNumberToObject(obj, "key1", 123);
-    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), ""), -2);
+    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), ""), ZFAILURE);
 }
 
 static void DispatchEventFromJSONString_WithNoConnection_ShouldFail(void **state)
@@ -445,7 +445,7 @@ static void DispatchEventFromJSONString_WithPayloadSizeGreaterThanDefinedPayload
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
-    zclient_setPayloadSize(&client,5);
+    zclient_setMaxPayloadSize(&client,5);
     zclient_connect(&client);
     cJSON *obj = cJSON_CreateObject();
     cJSON_AddNumberToObject(obj, "key1", 123);
@@ -1063,38 +1063,38 @@ static void AddObjectMethod_OnAddingSamekey_ShouldSucceed(void **state)
 //    assert_int_equal(client.config.retry_limit, 10);
 //}
 
-static void SetPayloadSize_withValueGreaterthenMaxPayloadSize_ShouldTakeMaxPayloadSize(void **state)
+static void SetMaxPayloadSize_withValueGreaterthenMaxPayloadSize_ShouldTakeMaxPayloadSize(void **state)
 {
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     //client->config->payload_size set to MAX_PAYLOAD_SIZE if the value given is greater than max payload
-    zclient_setPayloadSize(&client,150000);
+    zclient_setMaxPayloadSize(&client,150000);
     assert_int_equal(client.config.payload_size, MAX_PAYLOAD_SIZE);
 
 }
 
-static void SetPayloadSize_withValuelesserthenOne_ShouldTakeDefaultPayloadSize(void **state)
+static void SetMaxPayloadSize_withValuelesserthenOne_ShouldTakeDefaultPayloadSize(void **state)
 {
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     //client->config->payload_size set to DEFAULT_PAYLOAD_SIZE if the value given is lesser than one
-    zclient_setPayloadSize(&client,0);
+    zclient_setMaxPayloadSize(&client,0);
     assert_int_equal(client.config.payload_size, DEFAULT_PAYLOAD_SIZE);
 
 }
 
-static void SetPayloadSize_withProperValue_ShouldTakeProperValue(void **state)
+static void SetMaxPayloadSize_withProperValue_ShouldTakeProperValue(void **state)
 {
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     //client->config->payload_size set to given value if the given value is in range 1 to max payload
     int size = (rand() % (MAX_PAYLOAD_SIZE - 1 + 1)) + 1;
-    zclient_setPayloadSize(&client,size);
+    zclient_setMaxPayloadSize(&client,size);
     assert_int_equal(client.config.payload_size, size);
 
 }
 
-static void WithoutCalling_SetPayloadSize_ShouldTakeDefaultPayloadSize(void **state)
+static void WithoutCalling_SetMaxPayloadSize_ShouldTakeDefaultPayloadSize(void **state)
 {
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
@@ -1184,10 +1184,10 @@ int main(void)
         cmocka_unit_test(ReconnectMethod_OnLostConnection_ShouldExponentiallyIncrease),
         cmocka_unit_test(GetRetryInterval_withNegativeValues_ShouldReturnDefaultValue),
         cmocka_unit_test(GetRetryInterval_withValuesGreaterthenMaxRetryInterval_ShouldReturnDefaultValue),
-        cmocka_unit_test(SetPayloadSize_withValueGreaterthenMaxPayloadSize_ShouldTakeMaxPayloadSize),
-        cmocka_unit_test(SetPayloadSize_withValuelesserthenOne_ShouldTakeDefaultPayloadSize),
-        cmocka_unit_test(SetPayloadSize_withProperValue_ShouldTakeProperValue),
-        cmocka_unit_test(WithoutCalling_SetPayloadSize_ShouldTakeDefaultPayloadSize),
+        cmocka_unit_test(SetMaxPayloadSize_withValueGreaterthenMaxPayloadSize_ShouldTakeMaxPayloadSize),
+        cmocka_unit_test(SetMaxPayloadSize_withValuelesserthenOne_ShouldTakeDefaultPayloadSize),
+        cmocka_unit_test(SetMaxPayloadSize_withProperValue_ShouldTakeProperValue),
+        cmocka_unit_test(WithoutCalling_SetMaxPayloadSize_ShouldTakeDefaultPayloadSize),
         cmocka_unit_test(PublishMethod_WithPayloadSizeGreaterThanDefinedPayloadSize_ShouldFail),
         cmocka_unit_test(DispatchEventFromJSONString_WithPayloadSizeGreaterThanDefinedPayloadSize_ShouldFail),
         cmocka_unit_test(zclient_publishConfigAck_should_MQTT_NotConnected_ShouldFail),
