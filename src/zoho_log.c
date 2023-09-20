@@ -102,7 +102,7 @@ void log_initialize(ZlogConfig *logConfig)
     (logConfig->logPrefix == NULL || !isStringValid(logConfig->logPrefix)) ? log_set_logPrefix(LOG_PREFIX) : log_set_logPrefix(logConfig->logPrefix);
     (logConfig->maxLogFileSize <= MAX_LOG_FILE_SIZE) ? log_set_maxLogSize(MAX_LOG_FILE_SIZE) : log_set_maxLogSize(logConfig->maxLogFileSize);
     log_set_maxRollingLog(logConfig->maxRollingLogFile);
-    logConfig->level == NULL ?  log_set_level(Z_LOG_LEVEL):log_set_level(logConfig->level);
+    (logConfig->level >= 0 && logConfig->level <= 5) ? log_set_level(logConfig->level):log_set_level(Z_LOG_LEVEL);
   }
   if (Zlog.fileLog)
   {
