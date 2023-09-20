@@ -145,6 +145,7 @@ int zclient_addObject(ZohoIOTclient *client, char *key, cJSON* val_object, char 
 
 cJSON* zclient_FormReceivedACK(char* payload);
 
+int zclient_free(ZohoIOTclient *client);
 //int zclient_setRetrycount(ZohoIOTclient *client, int count);
 //char *zclient_getpayload();
 #endif //# ZOHO_IOT_CLIENT_H_

@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 #define LOG_PATH "./"
 #define LOG_PREFIX "zoho_SDK_logs"
