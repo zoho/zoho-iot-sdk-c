@@ -277,12 +277,12 @@ int zclient_connect(ZohoIOTclient *client)
 
     //TODO: Handle the rc of ConnectNetwork().
     log_info("Connecting to \x1b[32m %s : %d \x1b[0m", client->config.hostname, ZPORT);
-    MQTTClientInit(&client->mqtt_client, &n, 10000, client->config.mqttBuff, buff_size, client->config.mqttReadBuff, buff_size);
+    MQTTClientInit(&client->mqtt_client, &n, 30000, client->config.mqttBuff, buff_size, client->config.mqttReadBuff, buff_size);
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
 
     conn_data.MQTTVersion = 4;
     conn_data.cleansession = 1; //TODO: tobe confirmed with Hub
-    conn_data.keepAliveInterval = 60;
+    conn_data.keepAliveInterval = 120;
     conn_data.clientID.cstring = client->config.client_id;
     conn_data.willFlag = 0;
 
