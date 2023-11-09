@@ -9,9 +9,55 @@
 
 #include "zoho_log.h"
 #include "zoho_utils.h"
+#if defined(Z_LOG_COMPRESS)
+#include <zlib.h>
+#endif
 
 // common static logconfig structure that the user can get using the function getZlogger() and configure the logging properties
 static ZlogConfig logConfig;
+
+#if defined(Z_LOG_COMPRESS)
+bool enable_log_compression = false;
+#define CHUNK 16384  
+void compressAndSaveFile(const char *sourceFileName, const char *compressedFileName) {
+    gzFile compressedFile = gzopen(compressedFileName, "wb");
+    FILE *sourceFile = fopen(sourceFileName, "rb");
+
+    if (compressedFile == NULL || sourceFile == NULL) {
+        if (compressedFile)
+        {
+         gzclose(compressedFile);
+         log_error("can't able to create compress file %s",compressedFile);
+        }
+        if (sourceFile)
+        {
+         fclose(sourceFile);
+         log_error("can't able to open source file %s",sourceFile);
+        }
+        return;
+    }
+
+    char buffer[CHUNK];
+    size_t bytesRead;
+
+    while ((bytesRead = fread(buffer, 1, sizeof(buffer), sourceFile)) > 0) {
+        if (gzwrite(compressedFile, buffer, bytesRead) == 0) {
+            log_fatal("compression error");
+            break;
+        }
+    }
+
+    gzclose(compressedFile);
+    fclose(sourceFile);
+
+    if (bytesRead != 0) {
+      log_error("corrupted compressed file, removing it");
+      remove(compressedFileName); 
+    } else {
+        remove(sourceFileName); 
+    }
+}
+#endif
 
 static void lock(void)
 {
@@ -81,6 +127,7 @@ void log_set_maxRollingLog(int size)
 
 void log_initialize(ZlogConfig *logConfig)
 {
+  log_free();
   //TODO: make ERROR as default level
   log_set_level(Z_LOG_LEVEL);
   if (logConfig == NULL)
@@ -95,14 +142,50 @@ void log_initialize(ZlogConfig *logConfig)
   }
   else
   {
-    log_free();
     log_set_quiet(logConfig->setQuiet);
     log_set_fileLog(logConfig->enableFileLog);
     (logConfig->logPath == NULL || !isStringValid(logConfig->logPath)) ? log_set_logPath(LOG_PATH) : log_set_logPath(logConfig->logPath);
     (logConfig->logPrefix == NULL || !isStringValid(logConfig->logPrefix)) ? log_set_logPrefix(LOG_PREFIX) : log_set_logPrefix(logConfig->logPrefix);
-    (logConfig->maxLogFileSize <= MAX_LOG_FILE_SIZE) ? log_set_maxLogSize(MAX_LOG_FILE_SIZE) : log_set_maxLogSize(logConfig->maxLogFileSize);
     log_set_maxRollingLog(logConfig->maxRollingLogFile);
     (logConfig->level >= 0 && logConfig->level <= 5) ? log_set_level(logConfig->level):log_set_level(Z_LOG_LEVEL);
+    if(logConfig->logCompress == true)
+    {
+      #if defined(Z_LOG_COMPRESS)
+      log_info("Enabled Log compression");
+      log_free();
+      enable_log_compression = true;
+      #else
+      log_warn("Log compression lib not included, continuing on without compression");
+      log_free();
+      #endif
+    }
+    #if defined(Z_LOG_COMPRESS)
+    if(enable_log_compression)
+    {
+      log_set_maxLogSize(logConfig->maxLogFileSize);
+    }
+    #endif
+    if(logConfig->maxLogFileSize <= MAX_LOG_FILE_SIZE)
+    {
+      if(logConfig->maxLogFileSize <= MIN_LOG_FILE_SIZE)
+      {
+          log_set_maxLogSize(MIN_LOG_FILE_SIZE);
+          log_warn("Log File size is lesserthan Mn file size \n continuing on default min size %d bytes",MIN_LOG_FILE_SIZE);
+          log_free();
+      }
+      else
+      {
+        log_set_maxLogSize(logConfig->maxLogFileSize);
+        log_info("Log File size: %d bytes",logConfig->maxLogFileSize);
+        log_free();
+      }
+    }
+    else
+    {
+      log_warn("Log File size is greaterthan Max file size \n continuing on default max size %d bytes",MAX_LOG_FILE_SIZE);
+      log_free();
+      log_set_maxLogSize(MAX_LOG_FILE_SIZE);
+    }
   }
   if (Zlog.fileLog)
   {
@@ -217,13 +300,47 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
         {
           if (i == 0)
           {
+            #if defined(Z_LOG_COMPRESS)
+            if(enable_log_compression)
+            {
+              sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, ".gz");
+              char compLogFile[100];
+              sprintf(compLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
+              compressAndSaveFile(compLogFile,currentLogFile);
+            }
+            else{
+              sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
+            }
+            #else
             sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
+            #endif
+
           }
           else
           {
+            #if defined(Z_LOG_COMPRESS)
+            if(enable_log_compression)
+            {
+              sprintf(currentLogFile, "%s%s-%d%s", Zlog.logPath, Zlog.logPrefix, i, ".gz");
+            }
+            else{
+              sprintf(currentLogFile, "%s%s-%d%s", Zlog.logPath, Zlog.logPrefix, i, LOG_FORMAT);
+            }
+            #else
             sprintf(currentLogFile, "%s%s-%d%s", Zlog.logPath, Zlog.logPrefix, i, LOG_FORMAT);
+            #endif
           }
+          #if defined(Z_LOG_COMPRESS)
+          if(enable_log_compression)
+          {
+            sprintf(tempFile, "%s%s-%d%s", Zlog.logPath, Zlog.logPrefix, i + 1, ".gz");
+          }
+          else{
+            sprintf(tempFile, "%s%s-%d%s", Zlog.logPath, Zlog.logPrefix, i + 1, LOG_FORMAT);
+          }
+          #else
           sprintf(tempFile, "%s%s-%d%s", Zlog.logPath, Zlog.logPrefix, i + 1, LOG_FORMAT);
+          #endif
           rename(currentLogFile, tempFile);
         }
       }

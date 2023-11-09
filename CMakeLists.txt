@@ -42,7 +42,7 @@ SET(Z_LOG_LEVEL LOG_DEBUG)
 
 # Enable file logging with default SDK configuration, Can be overridden in the apllication using the ZlogConfig struct. 
 OPTION(Z_ENABLE_LOGGING "Create logs for Application" OFF)
-
+OPTION(Z_LOG_COMPRESS "Compress the rolling log" OFF)
 # Build mode, should be disabled on Production build.
 #DEBUG param is required for code coverage report generation.
 SET(CMAKE_BUILD_TYPE DEBUG)
@@ -56,6 +56,16 @@ MESSAGE(STATUS "TLS SUPPORT : " ${Z_ENABLE_TLS})
 MESSAGE(STATUS "USE CLIENT CERTS : " ${Z_USE_CLIENT_CERTS})
 MESSAGE(STATUS "LOG LEVEL : " ${Z_LOG_LEVEL})
 MESSAGE(STATUS "GENERATE APPLICATION LOGS : " ${Z_ENABLE_LOGGING})
+
+INCLUDE (TestBigEndian)
+TEST_BIG_ENDIAN(IS_BIG_ENDIAN)
+IF(IS_BIG_ENDIAN)
+    MESSAGE(STATUS "BIG_ENDIAN")
+    LIST(APPEND FEATURES "-DREVERSED") 
+ELSE()
+    MESSAGE(STATUS "LITTLE_ENDIAN")
+ENDIF()
+
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 
@@ -102,10 +112,23 @@ LIST(APPEND SDK_DEPENDENCIES
             ${CJSON_SOURCES}
             ${Z_IOT_SOURCES})
 
+IF(Z_LOG_COMPRESS)
+    LIST(APPEND FEATURES "-DZ_LOG_COMPRESS")
+ENDIF(Z_LOG_COMPRESS)
 # TODO: Add configurable STATIC/DYNAMIC option.
 ADD_LIBRARY(zoho_iot_sdk STATIC ${SDK_DEPENDENCIES})
 TARGET_COMPILE_DEFINITIONS(zoho_iot_sdk PUBLIC ${FEATURES})
-TARGET_LINK_LIBRARIES(zoho_iot_sdk)
+
+IF(Z_LOG_COMPRESS)
+    IF(Z_STATIC_ZLIB)
+    INCLUDE(${PROJECT_SOURCE_DIR}/cmake/zlib.cmake)
+        TARGET_LINK_LIBRARIES(zoho_iot_sdk zlib)
+    ELSE()
+        TARGET_LINK_LIBRARIES(zoho_iot_sdk z)
+    ENDIF(Z_STATIC_ZLIB)
+ELSE()
+    TARGET_LINK_LIBRARIES(zoho_iot_sdk)
+ENDIF(Z_LOG_COMPRESS)
 
 IF (BUILD_EXPORTABLE_LIB)
     add_custom_command(TARGET zoho_iot_sdk PRE_BUILD
