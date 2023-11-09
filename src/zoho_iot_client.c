@@ -382,7 +382,8 @@ int zclient_reconnect(ZohoIOTclient *client)
                 rc = MQTTPublish(&(client->mqtt_client), failedACK.topic, &pubmsg);
                 if(rc == ZSUCCESS)
                 {
-                    log_debug("Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, failedACK.topic);
+                    log_debug("\x1b[36m Failed ACK published \x1b[0m");
+                    log_trace("ACK published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, failedACK.topic);
                     cJSON_Delete(failedACK.ackPayload);
                     retryACK =false;
                 }
@@ -441,7 +442,8 @@ int zclient_publish(ZohoIOTclient *client, char *payload)
     //TODO: check for connection and retry to send the message once the conn got restroed.
     if (rc == ZSUCCESS)
     {
-        log_debug("Published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, dataTopic);
+        log_debug("\x1b[36m Telemetry Message Published \x1b[0m");
+        log_trace("Published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, dataTopic);
     }
     else if (client->mqtt_client.isconnected == 0)
     {
@@ -624,7 +626,8 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
     //TODO: check for connection and retry to send the message once the conn got restroed.
     if (rc == ZSUCCESS)
     {
-        log_debug("Event dispatched \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, eventTopic);
+        log_debug("\x1b[36m Event Message Published \x1b[0m");
+        log_trace("Event dispatched \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, eventTopic);
     }
     else if (client->mqtt_client.isconnected == 0)
     {
@@ -660,7 +663,8 @@ int zclient_publishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckR
     rc = MQTTPublish(&(client->mqtt_client), commandAckTopic, &pubmsg);
     if (rc == ZSUCCESS)
     {
-        log_debug("Command Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, commandAckTopic);
+        log_debug("\x1b[36m Command ACK Published \x1b[0m");
+        log_trace("Command Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, commandAckTopic);
     }
     else if (client->mqtt_client.isconnected == 0)
     {
@@ -700,7 +704,8 @@ int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckRe
     rc = MQTTPublish(&(client->mqtt_client), configAckTopic, &pubmsg);
     if (rc == ZSUCCESS)
     {
-        log_debug("Config Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, configAckTopic);
+        log_debug("\x1b[36m Config ACK Published \x1b[0m");
+        log_trace("Config Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, configAckTopic);
     }
     else if (client->mqtt_client.isconnected == 0)
     {
