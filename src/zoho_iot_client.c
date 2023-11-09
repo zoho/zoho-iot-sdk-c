@@ -267,6 +267,11 @@ int zclient_connect(ZohoIOTclient *client)
     if (rc != ZSUCCESS)
     {
         log_error("Error Connecting Network.. %d ", rc);
+        if(rc == -11)
+        {
+            log_fatal("Rebooting Because of Time Rest\n\n\n");
+            exit(0);
+        }
         return ZFAILURE;
     }
 
