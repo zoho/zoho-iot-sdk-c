@@ -19,6 +19,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "zoho_log.h"
+
+extern bool paho_debug;
 
 static void NewMessageData(MessageData* md, MQTTString* aTopicName, MQTTMessage* aMessage) {
     md->topicName = aTopicName;
@@ -35,21 +38,40 @@ static int sendPacket(MQTTClient* c, int length, Timer* timer)
 {
     int rc = FAILURE,
         sent = 0;
-
+    if(paho_debug){
+        log_debug("Timer left: %d ms", TimerLeftMS(timer));
+    }
     while (sent < length && !TimerIsExpired(timer))
     {
         rc = c->ipstack->mqttwrite(c->ipstack, &c->buf[sent], length, TimerLeftMS(timer));
-        if (rc < 0)  // there was an error writing the data
+        if (rc < 0){  // there was an error writing the data
+            if(paho_debug){
+                log_error("Error writing data. rc: %d", rc);
+            }
             break;
+        }
         sent += rc;
+        if(paho_debug){
+            log_debug("Iteration: sent=%d, length=%d, rc=%d", sent, length, rc);
+            log_debug("Timer left: %d ms", TimerLeftMS(timer));
+        }
     }
+    //log_debug("Buffer content: %02X %02X %02X %02X", c->buf[0], c->buf[1], c->buf[2], c->buf[3]);
     if (sent == length)
     {
         TimerCountdown(&c->last_sent, c->keepAliveInterval); // record the fact that we have successfully sent the packet
         rc = SUCCESS;
+        if(paho_debug){
+            log_debug("Sent %d bytes successfully", length);
+        }
     }
     else
+    {
         rc = FAILURE;
+        if(paho_debug){
+            log_error("Failed to send the complete packet");
+        }
+    }
     return rc;
 }
 
@@ -126,6 +148,10 @@ static int readPacket(MQTTClient* c, Timer* timer)
 
     if (rem_len > (c->readbuf_size - len))
     {
+        if(paho_debug)
+        {
+            log_error("Remain length is greater than buffer size");
+        }
         rc = BUFFER_OVERFLOW;
         goto exit;
     }
@@ -223,9 +249,15 @@ int keepalive(MQTTClient* c)
         else
         {
             Timer timer;
+            if(paho_debug){
+                log_trace("Starting timer for keepalive check");
+            }
             TimerInit(&timer);
             TimerCountdownMS(&timer, 1000);
             int len = MQTTSerialize_pingreq(c->buf, c->buf_size);
+            if(paho_debug){
+                log_debug("Sending PINGREQ packet");
+            }
             if (len > 0 && (rc = sendPacket(c, len, &timer)) == SUCCESS) // send the ping packet
                 c->ping_outstanding = 1;
         }
@@ -270,9 +302,24 @@ int cycle(MQTTClient* c, Timer* timer)
         case 0: /* timed out reading packet */
             break;
         case CONNACK:
+            if(paho_debug){
+                log_debug("Received a CONNACK packet");
+            }
+            break;
         case PUBACK:
+            if(paho_debug){
+                log_debug("Received a PUBACK packet");
+            }
+            break;
         case SUBACK:
+            if(paho_debug){
+                log_debug("Received a SUBACK packet");
+            }
+            break;
         case UNSUBACK:
+            if(paho_debug){
+                log_debug("Received a UNSUBACK packet");
+            }
             break;
         case PUBLISH:
         {
@@ -294,15 +341,36 @@ int cycle(MQTTClient* c, Timer* timer)
                 if (len <= 0)
                     rc = FAILURE;
                 else
+                {
+                     if(TimerIsExpired(timer)) {
+                        log_error("Timer expired. Restarting timer");
+                        TimerInit(timer);
+                        TimerCountdownMS(timer, 1000); // Restart the timer for 1 second
+                    }
+                    if(paho_debug){
+                        log_debug("Sending PUBACK packet");
+                    }
                     rc = sendPacket(c, len, timer);
+                }
                 if (rc == FAILURE)
                     goto exit; // there was a problem
+            }
+            if(paho_debug){
+                log_debug("Received a PUBLISH packet. Topic: %.*s, QoS: %d", topicName.lenstring.len, topicName.lenstring.data, msg.qos);
             }
             break;
         }
         case PUBREC:
+            if(paho_debug){
+                log_debug("Received a PUBREC packet");
+            }
+            break;
         case PUBREL:
         {
+            if(paho_debug){
+                log_debug("Received a PUBREL packet");
+            }
+            break;
             unsigned short mypacketid;
             unsigned char dup, type;
             if (MQTTDeserialize_ack(&type, &dup, &mypacketid, c->readbuf, c->readbuf_size) != 1)
@@ -314,19 +382,31 @@ int cycle(MQTTClient* c, Timer* timer)
                 rc = FAILURE; // there was a problem
             if (rc == FAILURE)
                 goto exit; // there was a problem
+            if(paho_debug){    
+                log_debug("Processed a %s packet. Packet ID: %d", (packet_type == PUBREC) ? "PUBREC" : "PUBREL", mypacketid);
+            }
             break;
         }
 
         case PUBCOMP:
+            if(paho_debug){
+                log_debug("Received a PUBCOMP packet");
+            }
             break;
         case PINGRESP:
             c->ping_outstanding = 0;
+            if(paho_debug){
+                log_debug("Received a PINGRESP packet");
+            }
             break;
     }
 
     if (keepalive(c) != SUCCESS) {
         //check only keepalive FAILURE status so that previous FAILURE status can be considered as FAULT
         rc = FAILURE;
+        if(paho_debug){
+            log_debug("Keepalive check failed");
+        }
     }
 
 exit:
@@ -342,7 +422,9 @@ int MQTTYield(MQTTClient* c, int timeout_ms)
 {
     int rc = SUCCESS;
     Timer timer;
-
+    if(paho_debug){
+        log_trace("Starting timer for yield");
+    }
     TimerInit(&timer);
     TimerCountdownMS(&timer, timeout_ms);
 
@@ -367,7 +449,9 @@ void MQTTRun(void* parm)
 {
 	Timer timer;
 	MQTTClient* c = (MQTTClient*)parm;
-
+    if(paho_debug){
+        log_trace("Starting timer for MQTT client");
+    }
 	TimerInit(&timer);
 
 	while (1)
@@ -420,9 +504,15 @@ int MQTTConnectWithResults(MQTTClient* c, MQTTPacket_connectData* options, MQTTC
 #if defined(MQTT_TASK)
 	  MutexLock(&c->mutex);
 #endif
-	  if (c->isconnected) /* don't send connect packet again if we are already connected */
+	  if (c->isconnected){ /* don't send connect packet again if we are already connected */
+          if(paho_debug){
+            log_debug("MQTT client is already connected");
+          }
 		  goto exit;
-
+      }
+    if(paho_debug){
+        log_trace("Starting timer for connect packet");
+    }
     TimerInit(&connect_timer);
     TimerCountdownMS(&connect_timer, c->command_timeout_ms);
 
@@ -432,23 +522,47 @@ int MQTTConnectWithResults(MQTTClient* c, MQTTPacket_connectData* options, MQTTC
     c->keepAliveInterval = options->keepAliveInterval;
     c->cleansession = options->cleansession;
     TimerCountdown(&c->last_received, c->keepAliveInterval);
-    if ((len = MQTTSerialize_connect(c->buf, c->buf_size, options)) <= 0)
+    if ((len = MQTTSerialize_connect(c->buf, c->buf_size, options)) <= 0){
+        if(paho_debug){
+            log_error("Failed to serialize connect packet");
+        }
         goto exit;
-    if ((rc = sendPacket(c, len, &connect_timer)) != SUCCESS)  // send the connect packet
+    }
+    if(paho_debug){
+        log_debug("Sending CONNECT packet");
+    }
+    if ((rc = sendPacket(c, len, &connect_timer)) != SUCCESS){  // send the connect packet
+        if(paho_debug){
+            log_error("Failed to send connect packet");
+        }
         goto exit; // there was a problem
+    }
 
     // this will be a blocking call, wait for the connack
     if (waitfor(c, CONNACK, &connect_timer) == CONNACK)
     {
         data->rc = 0;
         data->sessionPresent = 0;
-        if (MQTTDeserialize_connack(&data->sessionPresent, &data->rc, c->readbuf, c->readbuf_size) == 1)
+        if (MQTTDeserialize_connack(&data->sessionPresent, &data->rc, c->readbuf, c->readbuf_size) == 1){
             rc = data->rc;
-        else
+            if(paho_debug){
+                log_debug("Received a valid CONNACK packet. Session present: %d, Return Code: %d", data->sessionPresent, data->rc);
+            }
+        }
+        else{
+            if(paho_debug){
+                log_error("Failed to deserialize CONNACK packet");
+            }
             rc = FAILURE;
+        }
     }
     else
+    {
+        if(paho_debug){
+            log_error("Failed to receive CONNACK packet");
+        }
         rc = FAILURE;
+    }
 
 exit:
     if (rc == SUCCESS)
@@ -491,6 +605,13 @@ int MQTTSetMessageHandler(MQTTClient* c, const char* topicFilter, messageHandler
             break;
         }
     }
+    if (i >= 0)
+    {
+        if(paho_debug){
+            log_debug("Found existing message handler at slot %d", i);
+        }
+    }
+
     /* if no existing, look for empty slot (unless we are removing) */
     if (messageHandler != NULL) {
         if (rc == FAILURE)
@@ -506,8 +627,23 @@ int MQTTSetMessageHandler(MQTTClient* c, const char* topicFilter, messageHandler
         }
         if (i < MAX_MESSAGE_HANDLERS)
         {
+            if(paho_debug){
+                log_debug("Adding a new message handler at slot %d for topic filter: %s", i, topicFilter);
+            }
             c->messageHandlers[i].topicFilter = topicFilter;
             c->messageHandlers[i].fp = messageHandler;
+        }
+        else
+        {
+            if(paho_debug){
+                log_error("No available slot to add a new message handler");
+            }
+        }
+    }
+    else
+    {
+        if(paho_debug){
+            log_debug("Removed message handler for topic filter: %s", topicFilter);
         }
     }
     return rc;
@@ -526,17 +662,34 @@ int MQTTSubscribeWithResults(MQTTClient* c, const char* topicFilter, enum QoS qo
 #if defined(MQTT_TASK)
 	  MutexLock(&c->mutex);
 #endif
-	  if (!c->isconnected)
+	  if (!c->isconnected){
+        if(paho_debug){
+            log_error("MQTT client is not connected");
+        }
 		    goto exit;
-
+      }
+    if(paho_debug){
+        log_trace("Starting timer for subscribe packet");
+    }
     TimerInit(&timer);
     TimerCountdownMS(&timer, c->command_timeout_ms);
 
     len = MQTTSerialize_subscribe(c->buf, c->buf_size, 0, getNextPacketId(c), 1, &topic, (int*)&qos);
-    if (len <= 0)
+    if (len <= 0){
+        if(paho_debug){
+            log_error("Failed to serialize subscribe packet");
+        }
         goto exit;
-    if ((rc = sendPacket(c, len, &timer)) != SUCCESS) // send the subscribe packet
+    }
+    if(paho_debug){
+        log_debug("Sending SUBSCRIBE packet");
+    }
+    if ((rc = sendPacket(c, len, &timer)) != SUCCESS){ // send the subscribe packet
+        if(paho_debug){
+            log_error("Failed to send subscribe packet");
+        }
         goto exit;             // there was a problem
+    }
 
     if (waitfor(c, SUBACK, &timer) == SUBACK)      // wait for suback
     {
@@ -545,12 +698,27 @@ int MQTTSubscribeWithResults(MQTTClient* c, const char* topicFilter, enum QoS qo
         data->grantedQoS = QOS0;
         if (MQTTDeserialize_suback(&mypacketid, 1, &count, (int*)&data->grantedQoS, c->readbuf, c->readbuf_size) == 1)
         {
-            if (data->grantedQoS != 0x80)
+            if (data->grantedQoS != 0x80){
                 rc = MQTTSetMessageHandler(c, topicFilter, messageHandler);
+            } else {
+                if(paho_debug){
+                    log_error("Subscribe request denied");
+                }
+                rc = FAILURE;
+            }
+        }else{
+            if(paho_debug){
+                log_error("Failed to deserialize SUBACK");
+            }
+            rc = FAILURE;
         }
     }
-    else
+    else {
+        if(paho_debug){
+            log_error("SUBACK not received");
+        }
         rc = FAILURE;
+    }
 
 exit:
     if (rc == FAILURE)
@@ -581,16 +749,31 @@ int MQTTUnsubscribe(MQTTClient* c, const char* topicFilter)
 #if defined(MQTT_TASK)
 	  MutexLock(&c->mutex);
 #endif
-	  if (!c->isconnected)
+	  if (!c->isconnected){
+        if(paho_debug){
+          log_error("MQTT client is not connected");
+        }
 		  goto exit;
-
+      }
+    if(paho_debug){
+        log_trace("Starting timer for unsubscribe packet");
+    }
     TimerInit(&timer);
     TimerCountdownMS(&timer, c->command_timeout_ms);
 
-    if ((len = MQTTSerialize_unsubscribe(c->buf, c->buf_size, 0, getNextPacketId(c), 1, &topic)) <= 0)
+    if ((len = MQTTSerialize_unsubscribe(c->buf, c->buf_size, 0, getNextPacketId(c), 1, &topic)) <= 0){
+        if(paho_debug){
+            log_error("Failed to serialize unsubscribe packet");
+        }
         goto exit;
-    if ((rc = sendPacket(c, len, &timer)) != SUCCESS) // send the subscribe packet
+    }
+    log_debug("Sending UNSUBSCRIBE packet");
+    if ((rc = sendPacket(c, len, &timer)) != SUCCESS) {// send the subscribe packet
+        if(paho_debug){
+            log_error("Failed to send unsubscribe packet");
+        }
         goto exit; // there was a problem
+    }
 
     if (waitfor(c, UNSUBACK, &timer) == UNSUBACK)
     {
@@ -600,9 +783,19 @@ int MQTTUnsubscribe(MQTTClient* c, const char* topicFilter)
             /* remove the subscription message handler associated with this topic, if there is one */
             MQTTSetMessageHandler(c, topicFilter, NULL);
         }
+        else{
+            if(paho_debug){
+                log_error("Failed to deserialize UNSUBACK");
+            }
+            rc = FAILURE;
+        }
     }
-    else
+    else{
+        if(paho_debug){
+            log_error("UNSUBACK not received");
+        }
         rc = FAILURE;
+    }
 
 exit:
     if (rc == FAILURE)
@@ -625,9 +818,15 @@ int MQTTPublish(MQTTClient* c, const char* topicName, MQTTMessage* message)
 #if defined(MQTT_TASK)
 	  MutexLock(&c->mutex);
 #endif
-	  if (!c->isconnected)
+	  if (!c->isconnected){
+        if(paho_debug){
+            log_error("MQTT client is not connected.");
+        }
 		    goto exit;
-
+      }
+    if(paho_debug){
+        log_trace("Starting timer for publish packet");
+    }
     TimerInit(&timer);
     TimerCountdownMS(&timer, c->command_timeout_ms);
 
@@ -636,10 +835,21 @@ int MQTTPublish(MQTTClient* c, const char* topicName, MQTTMessage* message)
 
     len = MQTTSerialize_publish(c->buf, c->buf_size, 0, message->qos, message->retained, message->id,
               topic, (unsigned char*)message->payload, message->payloadlen);
-    if (len <= 0)
+    if (len <= 0){
+        if(paho_debug){
+            log_error("Failed to serialize publish packet");
+        }
         goto exit;
-    if ((rc = sendPacket(c, len, &timer)) != SUCCESS) // send the subscribe packet
+    }
+    if(paho_debug){
+        log_debug("Sending PUBLISH packet");
+    }
+    if ((rc = sendPacket(c, len, &timer)) != SUCCESS){ // send the subscribe packet
+        if(paho_debug){
+            log_error("Failed to send publish packet");
+        }
         goto exit; // there was a problem
+    }
 
     if (message->qos == QOS1)
     {
@@ -647,11 +857,19 @@ int MQTTPublish(MQTTClient* c, const char* topicName, MQTTMessage* message)
         {
             unsigned short mypacketid;
             unsigned char dup, type;
-            if (MQTTDeserialize_ack(&type, &dup, &mypacketid, c->readbuf, c->readbuf_size) != 1)
+            if (MQTTDeserialize_ack(&type, &dup, &mypacketid, c->readbuf, c->readbuf_size) != 1){
+                if(paho_debug){
+                    log_error("Failed to deserialize PUBACK");
+                }
                 rc = FAILURE;
+            }
         }
-        else
+        else{
+            if(paho_debug){
+                log_error("PUBACK not received.");
+            }
             rc = FAILURE;
+        }
     }
     else if (message->qos == QOS2)
     {
@@ -659,11 +877,19 @@ int MQTTPublish(MQTTClient* c, const char* topicName, MQTTMessage* message)
         {
             unsigned short mypacketid;
             unsigned char dup, type;
-            if (MQTTDeserialize_ack(&type, &dup, &mypacketid, c->readbuf, c->readbuf_size) != 1)
+            if (MQTTDeserialize_ack(&type, &dup, &mypacketid, c->readbuf, c->readbuf_size) != 1){
+                if(paho_debug){
+                    log_debug("Failed to deserialize PUBCOMP");
+                }
                 rc = FAILURE;
+            }
         }
-        else
+        else{
+            if(paho_debug){
+                log_debug("PUBCOMP not received");
+            }
             rc = FAILURE;
+        }
     }
 
 exit:
@@ -685,12 +911,23 @@ int MQTTDisconnect(MQTTClient* c)
 #if defined(MQTT_TASK)
 	MutexLock(&c->mutex);
 #endif
+    if(paho_debug){
+            log_trace("Starting timer for disconnect packet");
+    }
     TimerInit(&timer);
     TimerCountdownMS(&timer, c->command_timeout_ms);
 
 	  len = MQTTSerialize_disconnect(c->buf, c->buf_size);
     if (len > 0)
-        rc = sendPacket(c, len, &timer);            // send the disconnect packet
+    {
+        if(paho_debug){
+            log_debug("Sending disconnect packet");
+        }
+        rc = sendPacket(c, len, &timer);
+        if(paho_debug){
+            log_debug("send disconnect packet"); 
+        }  
+        }         // send the disconnect packet
     MQTTCloseSession(c);
 
 #if defined(MQTT_TASK)

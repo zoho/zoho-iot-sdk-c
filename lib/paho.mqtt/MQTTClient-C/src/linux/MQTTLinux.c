@@ -16,7 +16,8 @@
  *******************************************************************************/
 
 #include "MQTTLinux.h"
-
+#include "zoho_log.h"
+extern bool paho_debug;
 void TimerInit(Timer* timer)
 {
 	timer->end_time = (struct timeval){0, 0};
@@ -76,13 +77,20 @@ int linux_read(Network* n, unsigned char* buffer, int len, int timeout_ms)
 		int rc = recv(n->my_socket, &buffer[bytes], (size_t)(len - bytes), 0);
 		if (rc == -1)
 		{
-			if (errno != EAGAIN && errno != EWOULDBLOCK)
+			if (errno != EAGAIN && errno != EWOULDBLOCK){
 			  bytes = -1;
+			  if(paho_debug){
+			  	log_error("Error in linux_read: %d, %s", errno, strerror(errno));
+			  }
+			}
 			break;
 		}
 		else if (rc == 0)
 		{
 			bytes = 0;
+			if(paho_debug){
+				log_debug("Connection closed in linux_read");
+			}
 			break;
 		}
 		else
@@ -101,6 +109,13 @@ int linux_write(Network* n, unsigned char* buffer, int len, int timeout_ms)
 
 	setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
 	int	rc = write(n->my_socket, buffer, len);
+	if(rc == -1)
+	{
+		if(paho_debug){
+			log_error("Error in linux_write: %d", strerror(errno));
+		}
+	}
+	
 	return rc;
 }
 
@@ -110,6 +125,9 @@ void NetworkInit(Network* n)
 	n->my_socket = 0;
 	n->mqttread = linux_read;
 	n->mqttwrite = linux_write;
+	if(paho_debug){
+		log_debug("Network initialized");
+	}
 }
 
 
@@ -155,8 +173,25 @@ int NetworkConnect(Network* n, char* addr, int port)
 		if (n->my_socket != -1)
 			rc = connect(n->my_socket, (struct sockaddr*)&address, sizeof(address));
 		else
+		{
+			if(paho_debug){
+				log_debug("Error creating socket: %s\n", strerror(errno));
+			}
 			rc = -1;
+		}
 	}
+	if (rc == 0)
+    {
+		if(paho_debug){
+        	log_debug("Network connected to %s:%d with result: %d", addr, port, rc);
+		}
+    }
+    else
+    {
+		if(paho_debug){
+        	log_error("Failed to connect to %s:%d Error code: %d, Error message: %s", addr, port, errno, strerror(errno));
+		}
+    }
 
 	return rc;
 }
@@ -165,4 +200,7 @@ int NetworkConnect(Network* n, char* addr, int port)
 void NetworkDisconnect(Network* n)
 {
 	close(n->my_socket);
+	if(paho_debug){
+		log_debug("Network disconnected");
+	}
 }

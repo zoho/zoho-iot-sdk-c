@@ -14,6 +14,9 @@ char commandAckTopic[100] = "",configAckTopic[100]="", connectionStringBuff[256]
 cJSON *eventDataObject;
 bool retryACK;
 ZfailedACK failedACK;
+
+bool paho_debug = true;
+
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
@@ -21,6 +24,9 @@ ZfailedACK failedACK;
 cJSON* generateACKPayload(char* payload,ZcommandAckResponseCodes status_code, char *responseMessage);
 cJSON* generateProcessedACK(char* payload,ZcommandAckResponseCodes status_code, char *responseMessage);
 
+void set_paho_debug(bool state){
+    paho_debug = state;
+}
 int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode, ZlogConfig *logConfig)
 {
     log_initialize(logConfig);
