@@ -4,6 +4,7 @@
 #include "unistd.h"
 #include <stdbool.h>
 #define MQTT_EMB_LOGGING
+#define Z_SDK_VERSION "0.0.1"
 //TODO: read from config file.
 Network n;
 certsParseMode parse_mode;
@@ -30,8 +31,7 @@ void set_paho_debug(bool state){
 int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode, ZlogConfig *logConfig)
 {
     log_initialize(logConfig);
-    log_info("\n\n\nSDK Initializing..");
-
+    log_info("\n\n\nSDK Initializing.. version: %s",Z_SDK_VERSION);
     FILE *MqttConfigFile = fopen(MqttConfigFilePath, "rb");
     if (!MqttConfigFile)
     {
@@ -94,7 +94,7 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     if (!Zlog.fp)
     {
         log_initialize(logConfig);
-        log_info("\n\n\nSDK Initializing..");
+        log_info("\n\n\nSDK Initializing.. version: %s",Z_SDK_VERSION);
     }
 
     if (iot_client == NULL)
@@ -207,7 +207,7 @@ char *formConnectionString(char *username)
     strcat(connectionStringBuff, username);
     strcat(connectionStringBuff, "?");
     zclient_addConnectionParameter("sdk_name", "zoho-iot-sdk-c");
-    zclient_addConnectionParameter("sdk_version", "0.0.1");
+    zclient_addConnectionParameter("sdk_version", Z_SDK_VERSION);
     //zclient_addConnectionParams("sdk_url", "");
     connectionStringBuff[strlen(connectionStringBuff) - 1] = '\0';
     return connectionStringBuff;
