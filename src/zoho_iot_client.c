@@ -719,6 +719,8 @@ int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckRe
     {
         log_error("Error on publishing config Ack. Error code: %d", rc);
     }
+    cJSON_Delete(Ack_payload);
+    free(pubmsg.payload);
     return rc;
 }
 
@@ -839,7 +841,6 @@ int zclient_disconnect(ZohoIOTclient *client)
     }
     client->current_state = DISCONNECTED;
     log_info("Disconnected.");
-    log_free();
     return rc;
 }
 
@@ -1045,5 +1046,6 @@ int zclient_free(ZohoIOTclient *client)
     {
         cJSON_Delete(eventDataObject);
     }
+    log_free();
     return ZSUCCESS;
 }
