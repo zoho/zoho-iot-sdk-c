@@ -25,7 +25,7 @@ bool paho_debug = true;
 cJSON* generateACKPayload(char* payload,ZcommandAckResponseCodes status_code, char *responseMessage);
 cJSON* generateProcessedACK(char* payload,ZcommandAckResponseCodes status_code, char *responseMessage);
 
-void set_paho_debug(bool state){
+void zclient_enable_paho_debug(bool state){
     paho_debug = state;
 }
 int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode, ZlogConfig *logConfig)

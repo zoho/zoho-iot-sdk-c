@@ -27,7 +27,7 @@ void compressAndSaveFile(const char *sourceFileName, const char *compressedFileN
         if (compressedFile)
         {
          gzclose(compressedFile);
-         log_error("can't able to create compress file %s",compressedFile);
+         log_error("can't create compress file %s",compressedFile);
         }
         if (sourceFile)
         {
