@@ -175,7 +175,7 @@ int NetworkConnect(Network* n, char* addr, int port)
 		else
 		{
 			if(paho_debug){
-				log_debug("Error creating socket: %s\n", strerror(errno));
+				log_error("Error creating socket: %s\n", strerror(errno));
 			}
 			rc = -1;
 		}

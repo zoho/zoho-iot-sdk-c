@@ -405,7 +405,7 @@ int cycle(MQTTClient* c, Timer* timer)
         //check only keepalive FAILURE status so that previous FAILURE status can be considered as FAULT
         rc = FAILURE;
         if(paho_debug){
-            log_debug("Keepalive check failed");
+            log_error("Keepalive check failed");
         }
     }
 
@@ -879,14 +879,14 @@ int MQTTPublish(MQTTClient* c, const char* topicName, MQTTMessage* message)
             unsigned char dup, type;
             if (MQTTDeserialize_ack(&type, &dup, &mypacketid, c->readbuf, c->readbuf_size) != 1){
                 if(paho_debug){
-                    log_debug("Failed to deserialize PUBCOMP");
+                    log_error("Failed to deserialize PUBCOMP");
                 }
                 rc = FAILURE;
             }
         }
         else{
             if(paho_debug){
-                log_debug("PUBCOMP not received");
+                log_error("PUBCOMP not received");
             }
             rc = FAILURE;
         }
@@ -925,7 +925,9 @@ int MQTTDisconnect(MQTTClient* c)
         }
         rc = sendPacket(c, len, &timer);
         if(paho_debug){
-            log_debug("send disconnect packet"); 
+            if(rc == SUCCESS){
+                log_debug("sent disconnect packet");
+            } 
         }  
         }         // send the disconnect packet
     MQTTCloseSession(c);
