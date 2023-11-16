@@ -4,11 +4,13 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define LOG_PATH "./"
 #define LOG_PREFIX "zoho_SDK_logs"
 #define LOG_FORMAT ".txt"
 #define MAX_LOG_FILE_SIZE  5242880  //file size in Bytes 5MB MAX
+#define MIN_LOG_FILE_SIZE  10240 // file size in Bytes 10KB MAX
 #define MAX_ROLLING_LOG_FILE 2   // No of rolling log file in addition to the main
 
 FILE *log_file;
@@ -37,6 +39,7 @@ typedef struct
     char *logPrefix;
     int maxLogFileSize;
     int maxRollingLogFile;
+    bool logCompress;
 } ZlogConfig;
 
 static const char *level_names[] = {
