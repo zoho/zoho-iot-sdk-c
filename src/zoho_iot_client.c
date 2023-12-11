@@ -948,8 +948,8 @@ int zclient_disconnect(ZohoIOTclient *client)
     if (client->current_state == CONNECTED)
     {
         rc = MQTTDisconnect(&client->mqtt_client);
-        NetworkDisconnect(client->mqtt_client.ipstack);
     }
+    NetworkDisconnect(client->mqtt_client.ipstack);
     client->current_state = DISCONNECTED;
     log_info("Disconnected.");
     return rc;
@@ -1157,6 +1157,26 @@ int zclient_free(ZohoIOTclient *client)
     {
         cJSON_Delete(eventDataObject);
     }
+    if(failedACK.ackPayload != NULL)
+    {
+        cJSON_Delete(failedACK.ackPayload);
+    }
+    if(failedACK.topic != NULL)
+    {
+        free(failedACK.topic);
+    }
+    #if defined(Z_SECURE_CONNECTION)
+    if(TLS_MODE){
+        #if defined(Z_USE_CLIENT_CERTS)
+        if(TLS_CLIENT_CERTS){
+            free(client->certs.client_cert);
+            free(client->certs.client_key);
+            free(client->certs.cert_password);
+        }
+        #endif
+        free(client->certs.ca_crt);
+    }
+    #endif
     log_free();
     return ZSUCCESS;
 }
