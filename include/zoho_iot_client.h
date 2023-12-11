@@ -9,11 +9,6 @@
 #include "zclient_constants.h"
 #include <time.h>
 
-#if defined(Z_SECURE_CONNECTION)
-#define ZPORT (int)8883
-#else
-#define ZPORT (int)1883
-#endif
 
 #define MAX_PAYLOAD_SIZE (int)100000
 #define DEFAULT_PAYLOAD_SIZE (int)32000
@@ -153,6 +148,8 @@ cJSON* zclient_FormReceivedACK(char* payload);
 
 int zclient_free(ZohoIOTclient *client);
 void zclient_enable_paho_debug(bool state);
+void zclient_set_tls(bool state);
+void zclient_set_client_certs(bool state);
 //int zclient_setRetrycount(ZohoIOTclient *client, int count);
 //char *zclient_getpayload();
 #endif //# ZOHO_IOT_CLIENT_H_

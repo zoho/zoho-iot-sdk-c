@@ -19,6 +19,15 @@ bool retryEvent;
 ZfailedEvent failedEvent;
 
 bool paho_debug = true;
+bool TLS_MODE = true;
+bool TLS_CLIENT_CERTS = true;
+
+#if defined(Z_SECURE_CONNECTION)
+int ZPORT = 8883;
+#else
+int ZPORT = 1883;
+#endif
+
 
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
@@ -29,6 +38,12 @@ cJSON* generateProcessedACK(char* payload,ZcommandAckResponseCodes status_code, 
 
 void zclient_enable_paho_debug(bool state){
     paho_debug = state;
+}
+void zclient_set_tls(bool state){
+    TLS_MODE = state;
+}
+void zclient_set_client_certs(bool state){
+    TLS_CLIENT_CERTS = state;
 }
 int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode, ZlogConfig *logConfig)
 {
@@ -98,18 +113,43 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
         log_initialize(logConfig);
         log_info("\n\n\nSDK Initializing.. version: %s",Z_SDK_VERSION);
     }
-
+    #if(Z_SECURE_CONNECTION)
+        #if(Z_USE_CLIENT_CERTS)
+            log_info("Build type: \033[35m TLS build with client certs \033[0m");
+        #else
+            log_info("Build type: \033[35m TLS build \033[0m");
+        #endif
+    #else
+        log_info("Build type: \033[35m NON_TLS build \033[0m");
+    #endif
     if (iot_client == NULL)
     {
         log_error("Client object is NULL");
         return ZFAILURE;
     }
+    #if(Z_USE_CLIENT_CERTS)
+    if(!TLS_CLIENT_CERTS){
+        if (!isStringValid(MQTTUserName) || !isStringValid(MQTTPassword))
+        {
+            log_error("Device Credentials can't be NULL or Empty");
+            return ZFAILURE;
+        }
+    }
+    else
+    {
+        if (!isStringValid(MQTTUserName))
+        {
+            log_error("Device UserName can't be NULL or Empty");
+            return ZFAILURE;
+        }
+    }
+    #else
     if (!isStringValid(MQTTUserName) || !isStringValid(MQTTPassword))
     {
         log_error("Device Credentials can't be NULL or Empty");
         return ZFAILURE;
     }
-
+    #endif
     Zconfig config = {"", "", "", "", 0};
     if (populateConfigObject(MQTTUserName, &config) == ZFAILURE)
     {
@@ -117,12 +157,23 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
         return ZFAILURE;
     }
     iot_client->ZretryInterval = MIN_RETRY_INTERVAL;
-    char *trimmedPassword = trim(MQTTPassword);
+
     char *trimmedUserName = trim(MQTTUserName);
-    cloneString(&config.auth_token, trimmedPassword);
     cloneString(&config.MqttUserName, trimmedUserName);
-    cJSON_free(trimmedPassword);
     cJSON_free(trimmedUserName);
+
+    #if defined(Z_USE_CLIENT_CERTS)
+    if(!TLS_CLIENT_CERTS){
+        char *trimmedPassword = trim(MQTTPassword);
+        cloneString(&config.auth_token, trimmedPassword);
+        cJSON_free(trimmedPassword);
+    }
+    #else
+    char *trimmedPassword = trim(MQTTPassword);
+    cloneString(&config.auth_token, trimmedPassword);
+    cJSON_free(trimmedPassword);
+    #endif
+    
     log_debug("client_id:%s", config.client_id);
     log_debug("hostname:%s", config.hostname);
     //Populating dynamic topic names based on its deviceID
@@ -138,22 +189,30 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     iot_client->config = config;
     parse_mode = mode;
 #if defined(Z_SECURE_CONNECTION)
-    if (ca_crt == NULL || (mode == REFERENCE && access(ca_crt, F_OK) == -1))
-    {
-        log_error("RootCA file is not found/can't be accessed");
-        return ZFAILURE;
-    }
-    iot_client->certs.ca_crt = ca_crt;
+    if(TLS_MODE){
+        if (ca_crt == NULL || (mode == REFERENCE && access(ca_crt, F_OK) == -1))
+        {
+            log_error("RootCA file is not found/can't be accessed");
+            return ZFAILURE;
+        }
+        iot_client->certs.ca_crt = ca_crt;
 #if defined(Z_USE_CLIENT_CERTS)
-    if (client_cert == NULL || client_key == NULL || cert_password == NULL || (mode == REFERENCE && (access(client_cert, F_OK) == -1)) || (mode == REFERENCE && (access(client_key, F_OK) == -1)))
-    {
-        log_error("Client key or Client certificate is not found/can't be accessed");
-        return ZFAILURE;
-    }
-    iot_client->certs.client_cert = client_cert;
-    iot_client->certs.client_key = client_key;
-    iot_client->certs.cert_password = cert_password;
+        if(TLS_CLIENT_CERTS){
+            if (client_cert == NULL || client_key == NULL || cert_password == NULL || (mode == REFERENCE && (access(client_cert, F_OK) == -1)) || (mode == REFERENCE && (access(client_key, F_OK) == -1)))
+            {
+                log_error("Client key or Client certificate is not found/can't be accessed");
+                return ZFAILURE;
+            }
+            iot_client->certs.client_cert = client_cert;
+            iot_client->certs.client_key = client_key;
+            iot_client->certs.cert_password = cert_password;
+        }
 #endif
+    }
+    else{
+        log_info("\033[35m TLS_MODE is disabled \033[0m");
+        ZPORT = 1883;
+    }
 #endif
 
     //TODO: freeup config.
@@ -262,7 +321,13 @@ int zclient_connect(ZohoIOTclient *client)
     NetworkInit(&n);
 
 #if defined(Z_SECURE_CONNECTION)
-    rc = NetworkConnect(&n, client->config.hostname, ZPORT, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
+    if(TLS_MODE){
+        rc = NetworkConnectTLS(&n, client->config.hostname, ZPORT, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
+    }
+    else
+    {
+        rc = NetworkConnect(&n, client->config.hostname, ZPORT);
+    }
 #else
     rc = NetworkConnect(&n, client->config.hostname, ZPORT);
 #endif

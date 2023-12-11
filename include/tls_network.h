@@ -57,8 +57,8 @@ struct Network
 
 void NetworkInit(Network *);
 
-int NetworkConnect(Network *, char *addr, int port, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
-
+int NetworkConnectTLS(Network *, char *addr, int port, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password);
+int NetworkConnect(Network* n, char* addr, int port);
 int tls_write(Network *n, unsigned char *buffer, int len, int timeout_ms);
 int tls_read(Network *n, unsigned char *buffer, int len, int timeout_ms);
 void NetworkDisconnect(Network *n);

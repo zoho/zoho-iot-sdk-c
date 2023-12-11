@@ -23,7 +23,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <zoho_log.h>
-
+#include <errno.h> 
+#if defined(Z_PAHO_DEBUG)
+extern bool paho_debug;
+#endif
+extern bool TLS_MODE;
+extern bool TLS_CLIENT_CERTS;
 void TimerInit(Timer *run_timer)
 {
     run_timer->end_time = (struct timeval){0, 0};
@@ -64,8 +69,25 @@ char TimerIsExpired(Timer *run_timer)
 void NetworkInit(Network *n)
 {
     n->my_socket = 0;
-    n->mqttread = tls_read;
-    n->mqttwrite = tls_write;
+    if(TLS_MODE)
+    {
+        n->mqttread = tls_read;
+        n->mqttwrite = tls_write;
+        #if defined(Z_PAHO_DEBUG)
+	    if(paho_debug){
+		    log_debug("TLS Network initialized");
+	    }
+	    #endif
+    }
+    else{
+        n->mqttread = linux_read;
+	    n->mqttwrite = linux_write;
+	    #if defined(Z_PAHO_DEBUG)
+	    if(paho_debug){
+		    log_debug("Network initialized");
+	    }
+	    #endif
+    }
 }
 
 void tls_debug(void *ctx, int level,
@@ -86,8 +108,10 @@ int init_tls(Network *n, certsParseMode mode, char *ca_crt, char *client_cert, c
     mbedtls_ctr_drbg_init(&(n->ctr_drbg));
     mbedtls_entropy_init(&(n->entropy));
 #if defined(Z_USE_CLIENT_CERTS)
-    mbedtls_x509_crt_init(&(n->clicert));
-    mbedtls_pk_init(&(n->pkey));
+    if(TLS_CLIENT_CERTS) {
+        mbedtls_x509_crt_init(&(n->clicert));
+        mbedtls_pk_init(&(n->pkey));
+    }
 #endif
     if ((rc = mbedtls_ctr_drbg_seed(&n->ctr_drbg, mbedtls_entropy_func, &n->entropy,
                                     (const unsigned char *)clientName,
@@ -113,33 +137,34 @@ int init_tls(Network *n, certsParseMode mode, char *ca_crt, char *client_cert, c
     }
 
 #if defined(Z_USE_CLIENT_CERTS)
+    if(TLS_CLIENT_CERTS) {
+        rc = (mode == EMBED) ? mbedtls_x509_crt_parse(&n->clicert, client_cert, strlen(client_cert) + 1) : mbedtls_x509_crt_parse_file(&n->clicert, client_cert);
 
-    rc = (mode == EMBED) ? mbedtls_x509_crt_parse(&n->clicert, client_cert, strlen(client_cert) + 1) : mbedtls_x509_crt_parse_file(&n->clicert, client_cert);
-
-    if (rc != 0)
-    {
-        if (rc == MBEDTLS_ERR_X509_INVALID_FORMAT)
+        if (rc != 0)
         {
-            log_error("Client certificate format is invalid");
+            if (rc == MBEDTLS_ERR_X509_INVALID_FORMAT)
+            {
+                log_error("Client certificate format is invalid");
+            }
+            else if (rc == MBEDTLS_ERR_X509_CERT_UNKNOWN_FORMAT)
+            {
+                log_error("Client certificate Format not recognized as DER or PEM.");
+            }
+            log_trace(" Client Certificate parse failed. return code = 0x%x", -rc);
+            return -1;
         }
-        else if (rc == MBEDTLS_ERR_X509_CERT_UNKNOWN_FORMAT)
-        {
-            log_error("Client certificate Format not recognized as DER or PEM.");
-        }
-        log_trace(" Client Certificate parse failed. return code = 0x%x", -rc);
-        return -1;
-    }
 
-    rc = (mode == EMBED) ? mbedtls_pk_parse_key(&(n->pkey), client_key, strlen(client_key) + 1, cert_password, strlen(cert_password)) : mbedtls_pk_parse_keyfile(&(n->pkey), client_key, cert_password);
+        rc = (mode == EMBED) ? mbedtls_pk_parse_key(&(n->pkey), client_key, strlen(client_key) + 1, cert_password, strlen(cert_password)) : mbedtls_pk_parse_keyfile(&(n->pkey), client_key, cert_password);
 
-    if (rc != 0)
-    {
-        if (rc == MBEDTLS_ERR_PK_PASSWORD_REQUIRED || rc == MBEDTLS_ERR_PK_PASSWORD_MISMATCH)
+        if (rc != 0)
         {
-            log_error("Client keyfile password is empty/mismatched");
+            if (rc == MBEDTLS_ERR_PK_PASSWORD_REQUIRED || rc == MBEDTLS_ERR_PK_PASSWORD_MISMATCH)
+            {
+                log_error("Client keyfile password is empty/mismatched");
+            }
+            log_trace("Client Private Key parse failed. return code = 0x%x", -rc);
+            return -1;
         }
-        log_trace("Client Private Key parse failed. return code = 0x%x", -rc);
-        return -1;
     }
 #endif
     return 0;
@@ -201,7 +226,71 @@ int tls_write(Network *n, unsigned char *buffer, int len, int timeout_ms)
     return writtenLength;
 }
 
-int NetworkConnect(Network *n, char *addr, int port, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
+int linux_read(Network* n, unsigned char* buffer, int len, int timeout_ms)
+{
+	struct timeval interval = {timeout_ms / 1000, (timeout_ms % 1000) * 1000};
+	if (interval.tv_sec < 0 || (interval.tv_sec == 0 && interval.tv_usec <= 0))
+	{
+		interval.tv_sec = 0;
+		interval.tv_usec = 100;
+	}
+
+	setsockopt(n->my_socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&interval, sizeof(struct timeval));
+
+	int bytes = 0;
+	while (bytes < len)
+	{
+		int rc = recv(n->my_socket, &buffer[bytes], (size_t)(len - bytes), 0);
+		if (rc == -1)
+		{
+			if (errno != EAGAIN && errno != EWOULDBLOCK){
+			  bytes = -1;
+			  #if defined(Z_PAHO_DEBUG)
+			  if(paho_debug){
+			  	log_error("Error in linux_read: %d, %s", errno, strerror(errno));
+			  }
+			  #endif
+			}
+			break;
+		}
+		else if (rc == 0)
+		{
+			bytes = 0;
+			#if defined(Z_PAHO_DEBUG)
+			if(paho_debug){
+				log_debug("Connection closed in linux_read");
+			}
+			#endif
+			break;
+		}
+		else
+			bytes += rc;
+	}
+	return bytes;
+}
+
+int linux_write(Network* n, unsigned char* buffer, int len, int timeout_ms)
+{
+	struct timeval tv;
+
+	tv.tv_sec = 0;  /* 30 Secs Timeout */
+	tv.tv_usec = timeout_ms * 1000;  // Not init'ing this can cause strange errors
+
+	setsockopt(n->my_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(struct timeval));
+	int	rc = write(n->my_socket, buffer, len);
+	#if defined(Z_PAHO_DEBUG)
+	if(rc == -1)
+	{
+		if(paho_debug){
+			log_error("Error in linux_write: %d", strerror(errno));
+		}
+	}
+	#endif
+	
+	return rc;
+}
+
+int NetworkConnectTLS(Network *n, char *addr, int port, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password)
 {
     int rc = -1;
     char port_char[5]; // max 4 digit port number
@@ -216,15 +305,17 @@ int NetworkConnect(Network *n, char *addr, int port, certsParseMode mode, char *
         return -1;
     }
 #if defined(Z_USE_CLIENT_CERTS)
-    if ((rc = mbedtls_ssl_conf_own_cert(&n->conf, &n->clicert, &n->pkey)) != 0)
-    {
-        log_trace("Conf own_cert failed. return code = 0x%x", -rc);
-        return -1;
-    }
-    if ((rc = mbedtls_ssl_set_hostname(&(n->ssl), addr)) != 0)
-    {
-        log_trace("Set hostname failed .return code = 0x%x", -rc);
-        return -1;
+    if(TLS_CLIENT_CERTS) {
+        if ((rc = mbedtls_ssl_conf_own_cert(&n->conf, &n->clicert, &n->pkey)) != 0)
+        {
+            log_trace("Conf own_cert failed. return code = 0x%x", -rc);
+            return -1;
+        }
+        if ((rc = mbedtls_ssl_set_hostname(&(n->ssl), addr)) != 0)
+        {
+            log_trace("Set hostname failed .return code = 0x%x", -rc);
+            return -1;
+        }
     }
 #endif
     if ((rc = mbedtls_net_connect(&n->server_fd, addr, port_char, MBEDTLS_NET_PROTO_TCP)) != 0)
@@ -303,23 +394,104 @@ int NetworkConnect(Network *n, char *addr, int port, certsParseMode mode, char *
     return 0;
 }
 
+int NetworkConnect(Network* n, char* addr, int port)
+{
+	int type = SOCK_STREAM;
+	struct sockaddr_in address;
+	int rc = -1;
+	sa_family_t family = AF_INET;
+	struct addrinfo *result = NULL;
+	struct addrinfo hints = {0, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, 0, NULL, NULL, NULL};
+
+	if ((rc = getaddrinfo(addr, NULL, &hints, &result)) == 0)
+	{
+		struct addrinfo* res = result;
+
+		/* prefer ip4 addresses */
+		while (res)
+		{
+			if (res->ai_family == AF_INET)
+			{
+				result = res;
+				break;
+			}
+			res = res->ai_next;
+		}
+
+		if (result->ai_family == AF_INET)
+		{
+			address.sin_port = htons(port);
+			address.sin_family = family = AF_INET;
+			address.sin_addr = ((struct sockaddr_in*)(result->ai_addr))->sin_addr;
+		}
+		else
+			rc = -1;
+
+		freeaddrinfo(result);
+	}
+
+	if (rc == 0)
+	{
+		n->my_socket = socket(family, type, 0);
+		if (n->my_socket != -1)
+			rc = connect(n->my_socket, (struct sockaddr*)&address, sizeof(address));
+		else
+		{
+			#if defined(Z_PAHO_DEBUG)
+			if(paho_debug){
+				log_error("Error creating socket: %s\n", strerror(errno));
+			}
+			#endif
+			rc = -1;
+		}
+	}
+	#if defined(Z_PAHO_DEBUG)
+	if (rc == 0)
+    {
+		if(paho_debug){
+        	log_debug("Network connected to %s:%d with result: %d", addr, port, rc);
+		}
+    }
+    else
+    {
+		if(paho_debug){
+        	log_error("Failed to connect to %s:%d Error code: %d, Error message: %s", addr, port, errno, strerror(errno));
+		}
+    }
+	#endif
+
+	return rc;
+}
+
 void NetworkDisconnect(Network *n)
 {
-    log_trace("Disconnecting TLS...");
+    if(TLS_MODE)
+    {
+        log_trace("Disconnecting TLS...");
+        //TODO: ensure connected got clean close and remove this.
+        // do ret = mbedtls_ssl_close_notify(&n.ssl );
+        // while( ret == MBEDTLS_ERR_SSL_WANT_WRITE );
 
-    //TODO: ensure connected got clean close and remove this.
-    // do ret = mbedtls_ssl_close_notify(&n.ssl );
-    // while( ret == MBEDTLS_ERR_SSL_WANT_WRITE );
-
-    mbedtls_ssl_close_notify(&(n->ssl));
-    mbedtls_net_free(&(n->server_fd));
-    mbedtls_x509_crt_free(&(n->cacert));
-#if defined(Z_USE_CLIENT_CERTS)
-    mbedtls_x509_crt_free(&(n->clicert));
-    mbedtls_pk_free(&(n->pkey));
-#endif
-    mbedtls_ssl_free(&(n->ssl));
-    mbedtls_ssl_config_free(&(n->conf));
-    mbedtls_ctr_drbg_free(&(n->ctr_drbg));
-    mbedtls_entropy_free(&(n->entropy));
+        mbedtls_ssl_close_notify(&(n->ssl));
+        mbedtls_net_free(&(n->server_fd));
+        mbedtls_x509_crt_free(&(n->cacert));
+    #if defined(Z_USE_CLIENT_CERTS)
+        if(TLS_CLIENT_CERTS) {
+            mbedtls_x509_crt_free(&(n->clicert));
+            mbedtls_pk_free(&(n->pkey));
+        }
+    #endif
+        mbedtls_ssl_free(&(n->ssl));
+        mbedtls_ssl_config_free(&(n->conf));
+        mbedtls_ctr_drbg_free(&(n->ctr_drbg));
+        mbedtls_entropy_free(&(n->entropy));
+    }
+    else{
+        close(n->my_socket);
+        #if defined(Z_PAHO_DEBUG)
+        if(paho_debug){
+            log_debug("Network disconnected");
+        }
+        #endif
+    }
 }
