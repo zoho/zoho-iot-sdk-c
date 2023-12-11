@@ -15,6 +15,8 @@ char commandAckTopic[100] = "",configAckTopic[100]="", connectionStringBuff[256]
 cJSON *eventDataObject;
 bool retryACK;
 ZfailedACK failedACK;
+bool retryEvent;
+ZfailedEvent failedEvent;
 
 bool paho_debug = true;
 
@@ -393,6 +395,38 @@ int zclient_reconnect(ZohoIOTclient *client)
                 free(pubmsg.payload);
                 
             }
+            if(retryEvent)
+            {
+                if(failedEvent.eventPayloadTime + 60 < getCurrentTime())
+                {
+                    log_debug("Event is expired, so not attempting to resend the Event message that previously failed");
+                    cJSON_Delete(failedEvent.eventPayload);
+                    retryEvent =false;
+                }
+                else
+                {
+                    log_debug("Attempting to resend the Event message that previously failed");
+                    MQTTMessage pubmsg;
+                    pubmsg.id = rand()%10000;
+                    pubmsg.qos = 1;
+                    pubmsg.dup = '0';
+                    pubmsg.retained = '0';
+                    pubmsg.payload = cJSON_Print(failedEvent.eventPayload);
+                    pubmsg.payloadlen = strlen(pubmsg.payload);
+                    rc = MQTTPublish(&(client->mqtt_client), eventTopic, &pubmsg);
+                    if(rc == ZSUCCESS)
+                    {
+                        log_debug("\x1b[36m Failed Event published \x1b[0m");
+                        log_trace("Event published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, eventTopic);
+                        cJSON_Delete(failedEvent.eventPayload);
+                        retryEvent =false;
+                    }
+                    else{
+                        log_error("Error publishing Event, Error code: %d", rc);
+                    }
+                    free(pubmsg.payload);
+                }
+            }
             return ZSUCCESS;
         }
         start_time = getCurrentTime();
@@ -518,13 +552,14 @@ int zclient_addEventDataObject(char *key, cJSON* Object)
         return -1;
     }
     int rc = ZSUCCESS;
+    cJSON* event_object_copy = cJSON_Duplicate(Object, 1);
     if (!cJSON_HasObjectItem(eventDataObject, key))
     {
-       cJSON_AddItemToObject(eventDataObject, key, Object);
+       cJSON_AddItemToObject(eventDataObject, key, event_object_copy);
     }
     else
     {
-        cJSON_ReplaceItemInObject(eventDataObject, key,Object);
+        cJSON_ReplaceItemInObject(eventDataObject, key,event_object_copy);
     }
     return rc;
 }
@@ -609,7 +644,7 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
         payload = cJSON_Print(eventDispatchObject);
         cJSON_Delete(eventDispatchObject);
     }
-    cJSON_Delete(eventObject);
+    
     MQTTMessage pubmsg;
     pubmsg.id = rand()%10000;
     pubmsg.qos = 1;
@@ -633,12 +668,23 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
     {
         client->current_state = DISCONNECTED;
         log_error("Error on dispatchEvent due to lost connection. Error code: %d", rc);
+        retryEvent = true;
+        if(failedEvent.eventPayload != NULL)
+        {
+            cJSON_Delete(failedEvent.eventPayload);
+        }
+        failedEvent.eventPayload = cJSON_Duplicate(eventObject, 1);
+        failedEvent.eventPayloadTime = getCurrentTime();
     }
     else
     {
         log_error("Error on dispatchEvent. Error code: %d", rc);
+        retryEvent = true;
+        failedEvent.eventPayload = cJSON_Duplicate(eventObject, 1);
+        failedEvent.eventPayloadTime = getCurrentTime();
     }
     cJSON_free(payload);
+    cJSON_Delete(eventObject);
     return rc;
 }
 

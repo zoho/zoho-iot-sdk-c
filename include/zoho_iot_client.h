@@ -82,6 +82,12 @@ typedef struct
     cJSON *ackPayload;
 } ZfailedACK;
 
+typedef struct
+{
+    time_t eventPayloadTime;
+    cJSON *eventPayload;
+} ZfailedEvent;
+
 typedef enum
 {
     INITIALIZED = 1,
