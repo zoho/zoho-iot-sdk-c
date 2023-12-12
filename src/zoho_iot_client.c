@@ -949,7 +949,10 @@ int zclient_disconnect(ZohoIOTclient *client)
     {
         rc = MQTTDisconnect(&client->mqtt_client);
     }
-    NetworkDisconnect(client->mqtt_client.ipstack);
+    if(client->current_state != INITIALIZED)
+    {
+        NetworkDisconnect(client->mqtt_client.ipstack);
+    }
     client->current_state = DISCONNECTED;
     log_info("Disconnected.");
     return rc;
