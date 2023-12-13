@@ -29,6 +29,10 @@ extern bool paho_debug;
 #endif
 extern bool TLS_MODE;
 extern bool TLS_CLIENT_CERTS;
+
+int linux_read(Network* n, unsigned char* buffer, int len, int timeout_ms);
+int linux_write(Network* n, unsigned char* buffer, int len, int timeout_ms);
+
 void TimerInit(Timer *run_timer)
 {
     run_timer->end_time = (struct timeval){0, 0};

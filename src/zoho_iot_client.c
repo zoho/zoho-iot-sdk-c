@@ -137,10 +137,21 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     }
     else
     {
-        if (!isStringValid(MQTTUserName))
+        if(TLS_MODE)
         {
-            log_error("Device UserName can't be NULL or Empty");
-            return ZFAILURE;
+            if (!isStringValid(MQTTUserName))
+            {
+                log_error("Device UserName can't be NULL or Empty");
+                return ZFAILURE;
+            }
+        }
+        else
+        {
+            if (!isStringValid(MQTTUserName) || !isStringValid(MQTTPassword))
+            {
+                log_error("Device Credentials can't be NULL or Empty");
+                return ZFAILURE;
+            }
         }
     }
     #else
@@ -951,7 +962,7 @@ int zclient_disconnect(ZohoIOTclient *client)
     }
     if(client->current_state != INITIALIZED)
     {
-        NetworkDisconnect(client->mqtt_client.ipstack);
+    	NetworkDisconnect(client->mqtt_client.ipstack);
     }
     client->current_state = DISCONNECTED;
     log_info("Disconnected.");
