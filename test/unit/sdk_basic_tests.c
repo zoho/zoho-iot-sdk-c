@@ -6,6 +6,7 @@
 #include "zoho_iot_client.h"
 #include "zclient_constants.h"
 #include "wrap_functions.h"
+#include <unistd.h>
 
 #define ACK_SAMPLE_PAYLOAD (char *)"[{\"payload\":[{\"edge_command_key\":\"cname\",\"value\":\"4\"}],\"command_name\":\"cname\",\"correlation_id\":\"5f12bd40-f010-11ed-8a24-5354005d2854\"}]"
 
@@ -15,6 +16,10 @@ int __wrap_MQTTConnect(MQTTClient *c, MQTTPacket_connectData *options)
 }
 
 int __wrap_NetworkConnect(Network *n, char *host, int pt, ...)
+{
+    return mock_type(int);
+}
+int __wrap_NetworkConnectTLS(Network *n, char *host, int pt, ...)
 {
     return mock_type(int);
 }
@@ -37,6 +42,32 @@ int __wrap_MQTTDisconnect(MQTTClient *client)
 int __wrap_MQTTYield(MQTTClient *c, int time_out)
 {
     return mock_type(int);
+}
+
+static int Turn_off_TLS_mode(void **state)
+{
+    zclient_set_tls(false);
+     return 0;
+}
+
+static int Turn_on_TLS_mode(void **state)
+{
+    zclient_set_tls(true);
+     return 0;
+}
+
+static int Turn_off_TLS_CA_mode(void **state)
+{
+    zclient_set_tls(false);
+    zclient_set_client_certs(false);
+     return 0;
+}
+
+static int Turn_on_TLS_CA_mode(void **state)
+{
+    zclient_set_tls(true);
+    zclient_set_client_certs(true);
+     return 0;
 }
 
 //TEST CASES:
@@ -217,7 +248,7 @@ static void ConnectMethod_WithWrongCredentials_ShouldFail(void **state)
 static void ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed(void **state)
 {
     // With Appropriate TLS Server Certificate and login credentials connect to HUB should succeed .
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_NetworkConnectTLS, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
 
     ZohoIOTclient client;
@@ -229,7 +260,7 @@ static void ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed(voi
 static void ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed(void **state)
 {
     // With Appropriate TLS Server and Client Certificates and login credentials connect to HUB should succeed .
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
+    will_return(__wrap_NetworkConnectTLS, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
 
     ZohoIOTclient client;
@@ -395,7 +426,7 @@ static void DispatchEventFromJSONString_OnCallingBeforeInitialization_ShouldFail
     ZohoIOTclient client;
     cJSON *obj = cJSON_CreateObject();
     cJSON_AddNumberToObject(obj, "key1", 123);
-    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), ""), ZFAILURE);
+    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), ""), -2);
 }
 
 static void DispatchEventFromJSONString_WithNoConnection_ShouldFail(void **state)
@@ -1105,111 +1136,111 @@ static void WithoutCalling_SetMaxPayloadSize_ShouldTakeDefaultPayloadSize(void *
 int main(void)
 {
     const struct CMUnitTest sdk_basic_tests[] = {
-        cmocka_unit_test(InitMethod_OnNullArguments_ShouldFail),
-        cmocka_unit_test(InitMethod_with_LogConfig_OnNullArguments_ShouldFail),
-        cmocka_unit_test(InitMethod_OnProperArguments_ShouldSucceed),
-        cmocka_unit_test(InitMethod_with_LogConfig_OnProperArguments_ShouldSucceed),
-        cmocka_unit_test(InitConfigFileMethod_OnNullArguments_ShouldFail),
-        cmocka_unit_test(InitConfigFileMethod_OnProperArguments_ShouldSucceed),
-        cmocka_unit_test(InitConfigFileMethod_OnProperArguments_withImproperKeys_ShouldFail),
-        cmocka_unit_test(InitConfigFileMethod_with_LogConfig_OnNullArguments_ShouldFail),
-        cmocka_unit_test(InitConfigFileMethod_with_LogConfig_OnProperArguments_ShouldSucceed),
-        cmocka_unit_test(InitConfigFileMethod_OnWrongUserNameFormat_ShouldFail),
-        cmocka_unit_test(ConnectMethod_OnCallingBeforeInitialization_ShouldFail),
-        cmocka_unit_test(ConnectMethod_OnNullArguments_ShouldFail),
-        cmocka_unit_test(ConnectMethod_OnConnectOverExistingConnetion_ShouldSucceed),
-        cmocka_unit_test(ConnectMethod_WithNonNullArguments_ShouldSucceed),
-        cmocka_unit_test(ConnectMethod_WithLostNetworkConnection_ShouldFail),
-        cmocka_unit_test(ConnectMethod_WithWrongCredentials_ShouldFail),
-        cmocka_unit_test(PublishMethod_OnNullArguments_ShouldFail),
-        cmocka_unit_test(PublishMethod_OnCallingBeforeInitialization_ShouldFail),
-        cmocka_unit_test(PublishMethod_WithLostConnection_ShouldFail),
-        cmocka_unit_test(PublishMethod_WithNonNullArguments_ShouldSucceed),
-        cmocka_unit_test(PublishMethod_ShouldFail_If_Client_is_On_Disconnected_State),
-        cmocka_unit_test(DispatchMethod_OnCallingBeforeInitialization_ShouldFail),
-        cmocka_unit_test(DispatchMethod_OnNullArguments_ShouldFail),
-        cmocka_unit_test(DispatchMethod_WithNoConnection_ShouldFail),
-        cmocka_unit_test(DispatchMethod_WithProperConnection_ShouldSucceed),
-        cmocka_unit_test(AddEventDataNumber_WithImProperArguments_ShouldFail),
-        cmocka_unit_test(AddEventDataNumber_WithProperArguments_ShouldSucceed),
-        cmocka_unit_test(AddEventDataString_WithImProperArguments_ShouldFail),
-        cmocka_unit_test(AddEventDataString_WithProperArguments_ShouldSucceed),
-        cmocka_unit_test(AddEventDataString_InitializeEventDataObjectIsNull_WithProperArguments_ShouldSucceed),
-        cmocka_unit_test(AddEventDataObject_InitializeEventDataObjectIsNull_WithProperArguments_ShouldSucceed),
-        cmocka_unit_test(DispatchEventFromEventDataObject_WithProperConnectionWithAndWithOutAssetName_ShouldSucceed),
-        cmocka_unit_test(DispatchEventFromJSONString_WithImproperEventDataWithAndWithOutAssetName_ShouldFail),
-        cmocka_unit_test(DispatchEventFromJSONString_WithproperEventDataWithAndWithOutAssetName_ShouldSucceed),
-        cmocka_unit_test(DispatchEventFromJSONString_OnCallingBeforeInitialization_ShouldFail),
-        cmocka_unit_test(DispatchEventFromJSONString_WithNoConnection_ShouldFail),
-        cmocka_unit_test(DispatchEventFromEventDataObject_OnCallingBeforeInitialization_ShouldFail),
-        cmocka_unit_test(DispatchEventEventDataObject_WithNoConnection_ShouldFail),
-        cmocka_unit_test(DispatchEventFromEventDataObject_WithImproperArgumentsOrEventDataWithAndWithOutAssetName_ShouldFail),
-        cmocka_unit_test(DispatchEventFromJSONString_should_fail_when_MQTTPublish_is_not_Succeeded),
-        cmocka_unit_test(AddEventDataString_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
-        cmocka_unit_test(PublishCommandAck_OnCallingBeforeInitialization_ShouldFail),
-        cmocka_unit_test(PublishCommandAck_WithNoConnection_ShouldFail),
-        cmocka_unit_test(PublishCommandAck_WithproperArguments_ShouldSucceed),
-        cmocka_unit_test(PublishCommandAck_WithNullOrEmptyproperArguments_ShouldFail),
-        cmocka_unit_test(PublishCommandAck_WithoutMQTTPublish_ShouldFail),
-        cmocka_unit_test(SubscribeMethod_OnCallingBeforeInitialization_ShouldFail),
-        cmocka_unit_test(SubscribeMethod_OnNullArguments_ShouldFail),
-        cmocka_unit_test(SubscribeMethod_WithNonNullArguments_ShouldSucceed),
-        cmocka_unit_test(SubscribeMethod_WithLostConnection_ShouldFail),
-        cmocka_unit_test(YieldMethod_OnCallingBeforeInitialization_ShouldFail),
-        cmocka_unit_test(YieldMethod_OnNullArguments_ShouldFail),
-        cmocka_unit_test(YieldMethod_OnNonNullArguments_ShouldSucceed),
-        cmocka_unit_test(YieldMethod_WithLostConnection_ShouldFail),
-        cmocka_unit_test(DisconnectMethod_OnNullArguments_ShouldFail),
-        cmocka_unit_test(DisconnectMethod_OnUnEstablishedConnetion_ShouldSucceed),
-        cmocka_unit_test(DisconnectMethod_WithActiveConnection_ShouldDisconnectAndReturnSuccess),
-        cmocka_unit_test(AddNumberMethod_WithNullArguments_ShouldFail),
-        cmocka_unit_test(AddNumberMethod_CalledWithoutInitialization_ShouldFail),
-        cmocka_unit_test(AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
-        cmocka_unit_test(AddNumberMethod_withNonNullAssetNameArgument_ShouldAddKeyToAssetObject_InData),
-        cmocka_unit_test(AddNumberMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
-        cmocka_unit_test(AddNumberMethod_withEmptyAssetNameArgument_ShouldAddKeyToData),
-        cmocka_unit_test(AddStringMethod_CalledWithoutInitialization_ShouldFail),
-        cmocka_unit_test(AddStringMethod_OnNullArguments_ShouldFail),
-        cmocka_unit_test(AddStringMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
-        cmocka_unit_test(AddStringMethod_withNonNullAssetNameArgument_ShouldAddKeyToAssetObject_InData),
-        cmocka_unit_test(AddStringMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldSucceed_ReplacingOldValue),
-        cmocka_unit_test(AddStringMethod_withEmptyAssetNameArgument_ShouldAddKeyToData),
-        cmocka_unit_test(MarkDataPointAsError_withNonNullAssetNameArgument_ShouldAddErrorValueToDataPointInAssetObject),
-        cmocka_unit_test(MarkDataPointAsError_withNoOrNullAssetNameArgument_ShouldAddErrorValueToDataPoint),
-        cmocka_unit_test(ReconnectMethod_WithExistingConnection_ShouldSucceed),
-        cmocka_unit_test(ReconnectMethod_OnNullArguments_ShouldFail),
-        cmocka_unit_test(ReconnectMethod_OnCallingBeforeInitialization_ShouldFail),
-        cmocka_unit_test(ReconnectMethod_WithMQTTPublishFailure_OnLostConnection_ShouldRetryAndFails),
-        cmocka_unit_test(ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed),
-        cmocka_unit_test(ReconnectMethod_OnLostConnection_ShouldExponentiallyIncrease),
-        cmocka_unit_test(GetRetryInterval_withNegativeValues_ShouldReturnDefaultValue),
-        cmocka_unit_test(GetRetryInterval_withValuesGreaterthenMaxRetryInterval_ShouldReturnDefaultValue),
-        cmocka_unit_test(SetMaxPayloadSize_withValueGreaterthenMaxPayloadSize_ShouldTakeMaxPayloadSize),
-        cmocka_unit_test(SetMaxPayloadSize_withValuelesserthenOne_ShouldTakeDefaultPayloadSize),
-        cmocka_unit_test(SetMaxPayloadSize_withProperValue_ShouldTakeProperValue),
-        cmocka_unit_test(WithoutCalling_SetMaxPayloadSize_ShouldTakeDefaultPayloadSize),
-        cmocka_unit_test(PublishMethod_WithPayloadSizeGreaterThanDefinedPayloadSize_ShouldFail),
-        cmocka_unit_test(DispatchEventFromJSONString_WithPayloadSizeGreaterThanDefinedPayloadSize_ShouldFail),
-        cmocka_unit_test(zclient_publishConfigAck_should_MQTT_NotConnected_ShouldFail),
-        cmocka_unit_test(zclient_publishConfigAck_withProperArguments_shouldSuccess),
-        cmocka_unit_test(zclient_publishConfigAck_withNoConnection_shouldFail),
-        cmocka_unit_test(config_subscribe_WithNonNullArguments_ShouldSucceed),
-        cmocka_unit_test(config_subscribe_WithLostConnection_ShouldFail),
-        cmocka_unit_test(ConfigSubscribeMethod_OnCallingBeforeInitialization_ShouldFail),
-        cmocka_unit_test(ConfigSubscribeMethod_OnNullArguments_ShouldFail),
-        cmocka_unit_test(AddObjectMethod_CalledWithoutInitialization_ShouldFail),
-        cmocka_unit_test(AddObjectMethod_OnNullArguments_ShouldFail),
-        cmocka_unit_test(AddObjectMethod_withNonNullAssetNameArgument_ShouldSucceed),
-        cmocka_unit_test(AddObjectMethod_withEmptyAssetNameArgument_ShouldSucceed),
-        cmocka_unit_test(AddObjectMethod_OnAddingSamekey_ShouldSucceed),
+        cmocka_unit_test_setup(InitMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(InitMethod_with_LogConfig_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(InitMethod_OnProperArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(InitMethod_with_LogConfig_OnProperArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(InitConfigFileMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(InitConfigFileMethod_OnProperArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(InitConfigFileMethod_OnProperArguments_withImproperKeys_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(InitConfigFileMethod_with_LogConfig_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(InitConfigFileMethod_with_LogConfig_OnProperArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(InitConfigFileMethod_OnWrongUserNameFormat_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ConnectMethod_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ConnectMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ConnectMethod_OnConnectOverExistingConnetion_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ConnectMethod_WithNonNullArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ConnectMethod_WithLostNetworkConnection_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ConnectMethod_WithWrongCredentials_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(PublishMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(PublishMethod_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(PublishMethod_WithLostConnection_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(PublishMethod_WithNonNullArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(PublishMethod_ShouldFail_If_Client_is_On_Disconnected_State,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchMethod_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchMethod_WithNoConnection_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchMethod_WithProperConnection_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddEventDataNumber_WithImProperArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddEventDataNumber_WithProperArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddEventDataString_WithImProperArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddEventDataString_WithProperArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddEventDataString_InitializeEventDataObjectIsNull_WithProperArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddEventDataObject_InitializeEventDataObjectIsNull_WithProperArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchEventFromEventDataObject_WithProperConnectionWithAndWithOutAssetName_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchEventFromJSONString_WithImproperEventDataWithAndWithOutAssetName_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchEventFromJSONString_WithproperEventDataWithAndWithOutAssetName_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchEventFromJSONString_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchEventFromJSONString_WithNoConnection_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchEventFromEventDataObject_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchEventEventDataObject_WithNoConnection_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchEventFromEventDataObject_WithImproperArgumentsOrEventDataWithAndWithOutAssetName_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchEventFromJSONString_should_fail_when_MQTTPublish_is_not_Succeeded,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddEventDataString_OnAddingSamekey_ShouldSucceed_ReplacingOldValue,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(PublishCommandAck_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(PublishCommandAck_WithNoConnection_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(PublishCommandAck_WithproperArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(PublishCommandAck_WithNullOrEmptyproperArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(PublishCommandAck_WithoutMQTTPublish_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(SubscribeMethod_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(SubscribeMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(SubscribeMethod_WithNonNullArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(SubscribeMethod_WithLostConnection_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(YieldMethod_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(YieldMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(YieldMethod_OnNonNullArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(YieldMethod_WithLostConnection_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DisconnectMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DisconnectMethod_OnUnEstablishedConnetion_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DisconnectMethod_WithActiveConnection_ShouldDisconnectAndReturnSuccess,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddNumberMethod_WithNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddNumberMethod_CalledWithoutInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddNumberMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddNumberMethod_withNonNullAssetNameArgument_ShouldAddKeyToAssetObject_InData,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddNumberMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldSucceed_ReplacingOldValue,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddNumberMethod_withEmptyAssetNameArgument_ShouldAddKeyToData,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddStringMethod_CalledWithoutInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddStringMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddStringMethod_OnAddingSamekey_ShouldSucceed_ReplacingOldValue,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddStringMethod_withNonNullAssetNameArgument_ShouldAddKeyToAssetObject_InData,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddStringMethod_withNonNullAssetNameArgument_OnAddingSamekey_ShouldSucceed_ReplacingOldValue,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddStringMethod_withEmptyAssetNameArgument_ShouldAddKeyToData,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(MarkDataPointAsError_withNonNullAssetNameArgument_ShouldAddErrorValueToDataPointInAssetObject,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(MarkDataPointAsError_withNoOrNullAssetNameArgument_ShouldAddErrorValueToDataPoint,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ReconnectMethod_WithExistingConnection_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ReconnectMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ReconnectMethod_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ReconnectMethod_WithMQTTPublishFailure_OnLostConnection_ShouldRetryAndFails,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ReconnectMethod_OnLostConnection_ShouldExponentiallyIncrease,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(GetRetryInterval_withNegativeValues_ShouldReturnDefaultValue,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(GetRetryInterval_withValuesGreaterthenMaxRetryInterval_ShouldReturnDefaultValue,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(SetMaxPayloadSize_withValueGreaterthenMaxPayloadSize_ShouldTakeMaxPayloadSize,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(SetMaxPayloadSize_withValuelesserthenOne_ShouldTakeDefaultPayloadSize,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(SetMaxPayloadSize_withProperValue_ShouldTakeProperValue,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(WithoutCalling_SetMaxPayloadSize_ShouldTakeDefaultPayloadSize,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(PublishMethod_WithPayloadSizeGreaterThanDefinedPayloadSize_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(DispatchEventFromJSONString_WithPayloadSizeGreaterThanDefinedPayloadSize_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(zclient_publishConfigAck_should_MQTT_NotConnected_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(zclient_publishConfigAck_withProperArguments_shouldSuccess,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(zclient_publishConfigAck_withNoConnection_shouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(config_subscribe_WithNonNullArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(config_subscribe_WithLostConnection_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ConfigSubscribeMethod_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(ConfigSubscribeMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddObjectMethod_CalledWithoutInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddObjectMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddObjectMethod_withNonNullAssetNameArgument_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddObjectMethod_withEmptyAssetNameArgument_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(AddObjectMethod_OnAddingSamekey_ShouldSucceed,Turn_off_TLS_mode),
 
 #ifdef Z_SECURE_CONNECTION
-        cmocka_unit_test(ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed),
-        cmocka_unit_test(InitMethod_WithTLS_NullSeverCertificates_ShouldFail),
+        cmocka_unit_test_setup(ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed,Turn_on_TLS_mode),
+        cmocka_unit_test_setup(InitMethod_WithTLS_NullSeverCertificates_ShouldFail,Turn_on_TLS_mode),
 
 #ifdef Z_USE_CLIENT_CERTS
-        cmocka_unit_test(InitMethod_WithTLS_NullClientCertificates_ShouldFail),
-        cmocka_unit_test(ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed),
+        cmocka_unit_test_setup(InitMethod_WithTLS_NullClientCertificates_ShouldFail,Turn_on_TLS_CA_mode),
+        cmocka_unit_test_setup(ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed,Turn_on_TLS_CA_mode),
 
 #endif
 #endif

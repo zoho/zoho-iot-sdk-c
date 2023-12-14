@@ -15,8 +15,19 @@ char commandAckTopic[100] = "",configAckTopic[100]="", connectionStringBuff[256]
 cJSON *eventDataObject;
 bool retryACK;
 ZfailedACK failedACK;
+bool retryEvent;
+ZfailedEvent failedEvent;
 
 bool paho_debug = true;
+bool TLS_MODE = true;
+bool TLS_CLIENT_CERTS = true;
+
+#if defined(Z_SECURE_CONNECTION)
+int ZPORT = 8883;
+#else
+int ZPORT = 1883;
+#endif
+
 
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
@@ -27,6 +38,12 @@ cJSON* generateProcessedACK(char* payload,ZcommandAckResponseCodes status_code, 
 
 void zclient_enable_paho_debug(bool state){
     paho_debug = state;
+}
+void zclient_set_tls(bool state){
+    TLS_MODE = state;
+}
+void zclient_set_client_certs(bool state){
+    TLS_CLIENT_CERTS = state;
 }
 int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode, ZlogConfig *logConfig)
 {
@@ -96,18 +113,54 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
         log_initialize(logConfig);
         log_info("\n\n\nSDK Initializing.. version: %s",Z_SDK_VERSION);
     }
-
+    #if(Z_SECURE_CONNECTION)
+        #if(Z_USE_CLIENT_CERTS)
+            log_info("Build type: \033[35m TLS build with client certs \033[0m");
+        #else
+            log_info("Build type: \033[35m TLS build \033[0m");
+        #endif
+    #else
+        log_info("Build type: \033[35m NON_TLS build \033[0m");
+    #endif
     if (iot_client == NULL)
     {
         log_error("Client object is NULL");
         return ZFAILURE;
     }
+    #if(Z_USE_CLIENT_CERTS)
+    if(!TLS_CLIENT_CERTS){
+        if (!isStringValid(MQTTUserName) || !isStringValid(MQTTPassword))
+        {
+            log_error("Device Credentials can't be NULL or Empty");
+            return ZFAILURE;
+        }
+    }
+    else
+    {
+        if(TLS_MODE)
+        {
+            if (!isStringValid(MQTTUserName))
+            {
+                log_error("Device UserName can't be NULL or Empty");
+                return ZFAILURE;
+            }
+        }
+        else
+        {
+            if (!isStringValid(MQTTUserName) || !isStringValid(MQTTPassword))
+            {
+                log_error("Device Credentials can't be NULL or Empty");
+                return ZFAILURE;
+            }
+        }
+    }
+    #else
     if (!isStringValid(MQTTUserName) || !isStringValid(MQTTPassword))
     {
         log_error("Device Credentials can't be NULL or Empty");
         return ZFAILURE;
     }
-
+    #endif
     Zconfig config = {"", "", "", "", 0};
     if (populateConfigObject(MQTTUserName, &config) == ZFAILURE)
     {
@@ -115,12 +168,23 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
         return ZFAILURE;
     }
     iot_client->ZretryInterval = MIN_RETRY_INTERVAL;
-    char *trimmedPassword = trim(MQTTPassword);
+
     char *trimmedUserName = trim(MQTTUserName);
-    cloneString(&config.auth_token, trimmedPassword);
     cloneString(&config.MqttUserName, trimmedUserName);
-    cJSON_free(trimmedPassword);
     cJSON_free(trimmedUserName);
+
+    #if defined(Z_USE_CLIENT_CERTS)
+    if(!TLS_CLIENT_CERTS){
+        char *trimmedPassword = trim(MQTTPassword);
+        cloneString(&config.auth_token, trimmedPassword);
+        cJSON_free(trimmedPassword);
+    }
+    #else
+    char *trimmedPassword = trim(MQTTPassword);
+    cloneString(&config.auth_token, trimmedPassword);
+    cJSON_free(trimmedPassword);
+    #endif
+    
     log_debug("client_id:%s", config.client_id);
     log_debug("hostname:%s", config.hostname);
     //Populating dynamic topic names based on its deviceID
@@ -136,22 +200,30 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     iot_client->config = config;
     parse_mode = mode;
 #if defined(Z_SECURE_CONNECTION)
-    if (ca_crt == NULL || (mode == REFERENCE && access(ca_crt, F_OK) == -1))
-    {
-        log_error("RootCA file is not found/can't be accessed");
-        return ZFAILURE;
-    }
-    iot_client->certs.ca_crt = ca_crt;
+    if(TLS_MODE){
+        if (ca_crt == NULL || (mode == REFERENCE && access(ca_crt, F_OK) == -1))
+        {
+            log_error("RootCA file is not found/can't be accessed");
+            return ZFAILURE;
+        }
+        iot_client->certs.ca_crt = ca_crt;
 #if defined(Z_USE_CLIENT_CERTS)
-    if (client_cert == NULL || client_key == NULL || cert_password == NULL || (mode == REFERENCE && (access(client_cert, F_OK) == -1)) || (mode == REFERENCE && (access(client_key, F_OK) == -1)))
-    {
-        log_error("Client key or Client certificate is not found/can't be accessed");
-        return ZFAILURE;
-    }
-    iot_client->certs.client_cert = client_cert;
-    iot_client->certs.client_key = client_key;
-    iot_client->certs.cert_password = cert_password;
+        if(TLS_CLIENT_CERTS){
+            if (client_cert == NULL || client_key == NULL || cert_password == NULL || (mode == REFERENCE && (access(client_cert, F_OK) == -1)) || (mode == REFERENCE && (access(client_key, F_OK) == -1)))
+            {
+                log_error("Client key or Client certificate is not found/can't be accessed");
+                return ZFAILURE;
+            }
+            iot_client->certs.client_cert = client_cert;
+            iot_client->certs.client_key = client_key;
+            iot_client->certs.cert_password = cert_password;
+        }
 #endif
+    }
+    else{
+        log_info("\033[35m TLS_MODE is disabled \033[0m");
+        ZPORT = 1883;
+    }
 #endif
 
     //TODO: freeup config.
@@ -260,7 +332,13 @@ int zclient_connect(ZohoIOTclient *client)
     NetworkInit(&n);
 
 #if defined(Z_SECURE_CONNECTION)
-    rc = NetworkConnect(&n, client->config.hostname, ZPORT, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
+    if(TLS_MODE){
+        rc = NetworkConnectTLS(&n, client->config.hostname, ZPORT, parse_mode, client->certs.ca_crt, client->certs.client_cert, client->certs.client_key, client->certs.cert_password);
+    }
+    else
+    {
+        rc = NetworkConnect(&n, client->config.hostname, ZPORT);
+    }
 #else
     rc = NetworkConnect(&n, client->config.hostname, ZPORT);
 #endif
@@ -393,6 +471,38 @@ int zclient_reconnect(ZohoIOTclient *client)
                 free(pubmsg.payload);
                 
             }
+            if(retryEvent)
+            {
+                if(failedEvent.eventPayloadTime + 60 < getCurrentTime())
+                {
+                    log_debug("Event is expired, so not attempting to resend the Event message that previously failed");
+                    cJSON_Delete(failedEvent.eventPayload);
+                    retryEvent =false;
+                }
+                else
+                {
+                    log_debug("Attempting to resend the Event message that previously failed");
+                    MQTTMessage pubmsg;
+                    pubmsg.id = rand()%10000;
+                    pubmsg.qos = 1;
+                    pubmsg.dup = '0';
+                    pubmsg.retained = '0';
+                    pubmsg.payload = cJSON_Print(failedEvent.eventPayload);
+                    pubmsg.payloadlen = strlen(pubmsg.payload);
+                    rc = MQTTPublish(&(client->mqtt_client), eventTopic, &pubmsg);
+                    if(rc == ZSUCCESS)
+                    {
+                        log_debug("\x1b[36m Failed Event published \x1b[0m");
+                        log_trace("Event published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, eventTopic);
+                        cJSON_Delete(failedEvent.eventPayload);
+                        retryEvent =false;
+                    }
+                    else{
+                        log_error("Error publishing Event, Error code: %d", rc);
+                    }
+                    free(pubmsg.payload);
+                }
+            }
             return ZSUCCESS;
         }
         start_time = getCurrentTime();
@@ -518,13 +628,14 @@ int zclient_addEventDataObject(char *key, cJSON* Object)
         return -1;
     }
     int rc = ZSUCCESS;
+    cJSON* event_object_copy = cJSON_Duplicate(Object, 1);
     if (!cJSON_HasObjectItem(eventDataObject, key))
     {
-       cJSON_AddItemToObject(eventDataObject, key, Object);
+       cJSON_AddItemToObject(eventDataObject, key, event_object_copy);
     }
     else
     {
-        cJSON_ReplaceItemInObject(eventDataObject, key,Object);
+        cJSON_ReplaceItemInObject(eventDataObject, key,event_object_copy);
     }
     return rc;
 }
@@ -609,7 +720,7 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
         payload = cJSON_Print(eventDispatchObject);
         cJSON_Delete(eventDispatchObject);
     }
-    cJSON_Delete(eventObject);
+    
     MQTTMessage pubmsg;
     pubmsg.id = rand()%10000;
     pubmsg.qos = 1;
@@ -633,12 +744,23 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
     {
         client->current_state = DISCONNECTED;
         log_error("Error on dispatchEvent due to lost connection. Error code: %d", rc);
+        retryEvent = true;
+        if(failedEvent.eventPayload != NULL)
+        {
+            cJSON_Delete(failedEvent.eventPayload);
+        }
+        failedEvent.eventPayload = cJSON_Duplicate(eventObject, 1);
+        failedEvent.eventPayloadTime = getCurrentTime();
     }
     else
     {
         log_error("Error on dispatchEvent. Error code: %d", rc);
+        retryEvent = true;
+        failedEvent.eventPayload = cJSON_Duplicate(eventObject, 1);
+        failedEvent.eventPayloadTime = getCurrentTime();
     }
     cJSON_free(payload);
+    cJSON_Delete(eventObject);
     return rc;
 }
 
@@ -837,7 +959,10 @@ int zclient_disconnect(ZohoIOTclient *client)
     if (client->current_state == CONNECTED)
     {
         rc = MQTTDisconnect(&client->mqtt_client);
-        NetworkDisconnect(client->mqtt_client.ipstack);
+    }
+    if(client->current_state != INITIALIZED)
+    {
+    	NetworkDisconnect(client->mqtt_client.ipstack);
     }
     client->current_state = DISCONNECTED;
     log_info("Disconnected.");
@@ -1046,6 +1171,26 @@ int zclient_free(ZohoIOTclient *client)
     {
         cJSON_Delete(eventDataObject);
     }
+    if(failedACK.ackPayload != NULL)
+    {
+        cJSON_Delete(failedACK.ackPayload);
+    }
+    if(failedACK.topic != NULL)
+    {
+        free(failedACK.topic);
+    }
+    #if defined(Z_SECURE_CONNECTION)
+    if(TLS_MODE){
+        #if defined(Z_USE_CLIENT_CERTS)
+        if(TLS_CLIENT_CERTS){
+            free(client->certs.client_cert);
+            free(client->certs.client_key);
+            free(client->certs.cert_password);
+        }
+        #endif
+        free(client->certs.ca_crt);
+    }
+    #endif
     log_free();
     return ZSUCCESS;
 }
