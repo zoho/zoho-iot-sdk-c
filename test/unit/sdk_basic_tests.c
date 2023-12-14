@@ -426,7 +426,7 @@ static void DispatchEventFromJSONString_OnCallingBeforeInitialization_ShouldFail
     ZohoIOTclient client;
     cJSON *obj = cJSON_CreateObject();
     cJSON_AddNumberToObject(obj, "key1", 123);
-    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), ""), ZFAILURE);
+    assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), ""), -2);
 }
 
 static void DispatchEventFromJSONString_WithNoConnection_ShouldFail(void **state)
