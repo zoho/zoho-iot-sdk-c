@@ -198,8 +198,8 @@ void log_initialize(ZlogConfig *logConfig)
     }
     else
     {
-      log_warn("Error opening log file. Please check the permissions");
       log_set_fileLog(0);
+      log_warn("Error opening log file. Please check the permissions");
     }
   }
 }
