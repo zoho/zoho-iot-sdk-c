@@ -42,7 +42,12 @@ SET(Z_LOG_LEVEL LOG_DEBUG)
 
 # Enable file logging with default SDK configuration, Can be overridden in the apllication using the ZlogConfig struct. 
 OPTION(Z_ENABLE_LOGGING "Create logs for Application" OFF)
-OPTION(Z_LOG_COMPRESS "Compress the rolling log" OFF)
+OPTION(Z_LOG_COMPRESS "Compress the rolling log" ON)
+OPTION(Z_STATIC_ZLIB "Use static zlib library" ON)
+
+# Enable Paho MQTT Client debug logs.
+OPTION(Z_PAHO_DEBUG "Enable Paho MQTT Client debug logs" ON)
+
 # Build mode, should be disabled on Production build.
 #DEBUG param is required for code coverage report generation.
 SET(CMAKE_BUILD_TYPE DEBUG)
