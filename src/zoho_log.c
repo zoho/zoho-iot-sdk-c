@@ -279,8 +279,22 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
       }
       else
       {
-        log_warn("Error opening log file. Please check the permissions");
-        log_set_fileLog(1);
+        char *previousLogPath = malloc(strlen(Zlog.logPath) + 1);
+        strcpy(previousLogPath, Zlog.logPath);
+        Zlog.logPath = "./";
+        sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
+        log_file = fopen(currentLogFile, "a");
+        if (log_file)
+        {
+          log_set_fp(log_file);
+          log_warn("Error opening log file in %s. continuing in default", previousLogPath);
+          free(previousLogPath);
+        }
+        else
+        {
+          log_set_fileLog(0);
+          log_warn("Error opening log file. Please check the permissions");
+        }
       }
     }
 
