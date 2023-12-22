@@ -27,12 +27,12 @@ void compressAndSaveFile(const char *sourceFileName, const char *compressedFileN
         if (compressedFile)
         {
          gzclose(compressedFile);
-         log_error("can't create compress file %s",compressedFile);
+         printf("Zoho_log:can't create compress file %s",compressedFileName);
         }
         if (sourceFile)
         {
          fclose(sourceFile);
-         log_error("can't able to open source file %s",sourceFile);
+         printf("Zoho_log:can't able to open source file %s",sourceFileName);
         }
         return;
     }
@@ -42,7 +42,7 @@ void compressAndSaveFile(const char *sourceFileName, const char *compressedFileN
 
     while ((bytesRead = fread(buffer, 1, sizeof(buffer), sourceFile)) > 0) {
         if (gzwrite(compressedFile, buffer, bytesRead) == 0) {
-            log_fatal("compression error");
+            printf("Zoho_log:compression error");
             break;
         }
     }
@@ -51,8 +51,9 @@ void compressAndSaveFile(const char *sourceFileName, const char *compressedFileN
     fclose(sourceFile);
 
     if (bytesRead != 0) {
-      log_error("corrupted compressed file, removing it");
+      printf("Zoho_log:corrupted compressed file, removing it");
       remove(compressedFileName); 
+      remove(sourceFileName);
     } else {
         remove(sourceFileName); 
     }
@@ -198,8 +199,8 @@ void log_initialize(ZlogConfig *logConfig)
     }
     else
     {
-      log_warn("Error opening log file. Please check the permissions");
       log_set_fileLog(0);
+      log_warn("Error opening log file. Please check the permissions");
     }
   }
 }
@@ -279,8 +280,22 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
       }
       else
       {
-        log_warn("Error opening log file. Please check the permissions");
-        log_set_fileLog(1);
+        char *previousLogPath = malloc(strlen(Zlog.logPath) + 1);
+        strcpy(previousLogPath, Zlog.logPath);
+        Zlog.logPath = "./";
+        sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
+        log_file = fopen(currentLogFile, "a");
+        if (log_file)
+        {
+          log_set_fp(log_file);
+          log_warn("Error opening log file in %s. continuing in default", previousLogPath);
+          free(previousLogPath);
+        }
+        else
+        {
+          log_set_fileLog(0);
+          log_warn("Error opening log file. Please check the permissions");
+        }
       }
     }
 
@@ -314,7 +329,7 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
             #else
             sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
             #endif
-
+            break;
           }
           else
           {
