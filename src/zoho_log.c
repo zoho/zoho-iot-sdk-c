@@ -280,7 +280,7 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
       }
       else
       {
-        char *previousLogPath = malloc(strlen(Zlog.logPath) + 1);
+        char *previousLogPath = malloc(sizeof(Zlog.logPath));
         strcpy(previousLogPath, Zlog.logPath);
         Zlog.logPath = "./";
         sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
@@ -329,7 +329,7 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
             #else
             sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
             #endif
-            break;
+
           }
           else
           {
