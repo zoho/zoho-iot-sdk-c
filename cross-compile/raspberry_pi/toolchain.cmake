@@ -4,12 +4,11 @@ SET(CMAKE_SYSTEM_NAME Linux)
 SET(CMAKE_SYSTEM_VERSION 1)
 
 # Update your toolchain root path below:
-SET(CMAKE_FIND_ROOT_PATH /tool_chain/arm-bcm2708/arm-linux-gnueabihf)
+SET(CMAKE_FIND_ROOT_PATH ${TOOLCHAIN_BASE_DIR}/${TOOLCHAIN_ARCH_TYPE})
 # Update your compiler name below:
-SET(TOOLCHAIN_COMPILER /bin/arm-linux-gnueabihf-gcc)
+#SET(TOOLCHAIN_COMPILER ${TOOLCHAIN_COMPILER})
 
-SET(CMAKE_C_COMPILER ${CMAKE_FIND_ROOT_PATH}${TOOLCHAIN_COMPILER})
-
+SET(CMAKE_C_COMPILER ${CMAKE_FIND_ROOT_PATH}/${TOOLCHAIN_COMPILER})
 # Additional flags for 3rd party library compilation:
 SET(HOST_FLAG "arm-linux-gnueabihf")
 SET(ADDITIONAL_CONFIG_FLAG ac_cv_func_malloc_0_nonnull=yes ac_cv_func_realloc_0_nonnull=yes )
