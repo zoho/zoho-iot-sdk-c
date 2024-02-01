@@ -12,6 +12,9 @@ volatile int ctrl_flag = 0;
 // Zoho client struct to handle the Communication with the HUB
 ZohoIOTclient client;
 
+#define MQTT_USER_NAME "<MQTT User Name>"
+#define MQTT_PASSWORD "<MQTT Password/Token>"
+
 // Intervals in which the telemetry data needs to be dispatched to the hub
 #define DISPATCH_INTERVAL 30 // Dispatch data every 30 sec
 // Frequency in which the data needs to be fetched
@@ -77,8 +80,8 @@ int main()
 
     //Update your DEVICE_ID AND AUTH_TOKEN below:
     // IF the application is used in non-TLS mode then replace all the following variables pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword as emtpy string ;
-    rc = zclient_init(&client, "<YOUR-DEVICE-MQTT-USERNAME>", "<YOUR-DEVICE-TOKEN>", CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword, logConfig);
-    // rc = zclient_init_config_file(&client, "MQTTConfigFileName", CRT_PARSE_MODE,logConfig);
+    rc = zclient_init(&client, MQTT_USER_NAME, MQTT_PASSWORD, CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword, logConfig);
+
 
     /*
     * If you want to configure the SDK logger use the ZlogConfig object and 
@@ -94,7 +97,6 @@ int main()
     * 
     * zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword,logConfig);
     *                                                                           (or)
-    * rc = zclient_init_config_file(&client, "MQTTConfigFileName", CRT_PARSE_MODE,logConfig);
     * 
     * enableFileLog     -> enables the file logging for the application
     * setQuiet          -> disables the console print 
@@ -129,18 +131,7 @@ int main()
     }
 
     rc = zclient_command_subscribe(&client, message_command_handler);
-
-    cJSON *obj = cJSON_CreateObject();
-    cJSON_AddNumberToObject(obj, "Ac_speed", 1);
-    cJSON_AddFalseToObject(obj, "Fan_Status");
-    char *eventMsg = cJSON_Print(obj);
-    zclient_dispatchEventFromJSONString(&client, "High Temperature", "Room+3 temperature is above normal", eventMsg, "Room_3");
-    cJSON_free(eventMsg);
-    cJSON_Delete(obj);
-    zclient_addEventDataNumber("Room1_temperature", 15);
-    zclient_addEventDataString("Exhuast_speed", "Full");
-    zclient_dispatchEventFromEventDataObject(&client, "Low Temperature", "Room+1 Temperature is below normal", "Floor_2");
-
+ 
     while (ctrl_flag == 0)
     {
         // If Connection is already available, then retryring to connect inside function is ignored

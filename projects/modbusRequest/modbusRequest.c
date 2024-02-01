@@ -15,12 +15,8 @@ volatile int ctrl_flag = 0;
 ZohoIOTclient client;
 
 // Zoho clinet credentials.
-#define MQTT_USER_NAME "/domain/v1/devices/client_id/connect"
-#define MQTT_PASSWORD ""
-#define ROOT_CA_CERT_LOCATION "/path_to/server_ca.crt"
-#define DEVICE_CERT_LOCATION "/path_to/client_crt.crt"
-#define DEVICE_PRIVATE_KEY_LOCATION "/path_to/client_key.key"
-#define DEVICE_CERT_PASSWORD ""
+#define MQTT_USER_NAME "<MQTT User Name>"
+#define MQTT_PASSWORD "<MQTT Password/Token>"
 
 // Modbus TCP server location
 #define MODBUS_SERVER_ADDRESS "127.0.0.1"
