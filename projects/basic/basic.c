@@ -85,7 +85,7 @@ int main()
 
     /*
     * If you want to configure the SDK logger use the ZlogConfig object and 
-    * set the required configuration and pass it to the zclient_init (or) zclient_init_config_file function as follows 
+    * set the required configuration and pass it to the zclient_init function as follows 
     * 
     * ZlogConfig *logConfig = getZlogger();
     * logConfig->enableFileLog = 1;
@@ -108,8 +108,6 @@ int main()
     * The SDK default log configuration would be used when the Z_ENABLE_LOGGING option is set to ON and the init call is made without the log config as
     *  
     * zclient_init(&client, "/domain_name/v1/devices/client_id/connect", "mqtt_password", CRT_PARSE_MODE, pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertParsword);
-    *                                                                           (or)
-    * zclient_init_config_file(&client, "MQTTConfigFileName", CRT_PARSE_MODE);
     * 
     * The SDK logging default configuration is as follows 
     * Path : "./"

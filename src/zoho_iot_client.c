@@ -45,40 +45,6 @@ void zclient_set_tls(bool state){
 void zclient_set_client_certs(bool state){
     TLS_CLIENT_CERTS = state;
 }
-int zclient_init_config_file(ZohoIOTclient *iot_client, char *MqttConfigFilePath, certsParseMode mode, ZlogConfig *logConfig)
-{
-    log_initialize(logConfig);
-    log_info("\n\n\nSDK Initializing.. version: %s",Z_SDK_VERSION);
-    FILE *MqttConfigFile = fopen(MqttConfigFilePath, "rb");
-    if (!MqttConfigFile)
-    {
-        log_error("Mqtt Config File can't be missing or NULL.");
-        return ZFAILURE;
-    }
-    fseek(MqttConfigFile, 0, SEEK_END);
-    long length = ftell(MqttConfigFile);
-    fseek(MqttConfigFile, 0, SEEK_SET);
-    char buffer[length + 2];
-    if (buffer)
-    {
-        fread(buffer, sizeof(char), length, MqttConfigFile);
-    }
-    fclose(MqttConfigFile);
-    buffer[length] = '\0';
-    cJSON *temp = cJSON_Parse(buffer);
-    if (temp == NULL)
-    {
-        log_error("Cannot parse the contents of MQTT config file");
-        return ZFAILURE;
-    }
-    char *mqttUserName = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "MQTTUserName"));
-    char *mqttPassword = cJSON_GetObjectItem(temp, "MQTTPassword")->valuestring;
-    char *ca_crt = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "RootCACertLocation"));
-    char *client_cert = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "DeviceCertLocation"));
-    char *client_key = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "DevicePrivateKeyLocation"));
-    char *cert_password = cJSON_GetStringValue(cJSON_GetObjectItem(temp, "DeviceCertParsword"));
-    return zclient_init(iot_client, mqttUserName, mqttPassword, mode, ca_crt, client_cert, client_key, cert_password);
-}
 
 int populateConfigObject(char *MQTTUserName, Zconfig *config)
 {
