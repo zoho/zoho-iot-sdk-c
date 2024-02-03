@@ -14,10 +14,6 @@ ZohoIOTclient client;
 // Zoho clinet credentials.
 #define MQTT_USER_NAME "<MQTT User Name>"
 #define MQTT_PASSWORD "<MQTT Password/Token>"
-#define ROOT_CA_CERT_LOCATION "/path_to/server_ca.crt"
-#define DEVICE_CERT_LOCATION "/path_to/client_crt.crt"
-#define DEVICE_PRIVATE_KEY_LOCATION "/path_to/client_key.key"
-#define DEVICE_CERT_PASSWORD ""
 
 // Frequency in which the data needs to be fetched and published
 #define POLL_FREQUENCY 10 // poll data every 10 sec
