@@ -301,22 +301,21 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
       }
       else
       {
-        char *previousLogPath = malloc(sizeof(Zlog.logPath));
-        strcpy(previousLogPath, Zlog.logPath);
+        log_free();
+        char *previousLogPath = NULL;
+        previousLogPath = strdup(Zlog.logPath);
         Zlog.logPath = "./";
         sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
         log_file = fopen(currentLogFile, "a");
         if (log_file)
         {
           log_set_fp(log_file);
-          log_warn("Error opening log file in %s. continuing in default", previousLogPath);
-          free(previousLogPath);
         }
         else
         {
           log_set_fileLog(0);
-          log_warn("Error opening log file. Please check the permissions");
         }
+        free(previousLogPath);
       }
     }
 
