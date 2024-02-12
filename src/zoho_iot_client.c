@@ -398,6 +398,10 @@ int zclient_reconnect(ZohoIOTclient *client)
     int delay = client->ZretryInterval;
     if (getCurrentTime() - start_time > delay)
     {
+        if(client->current_state != INITIALIZED)
+        {
+            NetworkDisconnect(client->mqtt_client.ipstack);
+        }
         rc = zclient_connect(client);
         if (rc == ZSUCCESS)
         {
