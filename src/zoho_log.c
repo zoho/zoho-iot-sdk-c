@@ -12,7 +12,8 @@
 #if defined(Z_LOG_COMPRESS)
 #include <zlib.h>
 #endif
-
+#include <pthread.h>
+static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 // common static logconfig structure that the user can get using the function getZlogger() and configure the logging properties
 static ZlogConfig logConfig;
 
@@ -62,18 +63,12 @@ void compressAndSaveFile(const char *sourceFileName, const char *compressedFileN
 
 static void lock(void)
 {
-  if (Zlog.lock)
-  {
-    Zlog.lock(Zlog.udata, 1);
-  }
+pthread_mutex_lock(&log_mutex);
 }
 
 static void unlock(void)
 {
-  if (Zlog.lock)
-  {
-    Zlog.lock(Zlog.udata, 0);
-  }
+  pthread_mutex_unlock(&log_mutex);
 }
 
 void log_set_udata(void *udata)
