@@ -420,12 +420,14 @@ int zclient_reconnect(ZohoIOTclient *client)
             if(retryACK)
             {
                 log_debug("Attempting to resend the ACK message that previously failed");
+                char *payload = NULL;
+                payload = cJSON_Print(failedACK.ackPayload);
                 MQTTMessage pubmsg;
                 pubmsg.id = rand()%10000;
                 pubmsg.qos = 1;
                 pubmsg.dup = '0';
                 pubmsg.retained = '0';
-                pubmsg.payload = cJSON_Print(failedACK.ackPayload);
+                pubmsg.payload = payload;
                 pubmsg.payloadlen = strlen(pubmsg.payload);
                 rc = MQTTPublish(&(client->mqtt_client), failedACK.topic, &pubmsg);
                 if(rc == ZSUCCESS)
@@ -438,7 +440,7 @@ int zclient_reconnect(ZohoIOTclient *client)
                 else{
                     log_error("Error publishing Ack, Error code: %d", rc);
                 }
-                free(pubmsg.payload);
+                free(payload);
                 
             }
             if(retryEvent)
@@ -452,12 +454,14 @@ int zclient_reconnect(ZohoIOTclient *client)
                 else
                 {
                     log_debug("Attempting to resend the Event message that previously failed");
+                    char *payload = NULL;
+                    payload = cJSON_Print(failedEvent.eventPayload);
                     MQTTMessage pubmsg;
                     pubmsg.id = rand()%10000;
                     pubmsg.qos = 1;
                     pubmsg.dup = '0';
                     pubmsg.retained = '0';
-                    pubmsg.payload = cJSON_Print(failedEvent.eventPayload);
+                    pubmsg.payload = payload;
                     pubmsg.payloadlen = strlen(pubmsg.payload);
                     rc = MQTTPublish(&(client->mqtt_client), eventTopic, &pubmsg);
                     if(rc == ZSUCCESS)
@@ -470,7 +474,7 @@ int zclient_reconnect(ZohoIOTclient *client)
                     else{
                         log_error("Error publishing Event, Error code: %d", rc);
                     }
-                    free(pubmsg.payload);
+                    free(payload);
                 }
             }
             return ZSUCCESS;
@@ -550,13 +554,14 @@ int zclient_dispatch(ZohoIOTclient *client)
         return ZFAILURE;
     }
     //TODO: Add time stamp, Client ID
-    char *payload = cJSON_Print(client->message.data);
+    char *payload = NULL;
+    payload = cJSON_Print(client->message.data);
     int status = zclient_publish(client, payload);
     free(payload);
     cJSON_Delete(client->message.data);
     client->message.data= NULL;
     return status;
-}
+    }
 
 int zclient_addEventDataNumber(char *key, double val_number)
 {
@@ -639,10 +644,11 @@ int zclient_addEventDataString(char *key, char *val_string)
 
 int zclient_dispatchEventFromEventDataObject(ZohoIOTclient *client, char *eventType, char *eventDescription, char *assetName)
 {
-    char *eventDataJSONString = cJSON_Print(eventDataObject);
+    char *eventDataJSONString = NULL;
+    eventDataJSONString = cJSON_Print(eventDataObject);
     int rc = zclient_dispatchEventFromJSONString(client, eventType, eventDescription, eventDataJSONString, assetName);
     cJSON_Delete(eventDataObject);
-    cJSON_free(eventDataJSONString);
+    free(eventDataJSONString);
     eventDataObject = cJSON_CreateObject();
     return rc;
 }
@@ -666,7 +672,7 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
         return ZFAILURE;
     }
     time_t curtime;
-    char *payload;
+    char *payload = NULL;
     time(&curtime);
     char *time_val = strtok(ctime(&curtime), "\n");
     cJSON *eventObject = cJSON_CreateObject();
@@ -729,7 +735,7 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
         failedEvent.eventPayload = cJSON_Duplicate(eventObject, 1);
         failedEvent.eventPayloadTime = getCurrentTime();
     }
-    cJSON_free(payload);
+    free(payload);
     cJSON_Delete(eventObject);
     return rc;
 }
@@ -745,12 +751,14 @@ int zclient_publishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckR
     if (Ack_payload == NULL) {
         return ZFAILURE;
     }
+    char *command_ack_payload = NULL;
+    command_ack_payload = cJSON_Print(Ack_payload);
     MQTTMessage pubmsg;
     pubmsg.id = rand()%10000;
     pubmsg.qos = 1;
     pubmsg.dup = '0';
     pubmsg.retained = '0';
-    pubmsg.payload = cJSON_Print(Ack_payload);
+    pubmsg.payload = command_ack_payload;
     pubmsg.payloadlen = strlen(pubmsg.payload);
     rc = MQTTPublish(&(client->mqtt_client), commandAckTopic, &pubmsg);
     if (rc == ZSUCCESS)
@@ -771,7 +779,7 @@ int zclient_publishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckR
         log_error("Error on publishing command Ack. Error code: %d", rc);
     }
     cJSON_Delete(Ack_payload);
-    free(pubmsg.payload);
+    free(command_ack_payload);
     return rc;
 }
 int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage)
@@ -786,12 +794,14 @@ int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckRe
     if (Ack_payload == NULL) {
         return ZFAILURE;
     }
+    char *config_ack_payload = NULL;
+    config_ack_payload = cJSON_Print(Ack_payload);
     MQTTMessage pubmsg;
     pubmsg.id = rand()%10000;
     pubmsg.qos = 1;
     pubmsg.dup = '0';
     pubmsg.retained = '0';
-    pubmsg.payload = cJSON_Print(Ack_payload);
+    pubmsg.payload = config_ack_payload;
     pubmsg.payloadlen = strlen(pubmsg.payload);
     rc = MQTTPublish(&(client->mqtt_client), configAckTopic, &pubmsg);
     if (rc == ZSUCCESS)
@@ -812,7 +822,7 @@ int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckRe
         log_error("Error on publishing config Ack. Error code: %d", rc);
     }
     cJSON_Delete(Ack_payload);
-    free(pubmsg.payload);
+    free(config_ack_payload);
     return rc;
 }
 
