@@ -18,8 +18,8 @@ static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 static ZlogConfig logConfig;
 
 #if defined(Z_LOG_COMPRESS)
-bool enable_log_compression = false;
-#define CHUNK 16384  
+bool enable_log_compression = true;
+#define CHUNK 32768
 void compressAndSaveFile(const char *sourceFileName, const char *compressedFileName) {
     gzFile compressedFile = gzopen(compressedFileName, "wb");
     FILE *sourceFile = fopen(sourceFileName, "rb");
@@ -155,6 +155,13 @@ void log_initialize(ZlogConfig *logConfig)
       log_free();
       #endif
     }
+    else
+    {
+      #if defined(Z_LOG_COMPRESS)
+      enable_log_compression = false;
+      #endif
+    }
+    
     #if defined(Z_LOG_COMPRESS)
     if(enable_log_compression)
     {
