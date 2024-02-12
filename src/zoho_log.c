@@ -148,11 +148,17 @@ void log_initialize(ZlogConfig *logConfig)
     {
       #if defined(Z_LOG_COMPRESS)
       log_info("Enabled Log compression");
-      log_free();
+      if (LOG_INFO <= Zlog.level)
+      {
+        log_free();
+      }
       enable_log_compression = true;
       #else
       log_warn("Log compression lib not included, continuing on without compression");
-      log_free();
+      if (LOG_WARN <= Zlog.level)
+      {
+        log_free();
+      }
       #endif
     }
     else
@@ -174,19 +180,28 @@ void log_initialize(ZlogConfig *logConfig)
       {
           log_set_maxLogSize(MIN_LOG_FILE_SIZE);
           log_warn("Log File size is lesserthan Mn file size \n continuing on default min size %d bytes",MIN_LOG_FILE_SIZE);
-          log_free();
+          if (LOG_WARN <= Zlog.level)
+          {
+            log_free();
+          }
       }
       else
       {
         log_set_maxLogSize(logConfig->maxLogFileSize);
         log_info("Log File size: %d bytes",logConfig->maxLogFileSize);
-        log_free();
+        if (Zlog.level < LOG_INFO)
+        {
+          log_free();
+        }
       }
     }
     else
     {
       log_warn("Log File size is greaterthan Max file size \n continuing on default max size %d bytes",MAX_LOG_FILE_SIZE);
-      log_free();
+      if (LOG_WARN <= Zlog.level)
+      {
+        log_free();
+      }
       log_set_maxLogSize(MAX_LOG_FILE_SIZE);
     }
   }
@@ -203,6 +218,10 @@ void log_initialize(ZlogConfig *logConfig)
     {
       log_set_fileLog(0);
       log_warn("Error opening log file. Please check the permissions");
+      if (LOG_WARN <= Zlog.level)
+      {
+        log_free();
+      }
     }
   }
 }
