@@ -44,6 +44,11 @@ int __wrap_MQTTYield(MQTTClient *c, int time_out)
     return mock_type(int);
 }
 
+void __wrap_NetworkDisconnect(Network *n)
+{
+   
+}
+
 static int Turn_off_TLS_mode(void **state)
 {
     zclient_set_tls(false);
@@ -846,8 +851,6 @@ static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
     // Reconnect method with lost connection can Retry connection and succeed.
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTSubscribe, ZSUCCESS);
-    will_return_always(__wrap_MQTTPublish, ZSUCCESS);
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     client.current_state = DISCONNECTED;

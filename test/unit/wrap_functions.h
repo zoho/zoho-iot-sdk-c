@@ -5,3 +5,4 @@ int __wrap_MQTTSubscribe(MQTTClient *c, const char *topicFilter, enum QoS qos, m
 int __wrap_MQTTPublish(MQTTClient *c, const char *topicName, MQTTMessage *message);
 int __wrap_MQTTDisconnect(MQTTClient *c);
 int __wrap_MQTTYield(MQTTClient *c, int time_out);
+void __wrap_NetworkDisconnect(Network *n);
