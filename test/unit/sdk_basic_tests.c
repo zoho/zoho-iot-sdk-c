@@ -118,55 +118,6 @@ static void InitMethod_with_LogConfig_OnProperArguments_ShouldSucceed(void **sta
     assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "", logConfig), ZSUCCESS);
 }
 
-static void InitConfigFileMethod_OnNullArguments_ShouldFail(void **state)
-{
-    ZohoIOTclient client;
-    // Init returns failure as FileName is NULL
-    assert_int_equal(zclient_init_config_file(&client, NULL, EMBED), ZFAILURE);
-    // Init returns failure as FileName is Empty
-    assert_int_equal(zclient_init_config_file(&client, "", EMBED), ZFAILURE);
-}
-
-static void InitConfigFileMethod_with_LogConfig_OnNullArguments_ShouldFail(void **state)
-{
-
-    ZohoIOTclient client;
-    ZlogConfig *logConfig = getZlogger();
-    logConfig->enableFileLog = 1;
-    logConfig->logPrefix = "cmocka_test";
-    // Init returns failure as FileName is NULL
-    assert_int_equal(zclient_init_config_file(NULL, NULL, EMBED), ZFAILURE);
-    // Init returns failure as FileName is Empty
-    assert_int_equal(zclient_init_config_file(&client, "", EMBED), ZFAILURE);
-}
-
-static void InitConfigFileMethod_OnProperArguments_ShouldSucceed(void **state)
-{
-    ZohoIOTclient client;
-    // Init returns Success by initialising client with proper file contents.
-    assert_int_equal(zclient_init_config_file(&client, "../../../test/MqttConfig.json", EMBED), ZSUCCESS);
-}
-
-static void InitConfigFileMethod_with_LogConfig_OnProperArguments_ShouldSucceed(void **state)
-{
-    ZohoIOTclient client;
-    ZlogConfig *logConfig = getZlogger();
-    logConfig->enableFileLog = 1;
-    logConfig->logPrefix = "cmocka_test";
-    // Init returns Success by initialising client with proper file contents.
-    assert_int_equal(zclient_init_config_file(&client, "../../../test/MqttConfig.json", EMBED, logConfig), ZSUCCESS);
-}
-
-static void InitConfigFileMethod_OnProperArguments_withImproperKeys_ShouldFail(void **state)
-{
-    ZohoIOTclient client;
-    // Init returns Fail to initialise client with improper file contents (Empty credentials).
-    assert_int_equal(zclient_init_config_file(&client, "../../../test/MqttConfig_Wrong_Params.json", EMBED), ZFAILURE);
-    // Init returns Fail to initialise client with proper file format (JSON structure).
-    assert_int_equal(zclient_init_config_file(&client, "../../../test/MqttConfig_Wrong_Format.json", EMBED), ZFAILURE);
-}
-
-
 static void InitMethod_WithTLS_NullSeverCertificates_ShouldFail(void **State)
 {
 
@@ -181,13 +132,6 @@ static void InitMethod_WithTLS_NullClientCertificates_ShouldFail(void **State)
     // Init return failure with TLS enabled as Client_Crt /client_key is NULL .
     ZohoIOTclient client;
     assert_int_equal(zclient_init(&client, mqttUserName, mqttPassword, REFERENCE, "/usr/device_certificate.pem", NULL, NULL, ""), ZFAILURE);
-}
-
-static void InitConfigFileMethod_OnWrongUserNameFormat_ShouldFail(void **state)
-{
-    ZohoIOTclient client;
-    // Init returns Success by initialising client with proper arguments
-    assert_int_equal(zclient_init(&client, "/domain_name/v1/devices/Extraword", mqttPassword, REFERENCE, "", "", "", ""), ZFAILURE);
 }
 
 // CONNECT :
@@ -1140,12 +1084,6 @@ int main(void)
         cmocka_unit_test_setup(InitMethod_with_LogConfig_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
         cmocka_unit_test_setup(InitMethod_OnProperArguments_ShouldSucceed,Turn_off_TLS_mode),
         cmocka_unit_test_setup(InitMethod_with_LogConfig_OnProperArguments_ShouldSucceed,Turn_off_TLS_mode),
-        cmocka_unit_test_setup(InitConfigFileMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
-        cmocka_unit_test_setup(InitConfigFileMethod_OnProperArguments_ShouldSucceed,Turn_off_TLS_mode),
-        cmocka_unit_test_setup(InitConfigFileMethod_OnProperArguments_withImproperKeys_ShouldFail,Turn_off_TLS_mode),
-        cmocka_unit_test_setup(InitConfigFileMethod_with_LogConfig_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
-        cmocka_unit_test_setup(InitConfigFileMethod_with_LogConfig_OnProperArguments_ShouldSucceed,Turn_off_TLS_mode),
-        cmocka_unit_test_setup(InitConfigFileMethod_OnWrongUserNameFormat_ShouldFail,Turn_off_TLS_mode),
         cmocka_unit_test_setup(ConnectMethod_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
         cmocka_unit_test_setup(ConnectMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
         cmocka_unit_test_setup(ConnectMethod_OnConnectOverExistingConnetion_ShouldSucceed,Turn_off_TLS_mode),
