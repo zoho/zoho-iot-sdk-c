@@ -373,6 +373,7 @@ static void DispatchEventFromJSONString_OnCallingBeforeInitialization_ShouldFail
 {
     // DispatchEvent from json string with out initializing should Fail.
     ZohoIOTclient client;
+    client.current_state = 0;
     cJSON *obj = cJSON_CreateObject();
     cJSON_AddNumberToObject(obj, "key1", 123);
     assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), ""), -2);
@@ -851,6 +852,9 @@ static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
     // Reconnect method with lost connection can Retry connection and succeed.
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
+    will_return(__wrap_MQTTSubscribe, ZSUCCESS);
+    will_return_always(__wrap_MQTTPublish, ZSUCCESS);
+    
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     client.current_state = DISCONNECTED;
