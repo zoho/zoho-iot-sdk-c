@@ -12,13 +12,14 @@
 #if defined(Z_LOG_COMPRESS)
 #include <zlib.h>
 #endif
-
+#include <pthread.h>
+static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 // common static logconfig structure that the user can get using the function getZlogger() and configure the logging properties
 static ZlogConfig logConfig;
 
 #if defined(Z_LOG_COMPRESS)
-bool enable_log_compression = false;
-#define CHUNK 16384  
+bool enable_log_compression = true;
+#define CHUNK 32768
 void compressAndSaveFile(const char *sourceFileName, const char *compressedFileName) {
     gzFile compressedFile = gzopen(compressedFileName, "wb");
     FILE *sourceFile = fopen(sourceFileName, "rb");
@@ -62,18 +63,12 @@ void compressAndSaveFile(const char *sourceFileName, const char *compressedFileN
 
 static void lock(void)
 {
-  if (Zlog.lock)
-  {
-    Zlog.lock(Zlog.udata, 1);
-  }
+pthread_mutex_lock(&log_mutex);
 }
 
 static void unlock(void)
 {
-  if (Zlog.lock)
-  {
-    Zlog.lock(Zlog.udata, 0);
-  }
+  pthread_mutex_unlock(&log_mutex);
 }
 
 void log_set_udata(void *udata)
@@ -153,13 +148,26 @@ void log_initialize(ZlogConfig *logConfig)
     {
       #if defined(Z_LOG_COMPRESS)
       log_info("Enabled Log compression");
-      log_free();
+      if (LOG_INFO <= Zlog.level)
+      {
+        log_free();
+      }
       enable_log_compression = true;
       #else
       log_warn("Log compression lib not included, continuing on without compression");
-      log_free();
+      if (LOG_WARN <= Zlog.level)
+      {
+        log_free();
+      }
       #endif
     }
+    else
+    {
+      #if defined(Z_LOG_COMPRESS)
+      enable_log_compression = false;
+      #endif
+    }
+    
     #if defined(Z_LOG_COMPRESS)
     if(enable_log_compression)
     {
@@ -172,19 +180,28 @@ void log_initialize(ZlogConfig *logConfig)
       {
           log_set_maxLogSize(MIN_LOG_FILE_SIZE);
           log_warn("Log File size is lesserthan Mn file size \n continuing on default min size %d bytes",MIN_LOG_FILE_SIZE);
-          log_free();
+          if (LOG_WARN <= Zlog.level)
+          {
+            log_free();
+          }
       }
       else
       {
         log_set_maxLogSize(logConfig->maxLogFileSize);
         log_info("Log File size: %d bytes",logConfig->maxLogFileSize);
-        log_free();
+        if (Zlog.level < LOG_INFO)
+        {
+          log_free();
+        }
       }
     }
     else
     {
       log_warn("Log File size is greaterthan Max file size \n continuing on default max size %d bytes",MAX_LOG_FILE_SIZE);
-      log_free();
+      if (LOG_WARN <= Zlog.level)
+      {
+        log_free();
+      }
       log_set_maxLogSize(MAX_LOG_FILE_SIZE);
     }
   }
@@ -201,6 +218,10 @@ void log_initialize(ZlogConfig *logConfig)
     {
       log_set_fileLog(0);
       log_warn("Error opening log file. Please check the permissions");
+      if (LOG_WARN <= Zlog.level)
+      {
+        log_free();
+      }
     }
   }
 }
@@ -280,22 +301,21 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
       }
       else
       {
-        char *previousLogPath = malloc(sizeof(Zlog.logPath));
-        strcpy(previousLogPath, Zlog.logPath);
+        log_free();
+        char *previousLogPath = NULL;
+        previousLogPath = strdup(Zlog.logPath);
         Zlog.logPath = "./";
         sprintf(currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
         log_file = fopen(currentLogFile, "a");
         if (log_file)
         {
           log_set_fp(log_file);
-          log_warn("Error opening log file in %s. continuing in default", previousLogPath);
-          free(previousLogPath);
         }
         else
         {
           log_set_fileLog(0);
-          log_warn("Error opening log file. Please check the permissions");
         }
+        free(previousLogPath);
       }
     }
 
