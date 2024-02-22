@@ -17,6 +17,7 @@ bool retryACK;
 ZfailedACK failedACK;
 bool retryEvent;
 ZfailedEvent failedEvent;
+cJSON *command_list_ack_object = NULL;
 
 bool paho_debug = true;
 bool TLS_MODE = true;
@@ -64,6 +65,7 @@ int populateConfigObject(char *MQTTUserName, Zconfig *config)
     }
     if (itr_cnt != 5)
     {
+        log_error("populating config object failed");
         return ZFAILURE;
     }
     return ZSUCCESS;
@@ -740,15 +742,22 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
     return rc;
 }
 
-int zclient_publishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage)
+int zclient_generateAndPublishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage)
 {
     int rc = validateClientState(client);
     if (rc != 0)
     {
+        log_error("client state is not valid");
         return rc;
+    }
+    if (client->current_state != CONNECTED)
+    {
+        log_error("Can not publish command acknowledgment, since connection is lost");
+        return ZFAILURE;
     }
     cJSON* Ack_payload = generateProcessedACK(payload,status_code, responseMessage);
     if (Ack_payload == NULL) {
+        log_error("Error on generating command Acknowledgement");
         return ZFAILURE;
     }
     char *command_ack_payload = NULL;
@@ -782,6 +791,62 @@ int zclient_publishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckR
     free(command_ack_payload);
     return rc;
 }
+
+int zclient_publishCommandAck(ZohoIOTclient *client)
+{
+    int rc = validateClientState(client);
+    if (rc != 0)
+    {
+        return rc;
+    }
+    if (client->current_state != CONNECTED)
+    {
+        log_error("Can not publish command acknowledgment, since connection is lost");
+        return ZFAILURE;
+    }
+    if (command_list_ack_object == NULL)
+    {
+        log_error("Command Acknowledgement is not generated, generate the acknowledgment before publishing the acknowledgment");
+        return ZFAILURE;
+    }
+    cJSON* Ack_payload = command_list_ack_object;
+    if (Ack_payload == NULL) {
+        log_error("Error on generating command Acknowledgement");
+        return ZFAILURE;
+    }
+    char *command_ack_payload = NULL;
+    command_ack_payload = cJSON_Print(Ack_payload);
+    MQTTMessage pubmsg;
+    pubmsg.id = rand()%10000;
+    pubmsg.qos = 1;
+    pubmsg.dup = '0';
+    pubmsg.retained = '0';
+    pubmsg.payload = command_ack_payload;
+    pubmsg.payloadlen = strlen(pubmsg.payload);
+    rc = MQTTPublish(&(client->mqtt_client), commandAckTopic, &pubmsg);
+    if (rc == ZSUCCESS)
+    {
+        log_debug("\x1b[36m Command ACK Published \x1b[0m");
+        log_trace("Command Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, commandAckTopic);
+    }
+    else if (client->mqtt_client.isconnected == 0)
+    {
+        client->current_state = DISCONNECTED;
+        log_error("Error on publishing command ACK due to lost connection. Error code: %d", rc);
+        retryACK = true;
+        failedACK.ackPayload = cJSON_Duplicate(Ack_payload, 1);
+        failedACK.topic = commandAckTopic;
+    }
+    else
+    {
+        log_error("Error on publishing command Ack. Error code: %d", rc);
+    }
+    log_debug("Publish 2nd Ack %s",cJSON_Print(Ack_payload));
+    cJSON_Delete(Ack_payload);
+    command_list_ack_object = NULL;
+    free(command_ack_payload);
+    return rc;
+}
 int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage)
 {
     
@@ -790,8 +855,14 @@ int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckRe
     {
         return rc;
     }
+    if (client->current_state != CONNECTED)
+    {
+        log_error("Can not publish config acknowledgment, since connection is lost");
+        return ZFAILURE;
+    }
     cJSON* Ack_payload = generateProcessedACK(payload,status_code, responseMessage);
     if (Ack_payload == NULL) {
+        log_error("Error on generating config Acknowledgement");
         return ZFAILURE;
     }
     char *config_ack_payload = NULL;
@@ -866,7 +937,7 @@ int zclient_config_subscribe(ZohoIOTclient *client, messageHandler on_message)
     }
     if (client->current_state != CONNECTED)
     {
-        log_debug("Can not subscribe, since connection is lost/not established");
+        log_error("Can not subscribe, since connection is lost/not established");
         return ZFAILURE;
     }
     //TODO: add basic validation & callback method and append it on error logs.
@@ -916,7 +987,7 @@ int zclient_yield(ZohoIOTclient *client, int time_out)
         if (client->mqtt_client.isconnected == 0)
         {
             client->current_state = DISCONNECTED;
-            // log_error("Error on Yielding due to lost connection. Error code: %d", rc);
+            log_error("Error on Yielding due to lost connection. Error code: %d", rc);
             return ZFAILURE;
         }
     }
@@ -1089,6 +1160,30 @@ char *zclient_getpayload()
 cJSON* zclient_FormReceivedACK(char* payload)
 {
     return generateACKPayload(payload,RECIEVED_ACK_CODE ,"");
+}
+int zclient_generateCommandACK(char* correlation_id,ZcommandAckResponseCodes status_code, char *responseMessage)
+{
+    log_debug("2nd Ack");
+    if (responseMessage == NULL || correlation_id == NULL)
+    {
+        log_error("Response or correlation_id cannot be Null in Ack object");
+       return ZFAILURE;
+    }
+    if (status_code != SUCCESFULLY_EXECUTED && (status_code < EXECUTION_FAILURE || status_code > ALREADY_ON_SAME_STATE))
+    {
+        log_error("Status code provided is not a valid in Ack object");
+        return ZFAILURE;
+    }
+    if (command_list_ack_object == NULL)
+    {
+        command_list_ack_object = cJSON_CreateObject();
+    }
+    cJSON *individualAckObject = cJSON_CreateObject();
+    cJSON_AddItemToObject(command_list_ack_object,correlation_id,individualAckObject);
+    cJSON_AddNumberToObject(individualAckObject, "status_code", status_code);
+    cJSON_AddStringToObject(individualAckObject, "response",responseMessage);
+    log_debug("Processed_2nd Ack %s",cJSON_Print(command_list_ack_object));
+    return ZSUCCESS;
 }
 cJSON* generateProcessedACK(char* payload,ZcommandAckResponseCodes status_code, char *responseMessage)
 {

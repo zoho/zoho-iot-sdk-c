@@ -24,12 +24,22 @@ void message_command_handler(MessageData *data)
 {
     char payload[data->message->payloadlen];
     char topic[data->topicName->lenstring.len];
-    *topic = '\0';
-    *payload = '\0';
-    strncat(topic, data->topicName->lenstring.data, data->topicName->lenstring.len);
-    strncat(payload, data->message->payload, data->message->payloadlen);
-    log_debug("\n\n Got new command message on '%s'\n%s \n\n", topic, payload);
-    log_debug("Second level Command Ack status : %d", zclient_publishCommandAck(&client,payload, SUCCESFULLY_EXECUTED, "Command based task Executed."));
+    strncpy(topic, (char *)data->topicName->lenstring.data, data->topicName->lenstring.len);
+    strncpy(payload, (char *)data->message->payload,data->message->payloadlen);
+
+    cJSON *commandMessageArray = cJSON_Parse(payload);
+    if (cJSON_IsArray(commandMessageArray) == 1) {
+        int len = cJSON_GetArraySize(commandMessageArray);
+        for (int iter = 0; iter < len; iter++) {
+            cJSON *commandMessage = cJSON_GetArrayItem(commandMessageArray, iter);
+            char *correlation_id = cJSON_GetObjectItem(commandMessage, "correlation_id")->valuestring;
+            zclient_generateCommandACK(correlation_id, SUCCESFULLY_EXECUTED, "Command based task Executed.");
+        }
+        zclient_publishCommandAck(&client);
+    }
+    cJSON_Delete(commandMessageArray);
+    return NULL;
+
 }
 
 void interruptHandler(int signo)
