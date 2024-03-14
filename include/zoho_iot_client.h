@@ -130,9 +130,7 @@ int zclient_addEventDataNumber(char *key, double val);
 int zclient_addEventDataString(char *key, char *val);
 int zclient_addEventDataObject(char *key, cJSON* Object);
 
-int zclient_generateAndPublishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage);
-int zclient_publishCommandAck(ZohoIOTclient *client);
-int zclient_generateCommandACK(char* correlation_id,ZcommandAckResponseCodes status_code, char *responseMessage);
+int zclient_publishCommandAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage);
 int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage);
 void zclient_addConnectionParameter(char *connectionParamKey, char *connectionParamValue);
 int zclient_markDataPointAsError(ZohoIOTclient *client, char *key, char *assetName);
