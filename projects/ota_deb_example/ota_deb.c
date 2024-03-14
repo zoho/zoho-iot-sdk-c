@@ -118,6 +118,9 @@ int executeOTA(char *correlation_id, char *response)
 // OTA Callback function
 void message_OTA_handler(char *url, char *hash, bool validity_check, char *correlation_id)
 {
+    //OTA will kill the existing process and start the new process, 
+    //so take necessary action before starting the OTA process
+
     log_info("OTA url : %s", url);
     log_info("OTA hash : %s", hash);
     log_info("OTA validity check : %d", validity_check);
@@ -177,6 +180,10 @@ void message_OTA_handler(char *url, char *hash, bool validity_check, char *corre
             executeShellCommand("rm -rf /tmp/zoho_iot_ota", response);
             return;
         }
+        //Sleep 60 seconds to start the zoho_iot_ota.service
+        sleep(60);
+        //if the Application is not killed by OTA, then OTA is failed
+        check_OTA_state();
     }
     else
     {
