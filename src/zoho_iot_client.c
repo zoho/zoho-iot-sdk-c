@@ -18,7 +18,7 @@ ZfailedACK failedACK;
 bool retryEvent;
 ZfailedEvent failedEvent;
 
-bool paho_debug = true;
+bool paho_debug = false;
 bool TLS_MODE = true;
 bool TLS_CLIENT_CERTS = true;
 
