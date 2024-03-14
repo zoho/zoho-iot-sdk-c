@@ -1,0 +1,7 @@
+#!/bin/bash
+
+systemctl daemon-reload
+systemctl enable zoho_iot_deb.service
+systemctl start zoho_iot_deb.service
+
+exit 0
