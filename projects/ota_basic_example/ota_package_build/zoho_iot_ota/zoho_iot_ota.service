@@ -1,0 +1,12 @@
+[Unit]
+Description= zoho_iot_ota
+
+[Service]
+ExecStart= /tmp/zoho_iot_ota/zupdate.sh
+WorkingDirectory= /tmp/zoho_iot_ota
+User=root
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target
