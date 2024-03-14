@@ -1,6 +1,10 @@
 #ifndef ZOHO_IOT_CLIENT_H_
 #define ZOHO_IOT_CLIENT_H_
-
+#if defined(Z_SECURE_CONNECTION)
+#include "tls_network.h"
+#else
+#include <MQTTLinux.h>
+#endif
 #include <MQTTClient.h>
 #define MQTT_TASK 1
 #include "zoho_log.h"

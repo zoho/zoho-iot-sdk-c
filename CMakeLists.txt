@@ -31,6 +31,7 @@ IF(NOT UNZIP_FOUND OR NOT CURL_FOUND OR NOT PATCH_FOUND)
         )
 ENDIF()
 
+OPTION(Z_ENABLE_SHARED "Enable SHARED for DYNAMIC lib(.so)" OFF)
 OPTION(Z_ENABLE_TLS "Enable TLS for Secure connection" OFF)
 OPTION(Z_USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
 
@@ -44,6 +45,15 @@ SET(Z_LOG_LEVEL LOG_DEBUG)
 OPTION(Z_ENABLE_LOGGING "Create logs for Application" OFF)
 OPTION(Z_LOG_COMPRESS "Compress the rolling log" ON)
 OPTION(Z_STATIC_ZLIB "Use static zlib library" ON)
+OPTION(Z_ENABLE_COVERAGE "Enable code coverage" ON)
+IF(Z_LOG_COMPRESS)
+    IF(Z_ENABLE_SHARED AND Z_STATIC_ZLIB)
+        MESSAGE(
+                FATAL_ERROR
+                    "zlib Cannot be static in shared build"
+                )
+    ENDIF()
+ENDIF()
 
 # Enable Paho MQTT Client debug logs.
 OPTION(Z_PAHO_DEBUG "Enable Paho MQTT Client debug logs" ON)
@@ -61,6 +71,11 @@ MESSAGE(STATUS "TLS SUPPORT : " ${Z_ENABLE_TLS})
 MESSAGE(STATUS "USE CLIENT CERTS : " ${Z_USE_CLIENT_CERTS})
 MESSAGE(STATUS "LOG LEVEL : " ${Z_LOG_LEVEL})
 MESSAGE(STATUS "GENERATE APPLICATION LOGS : " ${Z_ENABLE_LOGGING})
+IF(Z_ENABLE_SHARED)
+MESSAGE(STATUS "BUILD TYPE: SHARED")
+ELSE()
+MESSAGE(STATUS "BUILD TYPE: STATIC")
+ENDIF(Z_ENABLE_SHARED)
 
 INCLUDE (TestBigEndian)
 TEST_BIG_ENDIAN(IS_BIG_ENDIAN)
@@ -77,7 +92,10 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 #utility to update depedent libaries.
 #ADD_SUBDIRECTORY(cmake/setup)
 enable_testing()
-include(CodeCoverage)
+
+IF(Z_ENABLE_COVERAGE)
+    include(CodeCoverage)
+ENDIF()
 
 INCLUDE_DIRECTORIES(test include lib/cjson src)
 INCLUDE_DIRECTORIES(lib/paho.mqtt/MQTTPacket/src lib/paho.mqtt/MQTTClient-C/src)
@@ -124,8 +142,13 @@ LIST(APPEND SDK_DEPENDENCIES
 IF(Z_LOG_COMPRESS)
     LIST(APPEND FEATURES "-DZ_LOG_COMPRESS")
 ENDIF(Z_LOG_COMPRESS)
-# TODO: Add configurable STATIC/DYNAMIC option.
+
+IF(Z_ENABLE_SHARED)
+ADD_LIBRARY(zoho_iot_sdk SHARED ${SDK_DEPENDENCIES})
+ELSE()
 ADD_LIBRARY(zoho_iot_sdk STATIC ${SDK_DEPENDENCIES})
+ENDIF(Z_ENABLE_SHARED)
+
 TARGET_COMPILE_DEFINITIONS(zoho_iot_sdk PUBLIC ${FEATURES})
 
 IF(Z_LOG_COMPRESS)
@@ -164,6 +187,47 @@ IF (BUILD_EXPORTABLE_LIB)
     ENDIF(Z_ENABLE_TLS)
 ENDIF(BUILD_EXPORTABLE_LIB)
 
+FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/include)
+FILE(COPY
+${CMAKE_SOURCE_DIR}/include/tls_config.h
+${CMAKE_SOURCE_DIR}/include/tls_network.h
+${CMAKE_SOURCE_DIR}/include/zclient_constants.h
+${CMAKE_SOURCE_DIR}/include/zoho_iot_client.h
+${CMAKE_SOURCE_DIR}/include/zoho_log.h
+${CMAKE_SOURCE_DIR}/include/zoho_message_handler.h
+${CMAKE_SOURCE_DIR}/include/zoho_utils.h
+${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTConnect.h
+${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTFormat.h
+${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTPacket.h
+${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTPublish.h
+${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTSubscribe.h
+${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTUnsubscribe.h
+${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/StackTrace.h
+${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTClient-C/src/MQTTClient.h
+${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTClient-C/src/linux/MQTTLinux.h
+${CMAKE_SOURCE_DIR}/lib/cjson/cJSON_Utils.h
+${CMAKE_SOURCE_DIR}/lib/cjson/cJSON.h
+DESTINATION ${CMAKE_BINARY_DIR}/include
+)
+
+ IF(Z_ENABLE_TLS)
+ FILE(COPY
+ ${CMAKE_SOURCE_DIR}/lib/mbedtls/include/mbedtls
+ DESTINATION ${CMAKE_BINARY_DIR}/include
+ )
+ ENDIF(Z_ENABLE_TLS)
+
+IF(Z_LOG_COMPRESS)
+    IF(Z_STATIC_ZLIB)
+    ADD_CUSTOM_COMMAND(TARGET libzlib POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+    ${CMAKE_BINARY_DIR}/libzlib/include/zlib.h
+    ${CMAKE_BINARY_DIR}/libzlib/include/zconf.h
+    ${CMAKE_BINARY_DIR}/include
+    )
+    ENDIF(Z_STATIC_ZLIB)
+ENDIF(Z_LOG_COMPRESS)
+
 # Project implementations:
 ADD_SUBDIRECTORY(projects)
 
@@ -171,3 +235,6 @@ ADD_SUBDIRECTORY(projects)
 IF(Z_RUN_TESTS)
     add_subdirectory(test/unit)
 ENDIF(Z_RUN_TESTS)
+
+INSTALL(TARGETS zoho_iot_sdk DESTINATION /usr/local/lib)
+INSTALL(DIRECTORY ${CMAKE_BINARY_DIR}/include/ DESTINATION /usr/local/include)
