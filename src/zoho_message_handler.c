@@ -43,6 +43,13 @@ void onMessageReceived(MessageData *md)
             MQTTPublish(&(iot_client->mqtt_client), handler_COMMAND_ACK_TOPIC, &pubmsg);
             cJSON_Delete(commandAckObject);
             free(pubmsg.payload);
+            if(get_OTA_status())
+            {
+                //handle OTA
+                log_info("Received OTA command. Handling OTA...");
+                handle_OTA(iot_client,payload);
+                return;
+            }
             on_command_message_handler(md);
         }
     }

@@ -40,7 +40,7 @@
 #define zclient_init(...) zclient_init_without_logConfig(__VA_ARGS__, NULL)
 #define zclient_init_without_logConfig(iot_client, MQTTUserName, MQTTPassword, mode, ca_crt, client_cert, client_key, cert_password, logConfig, ...) zclient_init(iot_client, MQTTUserName, MQTTPassword, mode, ca_crt, client_cert, client_key, cert_password, logConfig)
 
-
+typedef void (*OTAHandler)(char *, char *, bool, char *);
 typedef struct
 {
     char *client_id;
@@ -147,6 +147,10 @@ int zclient_free(ZohoIOTclient *client);
 void zclient_enable_paho_debug(bool state);
 void zclient_set_tls(bool state);
 void zclient_set_client_certs(bool state);
+bool get_OTA_status();
+void handle_OTA(ZohoIOTclient *client, char* payload);
+int zclient_ota_handler(OTAHandler on_OTA);
+int zclient_publishOTAAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage);
 //int zclient_setRetrycount(ZohoIOTclient *client, int count);
 //char *zclient_getpayload();
 #endif //# ZOHO_IOT_CLIENT_H_

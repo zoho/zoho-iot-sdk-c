@@ -22,6 +22,10 @@ bool paho_debug = true;
 bool TLS_MODE = true;
 bool TLS_CLIENT_CERTS = true;
 
+//OTA related variables
+bool OTA_RECEIVED = false;
+OTAHandler on_OTA_handler = NULL;
+
 #if defined(Z_SECURE_CONNECTION)
 int ZPORT = 8883;
 #else
@@ -44,6 +48,10 @@ void zclient_set_tls(bool state){
 }
 void zclient_set_client_certs(bool state){
     TLS_CLIENT_CERTS = state;
+}
+bool get_OTA_status()
+{
+    return OTA_RECEIVED;
 }
 
 int populateConfigObject(char *MQTTUserName, Zconfig *config)
@@ -1115,6 +1123,18 @@ cJSON* generateACKPayload(char* payload,ZcommandAckResponseCodes status_code, ch
         for (int iter = 0; iter < len; iter++) {
             commandMessage = cJSON_GetArrayItem(commandMessageArray, iter);
             char *correlation_id = cJSON_GetObjectItem(commandMessage, "correlation_id")->valuestring;
+
+            //check if the command is OTA
+            char *command_name = cJSON_GetObjectItem(commandMessage, "command_name")->valuestring;
+            if(strcmp(command_name,"Z_OTA")== 0)
+            {
+                OTA_RECEIVED = true;
+            }
+            else
+            {
+                 OTA_RECEIVED = false;
+            }
+
             commandAckObj = cJSON_CreateObject();
             cJSON_AddItemToObject(commandAckObject, correlation_id, commandAckObj);
             cJSON_AddNumberToObject(commandAckObj, "status_code", status_code);
@@ -1173,4 +1193,140 @@ int zclient_free(ZohoIOTclient *client)
     #endif
     log_free();
     return ZSUCCESS;
+}
+
+void handle_OTA(ZohoIOTclient *client,char* payload)
+{
+    char *OTA_URL = NULL;
+    char *hash = NULL;
+    char *correlation_id = NULL;
+    char *edge_command_key = NULL;
+    bool validity_check = false;
+
+    //get required fields from payload
+    cJSON *commandMessageArray = cJSON_Parse(payload);
+    if (cJSON_IsArray(commandMessageArray) == 1) {
+        cJSON *commandAckObject = cJSON_CreateObject();
+        cJSON *commandMessage, *commandAckObj;
+        int len = cJSON_GetArraySize(commandMessageArray);
+        for (int iter = 0; iter < len; iter++) {
+            commandMessage = cJSON_GetArrayItem(commandMessageArray, iter);
+            correlation_id = cJSON_GetObjectItem(commandMessage, "correlation_id")->valuestring;
+            cJSON *payload_array = cJSON_GetObjectItem(commandMessage, "payload");
+            cJSON *payload_message = cJSON_GetArrayItem(payload_array,0);
+            edge_command_key = cJSON_GetObjectItem(payload_message, "edge_command_key")->valuestring;
+            cJSON *attributes = cJSON_GetObjectItem(payload_message, "attributes");
+            for(int i = 0; i < cJSON_GetArraySize(attributes); i++)
+            {
+                cJSON *attribute = cJSON_GetArrayItem(attributes, i);
+                log_debug("attribute : %s",cJSON_Print(attribute));
+                if(strcmp(cJSON_GetObjectItem(attribute, "field")->valuestring,"OTA_URL") == 0)
+                {
+                    OTA_URL = cJSON_GetObjectItem(attribute, "value")->valuestring;
+                }
+                else if (strcmp(cJSON_GetObjectItem(attribute, "field")->valuestring,"HASH") == 0)
+                {
+                    hash = cJSON_GetObjectItem(attribute, "value")->valuestring;
+                }  
+            }
+        }
+
+        //check if the user has set the OTA handler
+        if(on_OTA_handler == NULL)
+        {
+            log_error("OTA Handler is not set");
+            zclient_publishOTAAck(client,correlation_id,EXECUTION_FAILURE,"OTA Handler is not set");
+            return;
+        }
+
+        //check if the OTA URL is valid
+        if(OTA_URL == NULL)
+        {
+            log_error("OTA URL is NULL");
+            zclient_publishOTAAck(client,correlation_id,EXECUTION_FAILURE,"OTA URL is NULL");
+            return;
+        }
+
+        //check whether to validate the hash or not
+        if(strcmp(edge_command_key,"${YES}") == 0)
+        {
+            validity_check = true;
+            //check if the hash is valid
+            if(hash == NULL)
+            {
+                log_error("Hash is NULL");
+                zclient_publishOTAAck(client,correlation_id,EXECUTION_FAILURE,"Hash is NULL");
+                return;
+            }
+        }
+        
+        //call the user defined OTA handler
+        on_OTA_handler(OTA_URL,hash,validity_check,correlation_id);
+    }
+    cJSON_Delete(commandMessageArray);
+}
+
+//set the OTA handler
+int zclient_ota_handler(OTAHandler on_OTA)
+{
+    if(on_OTA == NULL)
+    {
+        log_error("OTA Handler can't be NULL");
+        return ZFAILURE;
+    }
+    on_OTA_handler = on_OTA;
+    return ZSUCCESS;
+}
+
+
+int zclient_publishOTAAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage){
+
+    int rc = validateClientState(client);
+    if (rc != 0)
+    {
+        return rc;
+    }
+
+    //create the OTA Ack payload
+    cJSON* Ack_payload = cJSON_CreateObject();
+    cJSON* OTAAckObj = cJSON_CreateObject();
+    cJSON_AddNumberToObject(OTAAckObj, "status_code", status_code);
+    cJSON_AddStringToObject(OTAAckObj, "response",responseMessage);
+    cJSON_AddItemToObject(Ack_payload, correlation_id, OTAAckObj);
+
+    if (Ack_payload == NULL) {
+        return ZFAILURE;
+    }
+    
+    char *command_ack_payload = NULL;
+    command_ack_payload = cJSON_Print(Ack_payload);
+    MQTTMessage pubmsg;
+    pubmsg.id = rand()%10000;
+    pubmsg.qos = 1;
+    pubmsg.dup = '0';
+    pubmsg.retained = '0';
+    pubmsg.payload = command_ack_payload;
+    pubmsg.payloadlen = strlen(pubmsg.payload);
+    rc = MQTTPublish(&(client->mqtt_client), commandAckTopic, &pubmsg);
+    if (rc == ZSUCCESS)
+    {
+        log_debug("\x1b[36m OTA ACK Published \x1b[0m");
+        log_trace("OTA Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, commandAckTopic);
+    }
+    else if (client->mqtt_client.isconnected == 0)
+    {
+        client->current_state = DISCONNECTED;
+        log_error("Error on publishing OTA ACK due to lost connection. Error code: %d", rc);
+        retryACK = true;
+        failedACK.ackPayload = cJSON_Duplicate(Ack_payload, 1);
+        failedACK.topic = commandAckTopic;
+    }
+    else
+    {
+        log_error("Error on publishing OTA Ack. Error code: %d", rc);
+    }
+    cJSON_Delete(Ack_payload);
+    free(command_ack_payload);
+    return rc;
+
 }
