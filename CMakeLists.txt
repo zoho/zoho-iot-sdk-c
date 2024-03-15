@@ -36,7 +36,7 @@ OPTION(Z_ENABLE_TLS "Enable TLS for Secure connection" OFF)
 OPTION(Z_USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
 
 #To enable unit test cases:
-OPTION(Z_RUN_TESTS "Run unit tests" ON)
+OPTION(Z_RUN_TESTS "Run unit tests" OFF)
 
 # Set Log level to LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL.
 SET(Z_LOG_LEVEL LOG_DEBUG)
@@ -45,7 +45,7 @@ SET(Z_LOG_LEVEL LOG_DEBUG)
 OPTION(Z_ENABLE_LOGGING "Create logs for Application" OFF)
 OPTION(Z_LOG_COMPRESS "Compress the rolling log" ON)
 OPTION(Z_STATIC_ZLIB "Use static zlib library" ON)
-OPTION(Z_ENABLE_COVERAGE "Enable code coverage" ON)
+OPTION(Z_ENABLE_COVERAGE "Enable code coverage" OFF)
 IF(Z_LOG_COMPRESS)
     IF(Z_ENABLE_SHARED AND Z_STATIC_ZLIB)
         MESSAGE(
