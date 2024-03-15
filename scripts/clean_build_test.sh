@@ -8,7 +8,7 @@ mkdir build && cd build
 
 if [ $# -eq 0 ]
   then
-    cmake .. -DZ_ENABLE_TLS=true -DZ_USE_CLIENT_CERTS=true
+    cmake .. -DZ_ENABLE_TLS=true -DZ_USE_CLIENT_CERTS=true -DZ_RUN_TESTS=true -DZ_ENABLE_COVERAGE=true
   else
     echo "using build parameters:  ${1}"
     cmake $1 ..
