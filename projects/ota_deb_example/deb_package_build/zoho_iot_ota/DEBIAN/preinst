@@ -1,3 +1,0 @@
-#!/bin/bash
-systemctl stop zoho_iot_deb.service
-exit 0
