@@ -1,6 +1,10 @@
 #ifndef ZOHO_IOT_CLIENT_H_
 #define ZOHO_IOT_CLIENT_H_
-
+#if defined(Z_SECURE_CONNECTION)
+#include "tls_network.h"
+#else
+#include <MQTTLinux.h>
+#endif
 #include <MQTTClient.h>
 #define MQTT_TASK 1
 #include "zoho_log.h"
@@ -40,7 +44,7 @@
 #define zclient_init(...) zclient_init_without_logConfig(__VA_ARGS__, NULL)
 #define zclient_init_without_logConfig(iot_client, MQTTUserName, MQTTPassword, mode, ca_crt, client_cert, client_key, cert_password, logConfig, ...) zclient_init(iot_client, MQTTUserName, MQTTPassword, mode, ca_crt, client_cert, client_key, cert_password, logConfig)
 
-
+typedef void (*OTAHandler)(char *, char *, bool, char *);
 typedef struct
 {
     char *client_id;
@@ -130,9 +134,7 @@ int zclient_addEventDataNumber(char *key, double val);
 int zclient_addEventDataString(char *key, char *val);
 int zclient_addEventDataObject(char *key, cJSON* Object);
 
-int zclient_generateAndPublishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage);
-int zclient_publishCommandAck(ZohoIOTclient *client);
-int zclient_generateCommandACK(char* correlation_id,ZcommandAckResponseCodes status_code, char *responseMessage);
+int zclient_publishCommandAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage);
 int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage);
 void zclient_addConnectionParameter(char *connectionParamKey, char *connectionParamValue);
 int zclient_markDataPointAsError(ZohoIOTclient *client, char *key, char *assetName);
@@ -149,6 +151,10 @@ int zclient_free(ZohoIOTclient *client);
 void zclient_enable_paho_debug(bool state);
 void zclient_set_tls(bool state);
 void zclient_set_client_certs(bool state);
+bool get_OTA_status();
+void handle_OTA(ZohoIOTclient *client, char* payload);
+int zclient_ota_handler(OTAHandler on_OTA);
+int zclient_publishOTAAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage);
 //int zclient_setRetrycount(ZohoIOTclient *client, int count);
 //char *zclient_getpayload();
 #endif //# ZOHO_IOT_CLIENT_H_

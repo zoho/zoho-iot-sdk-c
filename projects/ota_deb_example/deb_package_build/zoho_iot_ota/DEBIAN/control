@@ -1,0 +1,6 @@
+Package: zoho-iot-deb
+Version: 1.0.0
+Architecture: armhf
+Maintainer: iot.zoho.com
+Description: Sample zoho iot ota deb package
+postinst: DEBIAN/postinst

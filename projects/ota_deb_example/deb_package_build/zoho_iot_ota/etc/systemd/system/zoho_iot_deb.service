@@ -1,0 +1,12 @@
+[Unit]
+Description= zoho_iot_deb
+
+[Service]
+ExecStart= /usr/sbin/ota_deb
+Restart=always
+User=root
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target

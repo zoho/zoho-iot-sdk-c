@@ -454,7 +454,7 @@ static void PublishCommandAck_OnCallingBeforeInitialization_ShouldFail(void **st
 {
     // PublishCommandAck with out initializing should Fail.
     ZohoIOTclient client;
-    assert_int_equal(zclient_publishCommandAck(&client), -2);
+    assert_int_equal(zclient_publishCommandAck(&client, "", 1001, "response message"), -2);
 }
 
 static void PublishCommandAck_WithNoConnection_ShouldFail(void **state)
@@ -462,8 +462,7 @@ static void PublishCommandAck_WithNoConnection_ShouldFail(void **state)
     // PublishCommandAck with out establishing connection should Fail.
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
-    zclient_generateCommandACK("1234567890", SUCCESFULLY_EXECUTED, "Command based task Executed.");
-    assert_int_equal(zclient_publishCommandAck(&client), ZFAILURE); 
+    assert_int_equal(zclient_publishCommandAck(&client, "", 1001, "response message"), ZFAILURE);
 }
 
 static void PublishCommandAck_WithproperArguments_ShouldSucceed(void **state)
@@ -475,10 +474,22 @@ static void PublishCommandAck_WithproperArguments_ShouldSucceed(void **state)
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
-    zclient_generateCommandACK("1234567890", SUCCESFULLY_EXECUTED, "Command based task Executed.");
-    assert_int_equal(zclient_publishCommandAck(&client), ZSUCCESS);
+    assert_int_equal(zclient_publishCommandAck(&client, ACK_SAMPLE_PAYLOAD, 1001, "response message"), ZSUCCESS);
+    assert_int_equal(zclient_publishCommandAck(&client, ACK_SAMPLE_PAYLOAD, 1001, ""), ZSUCCESS);
 }
 
+static void PublishCommandAck_WithNullOrEmptyproperArguments_ShouldFail(void **state)
+{
+    // PublishCommandAck with Improper Null or empty arguments should Fail.
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_connect(&client);
+    assert_int_equal(zclient_publishCommandAck(&client, "", 1001, "response message"), ZFAILURE);
+    assert_int_equal(zclient_publishCommandAck(&client, "invalid json", 1001, NULL), ZFAILURE);
+    assert_int_equal(zclient_publishCommandAck(&client, NULL, 1001, ""), ZFAILURE);
+}
 
 static void PublishCommandAck_WithoutMQTTPublish_ShouldFail(void **state)
 {
@@ -489,9 +500,8 @@ static void PublishCommandAck_WithoutMQTTPublish_ShouldFail(void **state)
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
-    zclient_generateCommandACK("1234567890", SUCCESFULLY_EXECUTED, "Command based task Executed.");
-    assert_int_equal(zclient_publishCommandAck(&client), ZFAILURE);
-    assert_int_equal(zclient_publishCommandAck(&client), ZFAILURE);
+    assert_int_equal(zclient_publishCommandAck(&client, ACK_SAMPLE_PAYLOAD, 1001, "response message"), ZFAILURE);
+    assert_int_equal(zclient_publishCommandAck(&client, ACK_SAMPLE_PAYLOAD, 1001, ""), ZFAILURE);
 }
 // SUBSCRIBE :
 
@@ -1115,6 +1125,7 @@ int main(void)
         cmocka_unit_test_setup(PublishCommandAck_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
         cmocka_unit_test_setup(PublishCommandAck_WithNoConnection_ShouldFail,Turn_off_TLS_mode),
         cmocka_unit_test_setup(PublishCommandAck_WithproperArguments_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(PublishCommandAck_WithNullOrEmptyproperArguments_ShouldFail,Turn_off_TLS_mode),
         cmocka_unit_test_setup(PublishCommandAck_WithoutMQTTPublish_ShouldFail,Turn_off_TLS_mode),
         cmocka_unit_test_setup(SubscribeMethod_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
         cmocka_unit_test_setup(SubscribeMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
