@@ -24,13 +24,13 @@ dpkg -i $PACKAGE_NAME >> "$LOG_FILE" 2>&1
 
 # Check the installation status
 if [ $? -eq 0 ]; then
+    log_message "OTA successfull"
     echo "success" >> "/tmp/zoho_iot_ota_status.txt"
     echo "OTA successfull" >> "/tmp/zoho_iot_ota_status.txt"
-    log_message "OTA successfull"
 else
+    log_message "OTA fail"
     echo "fail" >> "/tmp/zoho_iot_ota_status.txt"
     echo "OTA failed" >> "/tmp/zoho_iot_ota_status.txt"
-    log_message "OTA fail"
 fi
 
 # Log script execution end

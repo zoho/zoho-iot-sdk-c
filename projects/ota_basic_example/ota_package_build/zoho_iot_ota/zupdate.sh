@@ -46,19 +46,19 @@ log_message "Stopped $APPLICATION_NAME.service"
 sleep 2
 #check if the service is stopped
 if [ "$(systemctl is-active "$APPLICATION_NAME.service")" = "active" ]; then
+    log_message "OTA failed"
     echo "fail" >> "/zoho_iot_ota_status.txt"
     echo "OTA failed" >> "/zoho_iot_ota_status.txt"
-    log_message "OTA failed"
     end_script
 fi
 
 # Rename the application required for rollback
-mv "$APPLICATION_PATH/$APPLICATION_NAME" "$APPLICATION_PATH/$APPLICATION_NAME.backup"
 log_message "Taking backup of $APPLICATION_NAME for rollback"
+mv "$APPLICATION_PATH/$APPLICATION_NAME" "$APPLICATION_PATH/$APPLICATION_NAME.backup"
 
 # Copy the new application to the application directory
-cp "/tmp/zoho_iot_ota/$APPLICATION_NAME" "$APPLICATION_PATH/"
 log_message "Copying new $APPLICATION_NAME"
+cp "/tmp/zoho_iot_ota/$APPLICATION_NAME" "$APPLICATION_PATH/"
 
 # Restart the service
 start_service
@@ -70,18 +70,18 @@ sleep "$SLEEP_TIME"
 if [ "$(systemctl is-active "$APPLICATION_NAME.service")" = "active" ]; then
 
     # Write "success" to the file
+    log_message "OTA successfull"
     echo "success" >> "/tmp/zoho_iot_ota_status.txt"
     echo "OTA successfull" >> "/tmp/zoho_iot_ota_status.txt"
-    log_message "OTA successfull"
 
     # Remove the backup application
-    rm "$APPLICATION_PATH/$APPLICATION_NAME.backup"
     log_message "Removing backup $APPLICATION_NAME"
+    rm "$APPLICATION_PATH/$APPLICATION_NAME.backup"
 else
     # Write "fail" to the file
+    log_message "OTA failed rolling back"
     echo "fail" >> "/tmp/zoho_iot_ota_status.txt"
     echo "OTA failed rolling back" >> "/tmp/zoho_iot_ota_status.txt"
-    log_message "OTA failed rolling back"
     
     # Roll back the application
     rm "$APPLICATION_PATH/$APPLICATION_NAME"
