@@ -19,6 +19,10 @@ log_message() {
 # Log script execution start
 log_message "zoho ota Service execution started."
 
+# Stop the application
+log_message "Stopping zoho_iot_deb.service"
+systemctl stop zoho_iot_deb.service
+
 #install application
 dpkg -i $PACKAGE_NAME >> "$LOG_FILE" 2>&1
 
@@ -32,6 +36,9 @@ else
     echo "fail" >> "/tmp/zoho_iot_ota_status.txt"
     echo "OTA failed" >> "/tmp/zoho_iot_ota_status.txt"
 fi
+# Start the application
+log_message "Starting zoho_iot_deb.service"
+systemctl start zoho_iot_deb.service
 
 # Log script execution end
 log_message "Zoho ota Service execution ended."
