@@ -72,6 +72,7 @@ int populateConfigObject(char *MQTTUserName, Zconfig *config)
     }
     if (itr_cnt != 5)
     {
+        log_error("populating config object failed");
         return ZFAILURE;
     }
     return ZSUCCESS;
@@ -757,6 +758,7 @@ int zclient_publishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckR
     }
     cJSON* Ack_payload = generateProcessedACK(payload,status_code, responseMessage);
     if (Ack_payload == NULL) {
+        log_error("Error on generating command Acknowledgement");
         return ZFAILURE;
     }
     char *command_ack_payload = NULL;
@@ -800,6 +802,7 @@ int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckRe
     }
     cJSON* Ack_payload = generateProcessedACK(payload,status_code, responseMessage);
     if (Ack_payload == NULL) {
+        log_error("Error on generating config Acknowledgement");
         return ZFAILURE;
     }
     char *config_ack_payload = NULL;
@@ -874,7 +877,7 @@ int zclient_config_subscribe(ZohoIOTclient *client, messageHandler on_message)
     }
     if (client->current_state != CONNECTED)
     {
-        log_debug("Can not subscribe, since connection is lost/not established");
+        log_error("Can not subscribe, since connection is lost/not established");
         return ZFAILURE;
     }
     //TODO: add basic validation & callback method and append it on error logs.
