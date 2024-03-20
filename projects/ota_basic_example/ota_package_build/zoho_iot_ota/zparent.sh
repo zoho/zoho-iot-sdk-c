@@ -106,6 +106,7 @@ touch "/tmp/zoho_iot_ota_status.txt"
 log_message "Appending correlation_id to status file"
 # Append the correlation_id to the file
 echo "$1" >> "/tmp/zoho_iot_ota_status.txt"
+log_message "Correlation_id : $1"
 
 # Ensure zupdate.sh is executable
 chmod +x /tmp/zoho_iot_ota/zupdate.sh
