@@ -53,7 +53,7 @@ IF(Z_LOG_COMPRESS)
                     "zlib Cannot be static in shared build"
                 )
     ENDIF()
-ENDIF()
+ENDIF(Z_LOG_COMPRESS)
 
 # Enable Paho MQTT Client debug logs.
 OPTION(Z_PAHO_DEBUG "Enable Paho MQTT Client debug logs" ON)
@@ -84,7 +84,7 @@ IF(IS_BIG_ENDIAN)
     LIST(APPEND FEATURES "-DREVERSED") 
 ELSE()
     MESSAGE(STATUS "LITTLE_ENDIAN")
-ENDIF()
+ENDIF(IS_BIG_ENDIAN)
 
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
@@ -95,7 +95,7 @@ enable_testing()
 
 IF(Z_ENABLE_COVERAGE)
     include(CodeCoverage)
-ENDIF()
+ENDIF(Z_ENABLE_COVERAGE)
 
 INCLUDE_DIRECTORIES(test include lib/cjson src)
 INCLUDE_DIRECTORIES(lib/paho.mqtt/MQTTPacket/src lib/paho.mqtt/MQTTClient-C/src)
