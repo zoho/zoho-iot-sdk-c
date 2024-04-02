@@ -461,7 +461,7 @@ int zclient_reconnect(ZohoIOTclient *client)
             }
             if(retryEvent)
             {
-                if(failedEvent.eventPayloadTime + 60 < getCurrentTime())
+                if(failedEvent.eventPayloadTime + 300 < getCurrentTime())
                 {
                     log_debug("Event is expired, so not attempting to resend the Event message that previously failed");
                     cJSON_Delete(failedEvent.eventPayload);
