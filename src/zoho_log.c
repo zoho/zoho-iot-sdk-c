@@ -17,6 +17,10 @@ static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 // common static logconfig structure that the user can get using the function getZlogger() and configure the logging properties
 static ZlogConfig logConfig;
 
+#if defined(Z_CLOUD_LOGGING)
+int NUM_LINES_READ  = 100;
+#endif
+
 #if defined(Z_LOG_COMPRESS)
 bool enable_log_compression = true;
 #define CHUNK 32768
@@ -400,3 +404,101 @@ ZlogConfig *getZlogger()
 {
   return &logConfig;
 }
+
+#if defined(Z_CLOUD_LOGGING)
+cJSON * get_last_lines(FILE *fp, int num_lines,long long file_old_ending_position) {
+
+    int lines_read = 0;
+    char buffer[LINE_SIZE];
+    int garbage_line_flag =0;
+    fseek(fp, 0, SEEK_END);
+    long long pointer_position = ftell(fp);
+    long long file_new_ending_position = ftell(fp);
+
+    cJSON * log_json_array = cJSON_CreateArray();
+    if (log_json_array == NULL) {
+        log_error("Failed to create JSON array\n");
+        return NULL;
+    }
+    log_debug("Lines requested to read by command: %d", num_lines);
+    log_debug("Maximum bytes in a file allowed to read : %f KB", MAXIMUM_READ/1000.0);
+
+    while (pointer_position > 0 && lines_read < num_lines) {
+        fseek(fp, --pointer_position, SEEK_SET);
+
+        if((file_new_ending_position - pointer_position > MAXIMUM_READ) || (pointer_position < file_old_ending_position)){
+            break;
+        }
+        if (fgetc(fp) == '\n') {
+            // fgets(buffer, LINE_SIZE, fp);  //To read in reverse order
+            // if(garbage_line_flag == 0){
+            //     garbage_line_flag = 1;
+            // }
+            // else{
+            //     cJSON *string_json = cJSON_CreateString(buffer);
+            //     cJSON_AddItemToArray(log_json_array, string_json);
+            //     log_error("%s", buffer); // Print the line
+            // }
+            lines_read++;
+        }
+    }
+    log_info("Cloud Logging: Actual number of lines_readed : %d", lines_read);
+    while((fgets(buffer, LINE_SIZE, fp) != NULL) && lines_read > 0){
+        cJSON *string_json = cJSON_CreateString(buffer);
+        cJSON_AddItemToArray(log_json_array, string_json);
+        lines_read--;
+    }
+    return log_json_array;
+
+}
+
+void intitialize_cloud_log()
+{
+  sprintf(ZcloudLog.currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
+  ZcloudLog.file = fopen(ZcloudLog.currentLogFile, "r");
+  if (ZcloudLog.file == NULL) {
+      log_error("Error opening file");
+      return ;
+  }
+  ZcloudLog.file_old_ending_position = 0;
+}
+
+cJSON* get_cloud_log(){
+
+    if(ZcloudLog.file == NULL){
+        log_error("Error opening file");
+        return NULL;
+    }
+    cJSON * log_json_array = NULL;
+    fseek(ZcloudLog.file, 0, SEEK_END);
+    ZcloudLog.file_new_ending_position = ftell(ZcloudLog.file);
+    if ((ZcloudLog.file_new_ending_position>(Zlog.maxLogFileSize-5000)))
+    {
+        fclose(ZcloudLog.file);
+        log_debug("Old File closed\n");
+        ZcloudLog.file = fopen(ZcloudLog.currentLogFile, "r");
+        if (ZcloudLog.file == NULL)
+        {
+            log_error("Error opening file");
+            return NULL;
+        }
+        fseek(ZcloudLog.file, 0, SEEK_END);
+        ZcloudLog.file_old_ending_position = 0;
+        ZcloudLog.file_new_ending_position = ftell(ZcloudLog.file);
+    }
+    log_json_array =get_last_lines(ZcloudLog.file, NUM_LINES_READ,ZcloudLog.file_old_ending_position);
+    ZcloudLog.file_old_ending_position = ZcloudLog.file_new_ending_position;
+    return log_json_array;
+}
+
+int cloud_logging_set_lines(char * line){
+  int lines = atoi(line);
+  if(lines<1){
+    log_error("cloud logging: number of lines is invalid");
+    return -1;
+  }
+  NUM_LINES_READ = lines;
+  return 0;
+}
+
+#endif

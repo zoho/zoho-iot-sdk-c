@@ -50,6 +50,13 @@ void onMessageReceived(MessageData *md)
                 handle_OTA(iot_client,payload);
                 return;
             }
+            if(get_cloud_logging_status())
+            {
+                //handle Cloud logging
+                log_info("Received cloud logging command. Handling cloud logging...");
+                handle_cloud_logging(iot_client,payload);
+                return;
+            }
             on_command_message_handler(md);
         }
     }
