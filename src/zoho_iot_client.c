@@ -32,6 +32,10 @@ int ZPORT = 8883;
 int ZPORT = 1883;
 #endif
 
+bool CLOUD_LOGGING = false;
+bool get_cloud_logging_status(){
+    return CLOUD_LOGGING;
+}
 
 //TODO: Remove all debug statements and use logger.
 //TODO: Add logging for all important connection scenarios.
@@ -86,6 +90,9 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     if (!Zlog.fp)
     {
         log_initialize(logConfig);
+        #if defined(Z_CLOUD_LOGGING)
+            intitialize_cloud_log();
+        #endif
         log_info("\n\n\nSDK Initializing.. version: %s",Z_SDK_VERSION);
     }
     #if(Z_SECURE_CONNECTION)
@@ -1138,6 +1145,22 @@ cJSON* generateACKPayload(char* payload,ZcommandAckResponseCodes status_code, ch
                  OTA_RECEIVED = false;
             }
 
+            //check if the command is for cloud logging
+            if(strcmp(command_name,"Z_PUBLISH_DEVICE_LOGS")== 0)
+            {
+                CLOUD_LOGGING = true;
+                #if defined(Z_CLOUD_LOGGING)
+                    cJSON *payload_array = cJSON_GetObjectItem(commandMessage, "payload");
+                    cJSON *payload_json = cJSON_GetArrayItem(payload_array, 0);
+                    char *value = cJSON_GetObjectItem(payload_json, "value")->valuestring;
+                    cloud_logging_set_lines(value);
+                #endif
+            }
+            else
+            {
+                 CLOUD_LOGGING = false;
+            }
+
             commandAckObj = cJSON_CreateObject();
             cJSON_AddItemToObject(commandAckObject, correlation_id, commandAckObj);
             cJSON_AddNumberToObject(commandAckObj, "status_code", status_code);
@@ -1198,6 +1221,197 @@ int zclient_free(ZohoIOTclient *client)
     return ZSUCCESS;
 }
 
+#if defined(Z_CLOUD_LOGGING)
+bool parse_http_response(const char* str) {
+    const char* start = strchr(str, '{');
+    if (start == NULL) {
+        log_error("Error: Starting brace not found\n");
+        return false;
+    }
+    const char* end = strchr(start, '}');
+    if (end == NULL) {
+        log_error("Error: Ending brace not found\n");
+        return false;
+    }
+    size_t length = end - start + 1;
+    char json_str[length + 1];
+    strncpy(json_str, start, length);
+    json_str[length] = '\0';
+    cJSON* json = cJSON_Parse(json_str);
+    if (json == NULL) {
+        log_error("Error: Failed to parse JSON object\n");
+        return false;
+    }
+    char *status = cJSON_GetObjectItem(json, "status")->valuestring;
+
+    if(strcasecmp(status, "success") != 0) {
+        log_error("Cloud logging Error Message: %s\n", cJSON_GetObjectItem(json, "message")->valuestring);
+        return false;
+    }
+    log_debug("Cloue logging Success Message: %s\n", cJSON_GetObjectItem(json, "message")->valuestring);
+    return true;
+}
+
+int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * responseMessage)
+{
+    SSL_CTX *ctx;
+    SSL *ssl;
+    BIO *bio;
+
+    // Initialize OpenSSL
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+
+    char * hostname = client->config.hostname;
+    char * client_id = client->config.client_id;
+    char * password = client->config.auth_token;
+    #if defined(Z_SECURE_CONNECTION)
+        const char *server_root_cert = client->certs.ca_crt;
+    #endif
+
+    char host_with_port[100];
+    snprintf(host_with_port, sizeof(host_with_port), "%s:443", hostname);
+    // Create SSL context
+    ctx = SSL_CTX_new(SSLv23_client_method());
+    if (ctx == NULL) {
+        log_error( "Error creating SSL context\n");
+        strcpy(responseMessage, "Error creating SSL context");
+        return ZFAILURE;
+    }
+
+       // Enable verbose output
+    // SSL_CTX_set_options(ctx, SSL_OP_ALL);
+
+    #if defined(Z_SECURE_CONNECTION)
+        if (!SSL_CTX_load_verify_locations(ctx, server_root_cert, NULL)) {
+            log_error( "Error loading CA certificate\n, so setting to no verification\n");
+            SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+        }
+        else{
+            SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
+        }
+
+    #else
+        SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+
+    #endif
+
+    // Create BIO connection
+    bio = BIO_new_ssl_connect(ctx);
+    if (bio == NULL) {
+        log_error( "Error creating BIO\n");
+        strcpy(responseMessage, "Error creating BIO");
+        SSL_CTX_free(ctx);
+        return ZFAILURE;
+    }
+    BIO_set_conn_hostname(bio, host_with_port);
+
+    // Perform the connection
+    if (BIO_do_connect(bio) <= 0) {
+        log_error( "Error connecting to server\n");
+        strcpy(responseMessage, "Error connecting to server");
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return ZFAILURE;
+    }
+
+    // Get SSL connection
+    BIO_get_ssl(bio, &ssl);
+    if (!ssl) {
+        log_error( "Error establishing SSL connection\n");
+        strcpy(responseMessage, "Error establishing SSL connection");
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return ZFAILURE;
+    }
+
+    // Perform SSL handshake
+    if (SSL_do_handshake(ssl) <= 0) {
+        log_error( "Error performing SSL handshake\n");
+        strcpy(responseMessage, "Error performing SSL handshake");
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return ZFAILURE;
+    }
+
+    cJSON * cloud_log = get_cloud_log();
+    if(cloud_log == NULL){
+        log_error("Error in fetching the log from the file");
+        strcpy(responseMessage, "Error in fetching the log from the file");
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return ZFAILURE;
+    }
+    char *cloud_log_string = cJSON_Print(cloud_log);
+    int cloud_log_len = strlen(cloud_log_string);
+    log_debug("cloud_data: log fetched successfully from the file");
+
+    char request_url[1000];
+    int len = snprintf(request_url,sizeof(request_url),"POST /v1/iot/logs/import?device_id=%s&device_token=%s HTTP/1.1\r\nHost: %s\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n", client_id, password, hostname, cloud_log_len);
+    log_info("Size of Cloud Log data is %f KB\n", cloud_log_len/1000.0);
+
+    if(BIO_write(bio, request_url, len) <= 0) {
+        log_error( "Error sending POST request\n");
+        strcpy(responseMessage, "Error sending POST request");
+        free(cloud_log_string);
+        cJSON_Delete(cloud_log);
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return ZFAILURE;
+    }
+
+    if (BIO_write(bio, cloud_log_string, cloud_log_len) <= 0) {
+        log_error( "Error sending data\n");
+        strcpy(responseMessage, "Error sending data");
+        free(cloud_log_string);
+        cJSON_Delete(cloud_log);
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return ZFAILURE;
+    }
+    log_debug("Cloud_data_writed");
+
+    // Read response
+    char buf[1000]={0};
+    int bytes_read;
+    while ((bytes_read = BIO_read(bio, buf, sizeof(buf))) > 0) {
+    }
+    BIO_free_all(bio);
+    SSL_CTX_free(ctx);
+    free(cloud_log_string);
+    cJSON_Delete(cloud_log);
+
+     if(parse_http_response(buf)== false){
+        log_debug("The respose is %s",buf);
+        strcpy(responseMessage, "Error in parsing the http response");
+        return ZFAILURE;
+    }
+    log_info("Cloud logging is Successfull");
+    strcpy(responseMessage, "Cloud logging is Successfull");
+    return ZSUCCESS;
+
+}
+
+#endif
+
+void handle_cloud_logging(ZohoIOTclient *client, char *payload){
+    int command_response_code;
+    char responseMessage[100];
+    #if defined(Z_CLOUD_LOGGING)
+        if(http_post_cloud_logging(client, payload,responseMessage) == ZSUCCESS){
+            command_response_code = SUCCESFULLY_EXECUTED;
+        }
+        else{
+            command_response_code = EXECUTION_FAILURE;
+        }
+    #else
+        command_response_code = EXECUTION_FAILURE;
+        strcpy(responseMessage, "Cloud logging is not enabled");
+    #endif
+    zclient_publishCommandAck(client,payload,command_response_code,responseMessage);
+}
+
 void handle_OTA(ZohoIOTclient *client,char* payload)
 {
     char *OTA_URL = NULL;
@@ -1230,7 +1444,7 @@ void handle_OTA(ZohoIOTclient *client,char* payload)
                 else if (strcmp(cJSON_GetObjectItem(attribute, "field")->valuestring,"HASH") == 0)
                 {
                     hash = cJSON_GetObjectItem(attribute, "value")->valuestring;
-                }  
+                }
             }
         }
 
@@ -1262,7 +1476,7 @@ void handle_OTA(ZohoIOTclient *client,char* payload)
                 return;
             }
         }
-        
+
         //call the user defined OTA handler
         on_OTA_handler(OTA_URL,hash,validity_check,correlation_id);
     }
@@ -1300,7 +1514,7 @@ int zclient_publishOTAAck(ZohoIOTclient *client, char *correlation_id, ZcommandA
     if (Ack_payload == NULL) {
         return ZFAILURE;
     }
-    
+
     char *command_ack_payload = NULL;
     command_ack_payload = cJSON_Print(Ack_payload);
     MQTTMessage pubmsg;
