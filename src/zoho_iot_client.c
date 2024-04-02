@@ -461,7 +461,7 @@ int zclient_reconnect(ZohoIOTclient *client)
             }
             if(retryEvent)
             {
-                if(failedEvent.eventPayloadTime + 60 < getCurrentTime())
+                if(failedEvent.eventPayloadTime + 300 < getCurrentTime())
                 {
                     log_debug("Event is expired, so not attempting to resend the Event message that previously failed");
                     cJSON_Delete(failedEvent.eventPayload);
@@ -1133,7 +1133,19 @@ cJSON* generateACKPayload(char* payload,ZcommandAckResponseCodes status_code, ch
         for (int iter = 0; iter < len; iter++) {
             commandMessage = cJSON_GetArrayItem(commandMessageArray, iter);
             char *correlation_id = cJSON_GetObjectItem(commandMessage, "correlation_id")->valuestring;
-
+            //check is_new_config key is present in the payload
+            cJSON *new_config = cJSON_GetObjectItem(commandMessage, "is_new_config");
+            if(new_config != NULL)
+            {
+                if(new_config->type == cJSON_True)
+                {
+                    cJSON_AddBoolToObject(commandAckObject, "is_new_config", true);
+                }
+                else
+                {
+                    cJSON_AddBoolToObject(commandAckObject, "is_new_config", false);
+                }
+            }
             //check if the command is OTA
             char *command_name = cJSON_GetObjectItem(commandMessage, "command_name")->valuestring;
             if(strcmp(command_name,"Z_OTA")== 0)

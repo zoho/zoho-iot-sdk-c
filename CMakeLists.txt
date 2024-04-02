@@ -155,12 +155,12 @@ ADD_LIBRARY(zoho_iot_sdk STATIC ${SDK_DEPENDENCIES})
 ENDIF(Z_ENABLE_SHARED)
 
 TARGET_COMPILE_DEFINITIONS(zoho_iot_sdk PUBLIC ${FEATURES})
-
+set(TARGET_DEPENDENCIES)
 IF(Z_CLOUD_LOGGING)
     IF(Z_STATIC_OPENSSL)
         INCLUDE(${PROJECT_SOURCE_DIR}/cmake/libopenssl.cmake)
         add_dependencies(zoho_iot_sdk  openssl_ssl openssl_crypto)
-        TARGET_LINK_LIBRARIES(zoho_iot_sdk PUBLIC PUBLIC openssl_ssl PUBLIC openssl_crypto)
+        list(APPEND TARGET_DEPENDENCIES openssl_ssl openssl_crypto)
 
     ELSE()
         IF(OPENSSL_ROOT_DIR)
@@ -168,7 +168,7 @@ IF(Z_CLOUD_LOGGING)
         ENDIF(OPENSSL_ROOT_DIR)
         FIND_PACKAGE(OpenSSL REQUIRED)
         include_directories(${OPENSSL_INCLUDE_DIR})
-        TARGET_LINK_LIBRARIES(zoho_iot_sdk  ${OPENSSL_LIBRARIES} crypto)
+        list(APPEND TARGET_DEPENDENCIES OpenSSL::SSL OpenSSL::Crypto)
     ENDIF(Z_STATIC_OPENSSL)
 
 ENDIF(Z_CLOUD_LOGGING)
@@ -176,13 +176,14 @@ ENDIF(Z_CLOUD_LOGGING)
 IF(Z_LOG_COMPRESS)
     IF(Z_STATIC_ZLIB)
     INCLUDE(${PROJECT_SOURCE_DIR}/cmake/zlib.cmake)
-        TARGET_LINK_LIBRARIES(zoho_iot_sdk zlib)
+        list(APPEND TARGET_DEPENDENCIES zlib)
     ELSE()
-        TARGET_LINK_LIBRARIES(zoho_iot_sdk z)
+        list(APPEND TARGET_DEPENDENCIES z)
     ENDIF(Z_STATIC_ZLIB)
-ELSE()
-    TARGET_LINK_LIBRARIES(zoho_iot_sdk)
 ENDIF(Z_LOG_COMPRESS)
+
+# Link all dependencies to the target at once
+TARGET_LINK_LIBRARIES(zoho_iot_sdk PUBLIC ${TARGET_DEPENDENCIES})
 
 IF (BUILD_EXPORTABLE_LIB)
     add_custom_command(TARGET zoho_iot_sdk PRE_BUILD
