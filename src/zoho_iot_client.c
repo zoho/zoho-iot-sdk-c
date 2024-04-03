@@ -457,7 +457,7 @@ int zclient_reconnect(ZohoIOTclient *client)
                     log_error("Error publishing Ack, Error code: %d", rc);
                 }
                 free(payload);
-                
+
             }
             if(retryEvent)
             {
@@ -712,7 +712,7 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
         payload = cJSON_Print(eventDispatchObject);
         cJSON_Delete(eventDispatchObject);
     }
-    
+
     MQTTMessage pubmsg;
     pubmsg.id = rand()%10000;
     pubmsg.qos = 1;
@@ -801,7 +801,7 @@ int zclient_publishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckR
 }
 int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage)
 {
-    
+
     int rc = validateClientState(client);
     if (rc != 0)
     {
@@ -989,7 +989,7 @@ cJSON *addAssetNameTopayload(ZohoIOTclient *client, char *assetName)
 {
     if(client->message.data == NULL)
     {
-      client->message.data =cJSON_CreateObject();  
+      client->message.data =cJSON_CreateObject();
     }
 
     if (isStringValid(assetName))
@@ -1081,7 +1081,7 @@ int zclient_addObject(ZohoIOTclient *client, char *key, cJSON* val_object, char 
     cJSON *obj = addAssetNameTopayload(client, assetName);
     rc = ZSUCCESS;
     //TODO: null check for object required
-    cJSON* val_object_copy = cJSON_Duplicate(val_object, 1);  
+    cJSON* val_object_copy = cJSON_Duplicate(val_object, 1);
     if (!cJSON_HasObjectItem(obj, key))
     {
         cJSON_AddItemToObject(obj, key, val_object_copy);
@@ -1124,7 +1124,7 @@ cJSON* generateProcessedACK(char* payload,ZcommandAckResponseCodes status_code, 
 }
 
 cJSON* generateACKPayload(char* payload,ZcommandAckResponseCodes status_code, char *responseMessage) {
-    
+
     cJSON *commandMessageArray = cJSON_Parse(payload);
     if (cJSON_IsArray(commandMessageArray) == 1) {
         cJSON *commandAckObject = cJSON_CreateObject();
@@ -1133,50 +1133,55 @@ cJSON* generateACKPayload(char* payload,ZcommandAckResponseCodes status_code, ch
         for (int iter = 0; iter < len; iter++) {
             commandMessage = cJSON_GetArrayItem(commandMessageArray, iter);
             char *correlation_id = cJSON_GetObjectItem(commandMessage, "correlation_id")->valuestring;
-            //check is_new_config key is present in the payload
-            cJSON *new_config = cJSON_GetObjectItem(commandMessage, "is_new_config");
-            if(new_config != NULL)
+
+            //check if the command is OTA
+            cJSON *command_name_json = cJSON_GetObjectItem(commandMessage, "command_name");
+            if(command_name_json != NULL)
             {
-                if(new_config->type == cJSON_True)
+                char *command_name = command_name_json->valuestring;
+                if(strcmp(command_name,"Z_OTA")== 0)
                 {
-                    cJSON_AddBoolToObject(commandAckObject, "is_new_config", true);
+                    OTA_RECEIVED = true;
                 }
                 else
                 {
-                    cJSON_AddBoolToObject(commandAckObject, "is_new_config", false);
+                    OTA_RECEIVED = false;
                 }
-            }
-            //check if the command is OTA
-            char *command_name = cJSON_GetObjectItem(commandMessage, "command_name")->valuestring;
-            if(strcmp(command_name,"Z_OTA")== 0)
-            {
-                OTA_RECEIVED = true;
-            }
-            else
-            {
-                 OTA_RECEIVED = false;
-            }
 
-            //check if the command is for cloud logging
-            if(strcmp(command_name,"Z_PUBLISH_DEVICE_LOGS")== 0)
-            {
-                CLOUD_LOGGING = true;
-                #if defined(Z_CLOUD_LOGGING)
-                    cJSON *payload_array = cJSON_GetObjectItem(commandMessage, "payload");
-                    cJSON *payload_json = cJSON_GetArrayItem(payload_array, 0);
-                    char *value = cJSON_GetObjectItem(payload_json, "value")->valuestring;
-                    cloud_logging_set_lines(value);
-                #endif
-            }
-            else
-            {
-                 CLOUD_LOGGING = false;
+                //check if the command is for cloud logging
+                if(strcmp(command_name,"Z_PUBLISH_DEVICE_LOGS")== 0)
+                {
+                    CLOUD_LOGGING = true;
+                    #if defined(Z_CLOUD_LOGGING)
+                        cJSON *payload_array = cJSON_GetObjectItem(commandMessage, "payload");
+                        cJSON *payload_json = cJSON_GetArrayItem(payload_array, 0);
+                        char *value = cJSON_GetObjectItem(payload_json, "value")->valuestring;
+                        cloud_logging_set_lines(value);
+                    #endif
+                }
+                else
+                {
+                    CLOUD_LOGGING = false;
+                }
             }
 
             commandAckObj = cJSON_CreateObject();
             cJSON_AddItemToObject(commandAckObject, correlation_id, commandAckObj);
             cJSON_AddNumberToObject(commandAckObj, "status_code", status_code);
             cJSON_AddStringToObject(commandAckObj, "response",responseMessage);
+            //check is_new_config key is present in the payload
+            cJSON *new_config = cJSON_GetObjectItem(commandMessage, "is_new_config");
+            if(new_config != NULL)
+            {
+                if(new_config->type == cJSON_True)
+                {
+                    cJSON_AddBoolToObject(commandAckObj, "is_new_config", true);
+                }
+                else
+                {
+                    cJSON_AddBoolToObject(commandAckObj, "is_new_config", false);
+                }
+            }
         }
         cJSON_Delete(commandMessageArray);
         return commandAckObject;
