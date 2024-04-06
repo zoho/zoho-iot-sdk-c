@@ -163,6 +163,8 @@ void zclient_enable_paho_debug(bool state);
 void zclient_set_tls(bool state);
 void zclient_set_client_certs(bool state);
 bool get_OTA_status();
+bool get_cloud_logging_status();
+void handle_cloud_logging(ZohoIOTclient *client, char *payload);
 void handle_OTA(ZohoIOTclient *client, char* payload);
 int zclient_ota_handler(OTAHandler on_OTA);
 int zclient_publishOTAAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage);
