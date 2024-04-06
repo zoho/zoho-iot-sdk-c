@@ -1115,10 +1115,22 @@ cJSON* generateProcessedACK(char* payload,ZcommandAckResponseCodes status_code, 
         log_error("Response cannot be Null in Ack object");
        return NULL;
     }
-    if (status_code != SUCCESFULLY_EXECUTED && (status_code < EXECUTION_FAILURE || status_code > ALREADY_ON_SAME_STATE))
-    {
-        log_error("Status code provided is not a valid in Ack object");
-        return NULL;
+    
+    switch (status_code) {
+        case SUCCESFULLY_EXECUTED:
+        case CONFIG_SUCCESSFULLY_UPDATED:
+        case EXECUTION_FAILURE:
+        case METHOD_NOT_FOUND:
+        case EXECUTING_PREVIOUS_COMMAND:
+        case INSUFFICIENT_INPUTS:
+        case DEVICE_CONNECTIVITY_ISSUES:
+        case PARTIAL_EXECUTION:
+        case ALREADY_ON_SAME_STATE:
+        case CONFIG_FAILED:
+            break;
+        default:
+            log_error("Status code provided is not a valid in Ack object");
+            return NULL;
     }
     return generateACKPayload(payload,status_code ,responseMessage);
 }
