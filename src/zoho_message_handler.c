@@ -21,12 +21,14 @@ void setConfigMessageHandler(messageHandler message_handler)
 void onMessageReceived(MessageData *md)
 {
     MQTTMessage *message = md->message;
-    char payload[md->message->payloadlen];
-    char topic[md->topicName->lenstring.len];
+    char payload[message->payloadlen + 1];
+    char topic[md->topicName->lenstring.len + 1];
     memset(topic, '\0', sizeof(topic));
     memset(payload, '\0', sizeof(payload));
-    strncat(topic, md->topicName->lenstring.data, md->topicName->lenstring.len);
-    strncat(payload, md->message->payload, md->message->payloadlen);
+    memcpy(topic, md->topicName->lenstring.data, md->topicName->lenstring.len);
+    topic[md->topicName->lenstring.len] = '\0';
+    memcpy(payload, message->payload, message->payloadlen);
+    payload[message->payloadlen] = '\0';
 
     if (strcmp(topic, handler_COMMAND_TOPIC) == 0)
     {

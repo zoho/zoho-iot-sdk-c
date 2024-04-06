@@ -112,13 +112,15 @@ typedef struct
 typedef enum
 {
     SUCCESFULLY_EXECUTED = 1001,
+    CONFIG_SUCCESSFULLY_UPDATED = 1003,
     EXECUTION_FAILURE = 4000,
     METHOD_NOT_FOUND = 4001,
     EXECUTING_PREVIOUS_COMMAND = 4002,
     INSUFFICIENT_INPUTS = 4003,
     DEVICE_CONNECTIVITY_ISSUES = 4004,
     PARTIAL_EXECUTION = 4005,
-    ALREADY_ON_SAME_STATE = 4006
+    ALREADY_ON_SAME_STATE = 4006,
+    CONFIG_FAILED = 4008
 } ZcommandAckResponseCodes;
 
 int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password, ZlogConfig *logConfig);
@@ -161,6 +163,8 @@ void zclient_enable_paho_debug(bool state);
 void zclient_set_tls(bool state);
 void zclient_set_client_certs(bool state);
 bool get_OTA_status();
+bool get_cloud_logging_status();
+void handle_cloud_logging(ZohoIOTclient *client, char *payload);
 void handle_OTA(ZohoIOTclient *client, char* payload);
 int zclient_ota_handler(OTAHandler on_OTA);
 int zclient_publishOTAAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage);
