@@ -122,7 +122,7 @@ typedef enum
     ALREADY_ON_SAME_STATE = 4006,
     CONFIG_FAILED = 4008
 } ZcommandAckResponseCodes;
-
+void zclient_setAgentNameandVersion(char * name,char * version);
 int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password, ZlogConfig *logConfig);
 int zclient_setMaxPayloadSize(ZohoIOTclient *iot_client,int size);
 int zclient_connect(ZohoIOTclient *client);

@@ -1,6 +1,7 @@
 #include "zoho_utils.h"
 #include <cJSON.h>
 #include "zoho_log.h"
+#include "sdk_version.h"
 void cloneString(char **clone, char *source)
 {
     if (source == NULL) {
@@ -55,3 +56,8 @@ int getRetryInterval(int curr_delay)
     return MAX_RETRY_INTERVAL;
   }
 }
+
+ char *getSdkVersion(){
+   return strdup(Z_SDK_VERSION);
+
+ }
