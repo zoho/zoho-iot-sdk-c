@@ -18,7 +18,9 @@ static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 static ZlogConfig logConfig;
 
 #if defined(Z_CLOUD_LOGGING)
-int NUM_LINES_READ  = 100;
+int NUM_LINES_TO_READ  = 100;
+int numberOfLinesRead=0;
+long sizeOfLogRead = 0;
 #endif
 
 #if defined(Z_LOG_COMPRESS)
@@ -442,12 +444,18 @@ cJSON * get_last_lines(FILE *fp, int num_lines,long long file_old_ending_positio
             lines_read++;
         }
     }
+    numberOfLinesRead = lines_read;
+    sizeOfLogRead = (file_new_ending_position - pointer_position)/1000;
+    log_info("Cloud logging : size of file readed : %lld", file_new_ending_position - pointer_position);
     log_info("Cloud Logging: Actual number of lines_readed : %d", lines_read);
     while((fgets(buffer, LINE_SIZE, fp) != NULL) && lines_read > 0){
         cJSON *string_json = cJSON_CreateString(buffer);
         cJSON_AddItemToArray(log_json_array, string_json);
         lines_read--;
     }
+    char sizeLengthString [100];
+    sprintf(sizeLengthString,"Number of lines read: %d Size of log read: %lld KB",numberOfLinesRead,sizeOfLogRead);
+    cJSON_AddItemToArray(log_json_array,cJSON_CreateString(sizeLengthString));
     return log_json_array;
 
 }
@@ -486,7 +494,7 @@ cJSON* get_cloud_log(){
         ZcloudLog.file_old_ending_position = 0;
         ZcloudLog.file_new_ending_position = ftell(ZcloudLog.file);
     }
-    log_json_array =get_last_lines(ZcloudLog.file, NUM_LINES_READ,ZcloudLog.file_old_ending_position);
+    log_json_array =get_last_lines(ZcloudLog.file, NUM_LINES_TO_READ,ZcloudLog.file_old_ending_position);
     ZcloudLog.file_old_ending_position = ZcloudLog.file_new_ending_position;
     return log_json_array;
 }
@@ -497,7 +505,7 @@ int cloud_logging_set_lines(char * line){
     log_error("cloud logging: number of lines is invalid");
     return -1;
   }
-  NUM_LINES_READ = lines;
+  NUM_LINES_TO_READ = lines;
   return 0;
 }
 

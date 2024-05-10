@@ -1,17 +1,17 @@
 #include "zoho_iot_client.h"
+#include "sdk_version.h"
 #include "zoho_message_handler.h"
 #include "sys/socket.h"
 #include "unistd.h"
 #include <stdbool.h>
 #define MQTT_EMB_LOGGING
-#define Z_SDK_VERSION "0.0.1"
 //TODO: read from config file.
 Network n;
 certsParseMode parse_mode;
 time_t start_time = 0;
 int retryCount = 0;
 char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "",configTopic[100] = "";
-char commandAckTopic[100] = "",configAckTopic[100]="", connectionStringBuff[256] = "";
+char commandAckTopic[100] = "",configAckTopic[100]="", connectionStringBuff[256] = "",agentName[100]="",agentVersion[100]="";
 cJSON *eventDataObject;
 bool retryACK;
 ZfailedACK failedACK;
@@ -26,15 +26,27 @@ bool TLS_CLIENT_CERTS = true;
 bool OTA_RECEIVED = false;
 OTAHandler on_OTA_handler = NULL;
 
+#if defined(Z_CLOUD_LOGGING)
+extern int numberOfLinesRead;
+extern long sizeOfLogRead;
+#endif
+
 #if defined(Z_SECURE_CONNECTION)
 int ZPORT = 8883;
 #else
 int ZPORT = 1883;
 #endif
 
+bool cloud_logging_in_processing = false;
 bool CLOUD_LOGGING = false;
 bool get_cloud_logging_status(){
-    return CLOUD_LOGGING;
+    log_debug("Cloud logging status : %d",CLOUD_LOGGING);
+    log_debug("Cloud logging in processing status : %d",cloud_logging_in_processing);
+    if(CLOUD_LOGGING == true && cloud_logging_in_processing == false)
+    {
+        return true;
+    }
+    return false;
 }
 
 //TODO: Remove all debug statements and use logger.
@@ -91,6 +103,7 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     {
         log_initialize(logConfig);
         #if defined(Z_CLOUD_LOGGING)
+            log_info("Cloud_Logging is enabled");
             intitialize_cloud_log();
         #endif
         log_info("\n\n\nSDK Initializing.. version: %s",Z_SDK_VERSION);
@@ -246,6 +259,10 @@ int zclient_setMaxPayloadSize(ZohoIOTclient *iot_client,int size)
         return 0;
     }
 }
+ void zclient_setAgentNameandVersion(char * name,char * version){
+    strcpy(agentName,name);
+    strcpy(agentVersion,version);
+}
 
 void zclient_addConnectionParameter(char *connectionParamKey, char *connectionParamValue)
 {
@@ -262,7 +279,10 @@ char *formConnectionString(char *username)
     strcat(connectionStringBuff, "?");
     zclient_addConnectionParameter("sdk_name", "zoho-iot-sdk-c");
     zclient_addConnectionParameter("sdk_version", Z_SDK_VERSION);
-    //zclient_addConnectionParams("sdk_url", "");
+    if(isStringValid(agentName) && isStringValid(agentVersion)){
+        zclient_addConnectionParameter("agent_name",agentName);
+        zclient_addConnectionParameter("agent_version",agentVersion);
+    }
     connectionStringBuff[strlen(connectionStringBuff) - 1] = '\0';
     return connectionStringBuff;
 }
@@ -1253,6 +1273,7 @@ int zclient_free(ZohoIOTclient *client)
 #if defined(Z_CLOUD_LOGGING)
 bool parse_http_response(const char* str) {
     const char* start = strchr(str, '{');
+    log_debug("HTTP Server Response : %s\n", start);
     if (start == NULL) {
         log_error("Error: Starting brace not found\n");
         return false;
@@ -1373,6 +1394,13 @@ int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * response
         return ZFAILURE;
     }
     char *cloud_log_string = cJSON_Print(cloud_log);
+    if (cloud_log_string == NULL){
+        log_error("Error in parsing cloudlog array to string");
+        strcpy(responseMessage, "Error in parsing cloudlog array to string");
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return ZFAILURE;
+    }
     int cloud_log_len = strlen(cloud_log_string);
     log_debug("cloud_data: log fetched successfully from the file");
 
@@ -1417,7 +1445,9 @@ int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * response
         return ZFAILURE;
     }
     log_info("Cloud logging is Successfull");
-    strcpy(responseMessage, "Cloud logging is Successfull");
+    char succesResponse[150];
+    sprintf(succesResponse,"Log Published Successfully. Number of lines read - %d, Size of log read - %lld KB",numberOfLinesRead,sizeOfLogRead);
+    strcpy(responseMessage, succesResponse);
     return ZSUCCESS;
 
 }
@@ -1425,6 +1455,7 @@ int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * response
 #endif
 
 void handle_cloud_logging(ZohoIOTclient *client, char *payload){
+    cloud_logging_in_processing = true;
     int command_response_code;
     char responseMessage[100];
     #if defined(Z_CLOUD_LOGGING)
@@ -1439,6 +1470,7 @@ void handle_cloud_logging(ZohoIOTclient *client, char *payload){
         strcpy(responseMessage, "Cloud logging is not enabled");
     #endif
     zclient_publishCommandAck(client,payload,command_response_code,responseMessage);
+    cloud_logging_in_processing = false;
 }
 
 void handle_OTA(ZohoIOTclient *client,char* payload)
