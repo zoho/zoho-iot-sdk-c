@@ -21,6 +21,7 @@ ZfailedEvent failedEvent;
 bool paho_debug = false;
 bool TLS_MODE = true;
 bool TLS_CLIENT_CERTS = true;
+extern Z_log Zlog;
 
 //OTA related variables
 bool OTA_RECEIVED = false;
@@ -271,6 +272,16 @@ void zclient_addConnectionParameter(char *connectionParamKey, char *connectionPa
     strcat(connectionStringBuff, connectionParamValue);
     strcat(connectionStringBuff, "&");
 }
+void addOsdetailstoConnectionParameters(){
+    char osname[50];
+    char osversion[50];
+    if(!getOsnameOsversion(osname,osversion)){
+        log_error("failed to get os details");
+        return;
+    }
+    zclient_addConnectionParameter("os_name", osname);
+    zclient_addConnectionParameter("os_version", osversion);
+}
 
 char *formConnectionString(char *username)
 {
@@ -283,6 +294,7 @@ char *formConnectionString(char *username)
         zclient_addConnectionParameter("agent_name",agentName);
         zclient_addConnectionParameter("agent_version",agentVersion);
     }
+    addOsdetailstoConnectionParameters();
     connectionStringBuff[strlen(connectionStringBuff) - 1] = '\0';
     return connectionStringBuff;
 }
