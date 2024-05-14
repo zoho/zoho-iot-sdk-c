@@ -13,6 +13,10 @@
 #include <zlib.h>
 #endif
 #include <pthread.h>
+
+FILE *log_file;
+Z_log Zlog ={0};
+
 static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 // common static logconfig structure that the user can get using the function getZlogger() and configure the logging properties
 static ZlogConfig logConfig;
@@ -77,16 +81,6 @@ static void unlock(void)
   pthread_mutex_unlock(&log_mutex);
 }
 
-void log_set_udata(void *udata)
-{
-  Zlog.udata = udata;
-}
-
-void log_set_lock(log_LockFn fn)
-{
-  Zlog.lock = fn;
-}
-
 void log_set_fp(FILE *fp)
 {
   Zlog.fp = fp;
@@ -140,6 +134,8 @@ void log_initialize(ZlogConfig *logConfig)
     log_set_logPrefix(LOG_PREFIX);
     log_set_maxLogSize(MAX_LOG_FILE_SIZE);
     log_set_maxRollingLog(MAX_ROLLING_LOG_FILE);
+#else
+    log_set_quiet(1);
 #endif 
   }
   else

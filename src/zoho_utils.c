@@ -95,7 +95,8 @@ int getRetryInterval(int curr_delay)
     if (name == NULL || version == NULL) {
       log_error("Error in finding os name and version");
       return false;
-    } 
+    }
+    log_debug("Os_name and version got successfully. \nOs_name = %s \nOs_version = %s",osName,osVersion);
     return true;
 
 
