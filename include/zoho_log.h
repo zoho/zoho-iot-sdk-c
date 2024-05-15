@@ -19,13 +19,10 @@
 #define LINE_SIZE 256
 #endif
 
-FILE *log_file;
 typedef void (*log_LockFn)(void *udata, int lock);
 
-static struct
+typedef struct
 {
-    void *udata;
-    log_LockFn lock;
     FILE *fp;
     int level;
     int quiet;
@@ -34,7 +31,7 @@ static struct
     char *logPrefix;
     int maxLogFileSize;
     int maxRollingLogFile;
-} Zlog;
+} Z_log;
 
 #if defined (Z_CLOUD_LOGGING)
 static struct {
