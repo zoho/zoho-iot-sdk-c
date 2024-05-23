@@ -11,7 +11,7 @@ certsParseMode parse_mode;
 time_t start_time = 0;
 int retryCount = 0;
 char dataTopic[100] = "", commandTopic[100] = "", eventTopic[100] = "",configTopic[100] = "";
-char commandAckTopic[100] = "",configAckTopic[100]="", connectionStringBuff[256] = "",agentName[100]="",agentVersion[100]="";
+char commandAckTopic[100] = "",configAckTopic[100]="", connectionStringBuff[256] = "",agentName[100]="",agentVersion[100]="",platform[100]="";
 cJSON *eventDataObject;
 bool retryACK;
 ZfailedACK failedACK;
@@ -100,15 +100,14 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     //TODO:1
     // All config.h and device related validations should be done here itself !
 
-    if (!Zlog.fp)
-    {
-        log_initialize(logConfig);
-        #if defined(Z_CLOUD_LOGGING)
-            log_info("Cloud_Logging is enabled");
-            intitialize_cloud_log();
-        #endif
-        log_info("\n\n\nSDK Initializing.. version: %s",Z_SDK_VERSION);
-    }
+    
+    log_initialize(logConfig);
+    #if defined(Z_CLOUD_LOGGING)
+        log_info("Cloud_Logging is enabled");
+        intitialize_cloud_log();
+    #endif
+    log_info("\n\n\nSDK Initializing.. version: %s",Z_SDK_VERSION);
+
     #if(Z_SECURE_CONNECTION)
         #if(Z_USE_CLIENT_CERTS)
             log_info("Build type: \033[35m TLS build with client certs \033[0m");
@@ -260,9 +259,23 @@ int zclient_setMaxPayloadSize(ZohoIOTclient *iot_client,int size)
         return 0;
     }
 }
- void zclient_setAgentNameandVersion(char * name,char * version){
+ bool zclient_setAgentNameandVersion(char * name,char * version){
+    if(!isStringValid(name) || !isStringValid(version)){
+        log_error("Agent name or version is invalid");
+        return false;
+    }
     strcpy(agentName,name);
     strcpy(agentVersion,version);
+    return true;
+}
+
+bool zclient_setPlatformName(char * platformName){
+    if(!isStringValid(platformName)){
+        log_error("Platform name is invalid");
+        return false;
+    }
+    strcpy(platform,platformName);
+    return true;
 }
 
 void zclient_addConnectionParameter(char *connectionParamKey, char *connectionParamValue)
@@ -293,6 +306,9 @@ char *formConnectionString(char *username)
     if(isStringValid(agentName) && isStringValid(agentVersion)){
         zclient_addConnectionParameter("agent_name",agentName);
         zclient_addConnectionParameter("agent_version",agentVersion);
+    }
+    if(isStringValid(platform)){
+        zclient_addConnectionParameter("agent_platform",platform);
     }
     addOsdetailstoConnectionParameters();
     connectionStringBuff[strlen(connectionStringBuff) - 1] = '\0';
