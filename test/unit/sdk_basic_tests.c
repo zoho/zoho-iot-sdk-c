@@ -1084,6 +1084,33 @@ static void WithoutCalling_SetMaxPayloadSize_ShouldTakeDefaultPayloadSize(void *
     assert_int_equal(client.config.payload_size, DEFAULT_PAYLOAD_SIZE);
 }
 
+static void zclient_setAgentNameandVersion_withProperArgument_ShouldSuccess(void **state){
+    extern char agentName[100];
+    extern char agentVersion[100];
+    assert_int_equal( zclient_setAgentNameandVersion("agentname","agentversion"),true);
+    assert_int_equal(strcmp(agentName,"agentname"),0);
+    assert_int_equal(strcmp(agentVersion,"agentversion"),0);
+}
+
+static void zclient_setAgentNameandVersion_withInvalidArguments_shouldFail(void **state){
+   assert_int_equal( zclient_setAgentNameandVersion("","agentversion"),false);
+   assert_int_equal( zclient_setAgentNameandVersion("agentname",""),false);
+   assert_int_equal( zclient_setAgentNameandVersion(NULL,"agentversion"),false);
+   assert_int_equal( zclient_setAgentNameandVersion("agentname",NULL),false);
+   assert_int_equal( zclient_setAgentNameandVersion(NULL,NULL),false);
+}
+
+static void zclient_setPlatformName_withProperArguments_ShouldSuccess(void ** state){
+    extern char platform[100];
+    assert_int_equal(zclient_setPlatformName("docker"),true);
+    assert_int_equal(strcmp(platform,"docker"),0);
+}
+
+static void zclient_setPlatformName_withInvalidArguments_ShouldSuccess(void ** state){
+    assert_int_equal(zclient_setPlatformName(""),false);
+    assert_int_equal(zclient_setPlatformName(NULL),false);
+}
+
 int main(void)
 {
     const struct CMUnitTest sdk_basic_tests[] = {
@@ -1178,6 +1205,10 @@ int main(void)
         cmocka_unit_test_setup(AddObjectMethod_withNonNullAssetNameArgument_ShouldSucceed,Turn_off_TLS_mode),
         cmocka_unit_test_setup(AddObjectMethod_withEmptyAssetNameArgument_ShouldSucceed,Turn_off_TLS_mode),
         cmocka_unit_test_setup(AddObjectMethod_OnAddingSamekey_ShouldSucceed,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(zclient_setAgentNameandVersion_withProperArgument_ShouldSuccess,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(zclient_setAgentNameandVersion_withInvalidArguments_shouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(zclient_setPlatformName_withProperArguments_ShouldSuccess,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(zclient_setPlatformName_withInvalidArguments_ShouldSuccess,Turn_off_TLS_mode),
 
 #ifdef Z_SECURE_CONNECTION
         cmocka_unit_test_setup(ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed,Turn_on_TLS_mode),
