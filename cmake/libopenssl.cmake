@@ -33,4 +33,6 @@ add_library(openssl_crypto STATIC IMPORTED GLOBAL)
 add_dependencies(openssl_crypto libopenssl)
 set_target_properties(openssl_crypto PROPERTIES IMPORTED_LOCATION ${OPENSSL_STATIC_CRYPTO_LIB})
 set_target_properties(openssl_crypto PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${OPENSSL_INCLUDES})
-
+set_target_properties(openssl_crypto PROPERTIES
+    INTERFACE_LINK_LIBRARIES "dl"
+)
