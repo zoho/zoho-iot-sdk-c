@@ -42,7 +42,7 @@ OPTION(Z_RUN_TESTS "Run unit tests" OFF)
 SET(Z_LOG_LEVEL LOG_DEBUG)
 
 # Enable file logging with default SDK configuration, Can be overridden in the apllication using the ZlogConfig struct. 
-OPTION(Z_ENABLE_LOGGING "Create logs for Application" OFF)
+OPTION(Z_ENABLE_LOGGING "Create logs for Application" ON)
 OPTION(Z_LOG_COMPRESS "Compress the rolling log" ON)
 OPTION(Z_STATIC_ZLIB "Use static zlib library" ON)
 OPTION(Z_CLOUD_LOGGING "Enable cloud logging" OFF)

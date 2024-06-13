@@ -17,6 +17,11 @@
 #5
     #Sample application to do OTA for deb pakage
     #ADD_SUBDIRECTORY(ota_deb_example)
+    
+#6
+    #LED on Raspberry Pi: gpio
+    #ADD_SUBDIRECTORY(rpi_gpio)
+
 
 # Include your own projects as sub-directories here
 # ADD_SUBDIRECTORY(yourProject)

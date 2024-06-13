@@ -14,7 +14,7 @@ volatile int ctrl_flag = 0;
 // Zoho client struct to handle the Communication with the HUB
 ZohoIOTclient client;
 
-// Zoho clinet credentials.
+// Zoho client credentials.
 #define MQTT_USER_NAME "<MQTT User Name>"
 #define MQTT_PASSWORD "<MQTT Password/Token>"
 
