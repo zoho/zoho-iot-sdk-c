@@ -8,20 +8,22 @@ set(OPENSSL_INCLUDES ${OPENSSL_BIN}/include)
 
 file(MAKE_DIRECTORY ${OPENSSL_INCLUDES})
 
+#OS_NAME - SHOULD BE DEFINED AT THE TIME OF BUILD. ELSE TAKEN THE SYSTEM OS
+MESSAGE("Building static openssl library")
 ExternalProject_Add(
   libopenssl
   PREFIX ${OPENSSL_BIN}
   SOURCE_DIR ${OPENSSL_DIR}
   URL https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_LIBRARY_VERSION}/openssl-3.1.3.tar.gz
-  CONFIGURE_COMMAND ${OPENSSL_DIR}/Configure  --prefix=${OPENSSL_BIN} -static -fPIC CC=${CMAKE_C_COMPILER} ${ADDITIONAL_CONFIG_FLAG} 
+  CONFIGURE_COMMAND ${OPENSSL_DIR}/Configure ${OS_NAME} --prefix=${OPENSSL_BIN} -static -fPIC CC=${CMAKE_C_COMPILER} ${ADDITIONAL_CONFIG_FLAG} 
   BUILD_COMMAND make -j4 VERBOSE=1
   BUILD_BYPRODUCTS ${OPENSSL_STATIC_LIB} ${OPENSSL_STATIC_CRYPTO_LIB}
 )
 
 # Check for lib64
 if (NOT EXISTS ${OPENSSL_STATIC_LIB})
-    set(OPENSSL_STATIC_LIB ${OPENSSL_BIN}/lib64/libssl.a)
-    set(OPENSSL_STATIC_CRYPTO_LIB ${OPENSSL_BIN}/lib64/libcrypto.a)
+    set(OPENSSL_STATIC_LIB ${OPENSSL_BIN}/lib/libssl.a)
+    set(OPENSSL_STATIC_CRYPTO_LIB ${OPENSSL_BIN}/lib/libcrypto.a)
 endif()
 
 add_library(openssl_ssl STATIC IMPORTED GLOBAL)
