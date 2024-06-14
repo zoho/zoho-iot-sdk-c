@@ -64,20 +64,20 @@ void message_command_handler(MessageData *data)
     char* commandValue = cJSON_GetObjectItem(array,"value")->valuestring;
     if(strcmp(commandValue,"on")==0){
         if(gpioWrite(OUTPUT_PIN,1)<0){
-            log_error("Fail to write pin");
+            log_error("failed to change the state of pin %d",OUTPUT_PIN);
              zclient_publishCommandAck(&client,payload, EXECUTION_FAILURE, "Command based task Failed.");
             return ;
         }
-        log_debug("command_success");
+        log_debug("command : pin -%d state changed successfully to ON",OUTPUT_PIN);
     }
     else if (strcmp(commandValue,"off")==0)
     {
         if(gpioWrite(OUTPUT_PIN,0)<0){
-            log_error("Fail to write pin");
+            log_error("failed to change the state of pin %d",OUTPUT_PIN);
             zclient_publishCommandAck(&client,payload, EXECUTION_FAILURE, "Command based task Failed.");
             return ;
         }
-        log_debug("command_success");
+        log_debug("command : pin -%d state changed successfully to OFF",OUTPUT_PIN);
     }
     else{
          zclient_publishCommandAck(&client,payload, EXECUTION_FAILURE, "Command based task Failed.");
@@ -122,36 +122,36 @@ int main()
     }
 
     if (gpioSetMode(INPUT_PIN, PI_INPUT) != 0) {
-        log_error("Failed to set pin mode.\n");
+        log_error("Failed to set pin input mode for pin %d\n",INPUT_PIN);
         return -1;
     }
 
    if(gpioSetMode(OUTPUT_PIN,PI_OUTPUT)!=0){
-        log_error("Fail to set pin mode\n ");
+        log_error("Fail to set pin output mode for pin %d\n",OUTPUT_PIN);
         return -1;
     }
 
     if (gpioSetPullUpDown(INPUT_PIN, PI_PUD_DOWN) != 0) {
-        log_error("Failed to set pullUpDown interrupt handler.\n");
+        log_error("Failed to set pullUpDown for input pin -%d\n",INPUT_PIN);
         return -1;
     }
 
-    if (gpioSetPullUpDown(OUTPUT_PIN, PI_PUD_DOWN) != 0) {
-        log_error("Failed to set pullUpDown interrupt handler.\n");
-        return -1;
-    }
+    //set output pin to default off
+    if(gpioWrite(OUTPUT_PIN,0)<0){
+            log_error("failed to set default state OFF for pin %d",OUTPUT_PIN);
+            return -1;
+        }
 
     if (gpioSetMode(INTERRUPT_PIN, PI_INPUT) != 0) {
-        log_error("Failed to set pin mode.\n");
+        log_error("Failed to set pin mode for interrupt pin %d\n",INTERRUPT_PIN);
         return -1;
     }
     if (gpioSetPullUpDown(INTERRUPT_PIN, PI_PUD_DOWN) != 0) {
-        log_error("Failed to set pullUpDown interrupt handler.\n");
+        log_error("Failed to set pullUpDown interrupt pin %d\n",INTERRUPT_PIN);
         return -1;
     }
     if (gpioSetAlertFuncEx(INTERRUPT_PIN,gpiointerrupt_handling,NULL) != 0) {
-        log_error("Failed to set interrupt handler.\n");
-
+        log_error("Failed to set interrupt handler for pin %d\n",INTERRUPT_PIN);
         return -1;
     }
     int rc = -1;
