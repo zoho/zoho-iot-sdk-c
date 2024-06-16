@@ -45,7 +45,7 @@ LIST(APPEND PIGPIO_SOURCES
            "${CMAKE_CURRENT_SOURCE_DIR}/lib/pigpio-master/pigpio.c"
            "${CMAKE_CURRENT_SOURCE_DIR}/lib/pigpio-master/command.c")
 
-ADD_LIBRARY(pigpio STATIC ${PIGPIO_SOURCES})
+ADD_LIBRARY(pigpio_lib STATIC ${PIGPIO_SOURCES})
 
 ADD_EXECUTABLE(rpi_gpio rpi_gpio.c)
 TARGET_COMPILE_DEFINITIONS(rpi_gpio PUBLIC ${FEATURES})
@@ -54,4 +54,4 @@ IF(Z_ENABLE_TLS)
 ENDIF(Z_ENABLE_TLS)
 
 TARGET_INCLUDE_DIRECTORIES(rpi_gpio PUBLIC include )
-TARGET_LINK_LIBRARIES(rpi_gpio PRIVATE zoho_iot_sdk PRIVATE pigpio PUBLIC pthread)
+TARGET_LINK_LIBRARIES(rpi_gpio PRIVATE zoho_iot_sdk PRIVATE pigpio_lib PUBLIC pthread)
