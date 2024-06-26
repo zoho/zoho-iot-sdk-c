@@ -20,7 +20,7 @@
 
 
 #define MAX_PAYLOAD_SIZE (int)100000
-#define DEFAULT_PAYLOAD_SIZE (int)32000
+#define DEFAULT_PAYLOAD_SIZE (int)40000
 #define TOPIC_PRE (char *)"/devices"
 #define DATA_TOPIC (char *)"/telemetry"
 #define COMMAND_TOPIC (char *)"/commands"
