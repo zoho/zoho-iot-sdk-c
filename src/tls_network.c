@@ -184,10 +184,11 @@ int tls_read(Network *n, unsigned char *buffer, int len, int timeout_ms)
         interval.tv_sec = 0;
         interval.tv_usec = 100;
     }
+    int itr =0;
     setsockopt(n->server_fd.fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&interval, sizeof(struct timeval));
     while (bytes < len)
     {
-        rc = mbedtls_ssl_read(&(n->ssl), buffer, len);
+        rc = mbedtls_ssl_read(&(n->ssl), &buffer[bytes], (size_t)(len - bytes));
         if (rc == 0 || rc == MBEDTLS_ERR_NET_RECV_FAILED)
             break;
         else if (rc < 0)
