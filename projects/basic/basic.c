@@ -2,6 +2,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #if defined(Z_SECURE_CONNECTION)
 #if defined(EMBED_MODE)
 #include "zclient_certificates.h"
@@ -22,8 +23,8 @@ ZohoIOTclient client;
 
 void message_command_handler(MessageData *data)
 {
-    char payload[data->message->payloadlen];
-    char topic[data->topicName->lenstring.len];
+    char payload[data->message->payloadlen+1];
+    char topic[data->topicName->lenstring.len+1];
     *topic = '\0';
     *payload = '\0';
     strncat(topic, data->topicName->lenstring.data, data->topicName->lenstring.len);
@@ -164,5 +165,6 @@ int main()
     }
 
     zclient_disconnect(&client);
+    zclient_free(&client);
     return 0;
 }

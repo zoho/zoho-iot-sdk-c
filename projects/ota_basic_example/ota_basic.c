@@ -2,6 +2,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #if defined(Z_SECURE_CONNECTION)
 #if defined(EMBED_MODE)
 #include "zclient_certificates.h"
@@ -21,7 +22,8 @@ ZohoIOTclient client;
 // Frequency in which the data needs to be published
 #define POLL_FREQUENCY 5 // publish data every 5 sec
 
-#define SHELL_MAX_BUFFER_SIZE 1024
+//Adjust the size based on the expected terminal output
+#define SHELL_MAX_BUFFER_SIZE 5120
 
 // executing shell command from c
 int executeShellCommand(char *command, char *response)
@@ -125,7 +127,7 @@ void message_OTA_handler(char *url, char *hash, bool validity_check, char *corre
     log_info("OTA hash : %s", hash);
     log_info("OTA validity check : %d", validity_check);
     log_info("OTA correlation_id : %s", correlation_id);
-    char response[1000];
+    char response[SHELL_MAX_BUFFER_SIZE];
     int rc = downloadPackage(url, response);
     if (rc != 0)
     {
@@ -257,8 +259,8 @@ void check_OTA_state()
 }
 void message_command_handler(MessageData *data)
 {
-    char payload[data->message->payloadlen];
-    char topic[data->topicName->lenstring.len];
+    char payload[data->message->payloadlen+1];
+    char topic[data->topicName->lenstring.len+1];
     *topic = '\0';
     *payload = '\0';
     strncat(topic, data->topicName->lenstring.data, data->topicName->lenstring.len);
@@ -354,5 +356,6 @@ int main()
     }
 
     zclient_disconnect(&client);
+    zclient_free(&client);
     return 0;
 }
