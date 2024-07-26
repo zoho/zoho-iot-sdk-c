@@ -185,7 +185,7 @@ IF(Z_LOG_COMPRESS)
 ENDIF(Z_LOG_COMPRESS)
 
 # Link all dependencies to the target at once
-TARGET_LINK_LIBRARIES(zoho_iot_sdk PUBLIC ${TARGET_DEPENDENCIES})
+TARGET_LINK_LIBRARIES(zoho_iot_sdk PUBLIC ${TARGET_DEPENDENCIES} pthread)
 
 IF (BUILD_EXPORTABLE_LIB)
     add_custom_command(TARGET zoho_iot_sdk PRE_BUILD

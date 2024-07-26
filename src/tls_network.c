@@ -314,12 +314,12 @@ int NetworkConnectTLS(Network *n, char *addr, int port, certsParseMode mode, cha
         if ((rc = mbedtls_ssl_conf_own_cert(&n->conf, &n->clicert, &n->pkey)) != 0)
         {
             log_trace("Conf own_cert failed. return code = 0x%x", -rc);
-            return -1;
+            goto cleanup;
         }
         if ((rc = mbedtls_ssl_set_hostname(&(n->ssl), addr)) != 0)
         {
             log_trace("Set hostname failed .return code = 0x%x", -rc);
-            return -1;
+            goto cleanup;
         }
     }
 #endif
@@ -337,14 +337,14 @@ int NetworkConnectTLS(Network *n, char *addr, int port, certsParseMode mode, cha
         {
             log_debug("Unable to connect to network . return code = 0x%x", -rc);
         }
-        return -1;
+        goto cleanup;
     }
 
     if ((rc = mbedtls_ssl_config_defaults(&(n->conf), MBEDTLS_SSL_IS_CLIENT,
                                           MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0)
     {
         log_trace("ssl_config_defaults failed.return code = 0x%x", -rc);
-        return -1;
+        goto cleanup;
     }
 
     mbedtls_ssl_conf_max_version(&n->conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
@@ -359,7 +359,7 @@ int NetworkConnectTLS(Network *n, char *addr, int port, certsParseMode mode, cha
     if ((rc = mbedtls_ssl_setup(&(n->ssl), &(n->conf))) != 0)
     {
         log_trace("ssl_setup failed.return code = 0x%x", -rc);
-        return -1;
+        goto cleanup;
     }
     while ((rc = mbedtls_ssl_handshake(&n->ssl)) != 0)
     {
@@ -379,7 +379,7 @@ int NetworkConnectTLS(Network *n, char *addr, int port, certsParseMode mode, cha
         {
             log_error("ssl fatal error, due to mismatch of Device and Server certificates");
         }
-        return -1;
+        goto cleanup;
     }
 
     if ((flags = mbedtls_ssl_get_verify_result(&n->ssl)) != 0)
@@ -387,6 +387,7 @@ int NetworkConnectTLS(Network *n, char *addr, int port, certsParseMode mode, cha
         char vrfy_buf[512];
         mbedtls_x509_crt_verify_info(vrfy_buf, sizeof(vrfy_buf), "  ! ", flags);
         log_error("Certificate verification failed: %s", vrfy_buf);
+        goto cleanup;
     }
     else
     {
@@ -397,6 +398,16 @@ int NetworkConnectTLS(Network *n, char *addr, int port, certsParseMode mode, cha
     log_debug("TLS connection established");
 
     return 0;
+
+    cleanup:
+    mbedtls_net_free(&(n->server_fd));
+    mbedtls_x509_crt_free(&(n->cacert));
+    mbedtls_ssl_free(&(n->ssl));
+    mbedtls_ssl_config_free(&(n->conf));
+    mbedtls_ctr_drbg_free(&(n->ctr_drbg));
+    mbedtls_entropy_free(&(n->entropy));
+
+    return -1;
 }
 
 int NetworkConnect(Network* n, char* addr, int port)

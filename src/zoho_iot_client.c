@@ -4,6 +4,7 @@
 #include "sys/socket.h"
 #include "unistd.h"
 #include <stdbool.h>
+#include <pthread.h>
 #define MQTT_EMB_LOGGING
 //TODO: read from config file.
 Network n;
@@ -201,7 +202,7 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
             log_error("RootCA file is not found/can't be accessed");
             return ZFAILURE;
         }
-        iot_client->certs.ca_crt = ca_crt;
+        iot_client->certs.ca_crt = strdup(ca_crt);
 #if defined(Z_USE_CLIENT_CERTS)
         if(TLS_CLIENT_CERTS){
             if (client_cert == NULL || client_key == NULL || cert_password == NULL || (mode == REFERENCE && (access(client_cert, F_OK) == -1)) || (mode == REFERENCE && (access(client_key, F_OK) == -1)))
@@ -209,9 +210,9 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
                 log_error("Client key or Client certificate is not found/can't be accessed");
                 return ZFAILURE;
             }
-            iot_client->certs.client_cert = client_cert;
-            iot_client->certs.client_key = client_key;
-            iot_client->certs.cert_password = cert_password;
+            iot_client->certs.client_cert = strdup(client_cert);
+            iot_client->certs.client_key = strdup(client_key);
+            iot_client->certs.cert_password = strdup(cert_password);
         }
 #endif
     }
@@ -233,6 +234,10 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
         eventDataObject = cJSON_CreateObject();
     }
     initMessageHandler(iot_client, commandTopic, commandAckTopic, configTopic,configAckTopic);
+    if (pthread_mutex_init(&iot_client->lock, NULL) != 0) {
+        log_error("Mutex initialization failed");
+        exit(EXIT_FAILURE);
+    }
     iot_client->current_state = INITIALIZED;
     log_info("Client Initialized!");
     return ZSUCCESS;
@@ -385,7 +390,16 @@ int zclient_connect(ZohoIOTclient *client)
 
     //TODO: Handle the rc of ConnectNetwork().
     log_info("Connecting to \x1b[32m %s : %d \x1b[0m", client->config.hostname, ZPORT);
+
+    // Lock the mutex
+    log_trace("Getting client lock for init");
+    pthread_mutex_lock(&client->lock);
+    log_trace("Got client lock for init");
     MQTTClientInit(&client->mqtt_client, &n, 30000, client->config.mqttBuff, buff_size, client->config.mqttReadBuff, buff_size);
+    // Unlock the mutex
+    log_trace("Releasing client lock for init");
+    pthread_mutex_unlock(&client->lock);
+    log_trace("Released client lock for init");
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
 
     conn_data.MQTTVersion = 4;
@@ -398,7 +412,15 @@ int zclient_connect(ZohoIOTclient *client)
     conn_data.username.cstring = formConnectionString(client->config.MqttUserName);
     conn_data.password.cstring = client->config.auth_token;
 
+    // Lock the mutex
+    log_trace("Getting client lock for connect");
+    pthread_mutex_lock(&client->lock);
+    log_trace("Got client lock for connect");
     rc = MQTTConnect(&client->mqtt_client, &conn_data);
+    // Unlock the mutex
+    log_trace("Releasing client lock for connect");
+    pthread_mutex_unlock(&client->lock);
+    log_trace("Released client lock for connect");
     if (rc == 0)
     {
         log_info("Connected!");
@@ -406,7 +428,15 @@ int zclient_connect(ZohoIOTclient *client)
     }
     else
     {
+        // Lock the mutex
+        log_trace("Getting client lock for network disconnect");
+        pthread_mutex_lock(&client->lock);
+        log_trace("Got client lock for network disconnect");
         NetworkDisconnect(client->mqtt_client.ipstack);
+        // Unlock the mutex
+        log_trace("Releasing client lock for network disconnect");
+        pthread_mutex_unlock(&client->lock);
+        log_trace("Released client lock for network disconnect");
         if (rc == 1)
         {
             log_error("Error while establishing connection, unacceptable protocol version. Error code: %d", rc);
@@ -464,7 +494,15 @@ int zclient_reconnect(ZohoIOTclient *client)
     {
         if(client->current_state != INITIALIZED)
         {
+            // Lock the mutex
+            log_trace("Getting client lock for network disconnect");
+            pthread_mutex_lock(&client->lock);
+            log_trace("Got client lock for network disconnect");
             NetworkDisconnect(client->mqtt_client.ipstack);
+            // Unlock the mutex
+            log_trace("Releasing client lock for network disconnect");
+            pthread_mutex_unlock(&client->lock);
+            log_trace("Released client lock for network disconnect");
         }
         rc = zclient_connect(client);
         if (rc == ZSUCCESS)
@@ -486,18 +524,11 @@ int zclient_reconnect(ZohoIOTclient *client)
                 log_debug("Attempting to resend the ACK message that previously failed");
                 char *payload = NULL;
                 payload = cJSON_Print(failedACK.ackPayload);
-                MQTTMessage pubmsg;
-                pubmsg.id = rand()%10000;
-                pubmsg.qos = 1;
-                pubmsg.dup = '0';
-                pubmsg.retained = '0';
-                pubmsg.payload = payload;
-                pubmsg.payloadlen = strlen(pubmsg.payload);
-                rc = MQTTPublish(&(client->mqtt_client), failedACK.topic, &pubmsg);
+                rc = publishMessage(client, failedACK.topic, payload);
                 if(rc == ZSUCCESS)
                 {
                     log_debug("\x1b[36m Failed ACK published \x1b[0m");
-                    log_trace("ACK published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, failedACK.topic);
+                    log_trace("ACK published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, failedACK.topic);
                     cJSON_Delete(failedACK.ackPayload);
                     retryACK =false;
                 }
@@ -520,18 +551,11 @@ int zclient_reconnect(ZohoIOTclient *client)
                     log_debug("Attempting to resend the Event message that previously failed");
                     char *payload = NULL;
                     payload = cJSON_Print(failedEvent.eventPayload);
-                    MQTTMessage pubmsg;
-                    pubmsg.id = rand()%10000;
-                    pubmsg.qos = 1;
-                    pubmsg.dup = '0';
-                    pubmsg.retained = '0';
-                    pubmsg.payload = payload;
-                    pubmsg.payloadlen = strlen(pubmsg.payload);
-                    rc = MQTTPublish(&(client->mqtt_client), eventTopic, &pubmsg);
+                    rc = publishMessage(client, eventTopic, payload);
                     if(rc == ZSUCCESS)
                     {
                         log_debug("\x1b[36m Failed Event published \x1b[0m");
-                        log_trace("Event published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, eventTopic);
+                        log_trace("Event published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", payload, eventTopic);
                         cJSON_Delete(failedEvent.eventPayload);
                         retryEvent =false;
                     }
@@ -571,22 +595,7 @@ int zclient_publish(ZohoIOTclient *client, char *payload)
         return ZFAILURE;
     }
     rc = ZFAILURE;
-
-    //TODO:remove hardcoded values of id etc and get from structure copied from config.h
-    //TODO: confirm the below parameters with Hub. Especially the pubmessageID
-    MQTTMessage pubmsg;
-    pubmsg.id = rand()%10000;
-    pubmsg.qos = 1;
-    pubmsg.dup = '0';
-    pubmsg.retained = '0';
-    pubmsg.payload = payload;
-    pubmsg.payloadlen = strlen(payload);
-    if(pubmsg.payloadlen>client->config.payload_size)
-    {
-        log_error("Error on Pubish,payload \x1b[31m(%d)\x1b[0m size is greater than client max payload size \x1b[31m(%d)\x1b[0m", pubmsg.payloadlen,client->config.payload_size);
-        return ZFAILURE;
-    }
-    rc = MQTTPublish(&(client->mqtt_client), dataTopic, &pubmsg);
+    rc = publishMessage(client, dataTopic, payload);
     //TODO: check for connection and retry to send the message once the conn got restroed.
     if (rc == ZSUCCESS)
     {
@@ -654,6 +663,7 @@ int zclient_addEventDataNumber(char *key, double val_number)
     }
     return rc;
 }
+
 int zclient_addEventDataObject(char *key, cJSON* Object)
 {
     if (eventDataObject == NULL)
@@ -760,20 +770,7 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
         payload = cJSON_Print(eventDispatchObject);
         cJSON_Delete(eventDispatchObject);
     }
-
-    MQTTMessage pubmsg;
-    pubmsg.id = rand()%10000;
-    pubmsg.qos = 1;
-    pubmsg.dup = '0';
-    pubmsg.retained = '0';
-    pubmsg.payload = payload;
-    pubmsg.payloadlen = strlen(payload);
-    if(pubmsg.payloadlen>client->config.payload_size)
-    {
-        log_error("Error on dispatchEvent, payload \x1b[31m(%d)\x1b[0m size is greater than client max payload size \x1b[31m(%d)\x1b[0m", pubmsg.payloadlen,client->config.payload_size);
-        return ZFAILURE;
-    }
-    rc = MQTTPublish(&(client->mqtt_client), eventTopic, &pubmsg);
+    rc = publishMessage(client, eventTopic, payload);
     //TODO: check for connection and retry to send the message once the conn got restroed.
     if (rc == ZSUCCESS)
     {
@@ -818,18 +815,11 @@ int zclient_publishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckR
     }
     char *command_ack_payload = NULL;
     command_ack_payload = cJSON_Print(Ack_payload);
-    MQTTMessage pubmsg;
-    pubmsg.id = rand()%10000;
-    pubmsg.qos = 1;
-    pubmsg.dup = '0';
-    pubmsg.retained = '0';
-    pubmsg.payload = command_ack_payload;
-    pubmsg.payloadlen = strlen(pubmsg.payload);
-    rc = MQTTPublish(&(client->mqtt_client), commandAckTopic, &pubmsg);
+    rc = publishMessage(client, commandAckTopic, command_ack_payload);
     if (rc == ZSUCCESS)
     {
         log_debug("\x1b[36m Command ACK Published \x1b[0m");
-        log_trace("Command Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, commandAckTopic);
+        log_trace("Command Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", command_ack_payload, commandAckTopic);
     }
     else if (client->mqtt_client.isconnected == 0)
     {
@@ -847,6 +837,7 @@ int zclient_publishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckR
     free(command_ack_payload);
     return rc;
 }
+
 int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage)
 {
 
@@ -862,18 +853,11 @@ int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckRe
     }
     char *config_ack_payload = NULL;
     config_ack_payload = cJSON_Print(Ack_payload);
-    MQTTMessage pubmsg;
-    pubmsg.id = rand()%10000;
-    pubmsg.qos = 1;
-    pubmsg.dup = '0';
-    pubmsg.retained = '0';
-    pubmsg.payload = config_ack_payload;
-    pubmsg.payloadlen = strlen(pubmsg.payload);
-    rc = MQTTPublish(&(client->mqtt_client), configAckTopic, &pubmsg);
+    rc = publishMessage(client, configAckTopic, config_ack_payload);
     if (rc == ZSUCCESS)
     {
         log_debug("\x1b[36m Config ACK Published \x1b[0m");
-        log_trace("Config Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, configAckTopic);
+        log_trace("Config Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", config_ack_payload, configAckTopic);
     }
     else if (client->mqtt_client.isconnected == 0)
     {
@@ -904,8 +888,16 @@ int zclient_command_subscribe(ZohoIOTclient *client, messageHandler on_message)
         log_error("Can not subscribe, since connection is lost/not established");
         return ZFAILURE;
     }
+    // Lock the mutex
+    log_trace("Getting client lock for subscribe");
+    pthread_mutex_lock(&client->lock);
+    log_trace("Got client lock for subscribe");
     //TODO: add basic validation & callback method and append it on error logs.
     rc = MQTTSubscribe(&(client->mqtt_client), commandTopic, QOS0, onMessageReceived);
+    // Unlock the mutex
+    log_trace("Releasing client lock for subscribe");
+    pthread_mutex_unlock(&client->lock);
+    log_trace("Released client lock for subscribe");
     setCommandMessageHandler(on_message);
     if (rc == ZSUCCESS)
     {
@@ -923,6 +915,7 @@ int zclient_command_subscribe(ZohoIOTclient *client, messageHandler on_message)
 
     return rc;
 }
+
 int zclient_config_subscribe(ZohoIOTclient *client, messageHandler on_message)
 {
     int rc = validateClientState(client);
@@ -935,8 +928,16 @@ int zclient_config_subscribe(ZohoIOTclient *client, messageHandler on_message)
         log_error("Can not subscribe, since connection is lost/not established");
         return ZFAILURE;
     }
+    // Lock the mutex
+    log_trace("Getting client lock for subscribe");
+    pthread_mutex_lock(&client->lock);
+    log_trace("Got client lock for subscribe");
     //TODO: add basic validation & callback method and append it on error logs.
     rc = MQTTSubscribe(&(client->mqtt_client), configTopic, QOS0, onMessageReceived);
+    // Unlock the mutex
+    log_trace("Releasing client lock for subscribe");
+    pthread_mutex_unlock(&client->lock);
+    log_trace("Released client lock for subscribe");
     setConfigMessageHandler(on_message);
     if (rc == ZSUCCESS)
     {
@@ -971,8 +972,15 @@ int zclient_yield(ZohoIOTclient *client, int time_out)
     // {
     //     rc = zclient_connect(client);
     // }
-
+    // lock the mutex
+    log_trace("Getting client lock for yield");
+    pthread_mutex_lock(&client->lock);
+    log_trace("Got client lock for yield");
     rc = MQTTYield(&client->mqtt_client, time_out);
+    // Unlock the mutex
+    log_trace("Releasing client lock for yield");
+    pthread_mutex_unlock(&client->lock);
+    log_trace("Released client lock for yield");
     if (rc == ZSUCCESS)
     {
         return rc;
@@ -1004,11 +1012,27 @@ int zclient_disconnect(ZohoIOTclient *client)
     }
     if (client->current_state == CONNECTED)
     {
+        // lock the mutex
+        log_trace("Getting client lock for mqtt disconnect");
+        pthread_mutex_lock(&client->lock);
+        log_trace("Got client lock for mqtt disconnect");
         rc = MQTTDisconnect(&client->mqtt_client);
+        // Unlock the mutex
+        log_trace("Releasing client lock for mqtt disconnect");
+        pthread_mutex_unlock(&client->lock);
+        log_trace("Released client lock for mqtt disconnect");
     }
     if(client->current_state != INITIALIZED)
     {
+        // lock the mutex
+        log_trace("Getting client lock for network disconnect");
+        pthread_mutex_lock(&client->lock);
+        log_trace("Got client lock for network disconnect");
     	NetworkDisconnect(client->mqtt_client.ipstack);
+        // Unlock the mutex
+        log_trace("Releasing client lock for network disconnect");
+        pthread_mutex_unlock(&client->lock);
+        log_trace("Released client lock for network disconnect");
     }
     client->current_state = DISCONNECTED;
     log_info("Disconnected.");
@@ -1266,6 +1290,7 @@ int zclient_free(ZohoIOTclient *client)
     free(client->config.MqttUserName);
     free(client->config.mqttBuff);
     free(client->config.mqttReadBuff);
+    pthread_mutex_destroy(&client->lock);
     if(client->message.data != NULL)
     {
         cJSON_Delete(client->message.data);
@@ -1286,12 +1311,24 @@ int zclient_free(ZohoIOTclient *client)
     if(TLS_MODE){
         #if defined(Z_USE_CLIENT_CERTS)
         if(TLS_CLIENT_CERTS){
-            free(client->certs.client_cert);
-            free(client->certs.client_key);
-            free(client->certs.cert_password);
+            if(client->certs.client_cert != NULL)
+            { 
+                free(client->certs.client_cert);
+            }
+            if(client->certs.client_key != NULL)
+            { 
+                free(client->certs.client_key);
+            }
+            if(client->certs.cert_password != NULL)
+            { 
+                free(client->certs.cert_password);
+            }
         }
         #endif
-        free(client->certs.ca_crt);
+        if(client->certs.ca_crt != NULL)
+        {   
+            free(client->certs.ca_crt);
+        }
     }
     #endif
     log_free();
@@ -1512,7 +1549,6 @@ void handle_OTA(ZohoIOTclient *client,char* payload)
     //get required fields from payload
     cJSON *commandMessageArray = cJSON_Parse(payload);
     if (cJSON_IsArray(commandMessageArray) == 1) {
-        cJSON *commandAckObject = cJSON_CreateObject();
         cJSON *commandMessage, *commandAckObj;
         int len = cJSON_GetArraySize(commandMessageArray);
         for (int iter = 0; iter < len; iter++) {
@@ -1525,7 +1561,9 @@ void handle_OTA(ZohoIOTclient *client,char* payload)
             for(int i = 0; i < cJSON_GetArraySize(attributes); i++)
             {
                 cJSON *attribute = cJSON_GetArrayItem(attributes, i);
-                log_debug("attribute : %s",cJSON_Print(attribute));
+                char *attribute_json = cJSON_Print(attribute);
+                log_debug("attribute : %s",attribute_json);
+                free(attribute_json);
                 if(strcmp(cJSON_GetObjectItem(attribute, "field")->valuestring,"OTA_URL") == 0)
                 {
                     OTA_URL = cJSON_GetObjectItem(attribute, "value")->valuestring;
@@ -1542,6 +1580,7 @@ void handle_OTA(ZohoIOTclient *client,char* payload)
         {
             log_error("OTA Handler is not set");
             zclient_publishOTAAck(client,correlation_id,EXECUTION_FAILURE,"OTA Handler is not set");
+            cJSON_Delete(commandMessageArray);
             return;
         }
 
@@ -1550,6 +1589,7 @@ void handle_OTA(ZohoIOTclient *client,char* payload)
         {
             log_error("OTA URL is NULL");
             zclient_publishOTAAck(client,correlation_id,EXECUTION_FAILURE,"OTA URL is NULL");
+            cJSON_Delete(commandMessageArray);
             return;
         }
 
@@ -1562,6 +1602,7 @@ void handle_OTA(ZohoIOTclient *client,char* payload)
             {
                 log_error("Hash is NULL");
                 zclient_publishOTAAck(client,correlation_id,EXECUTION_FAILURE,"Hash is NULL");
+                cJSON_Delete(commandMessageArray);
                 return;
             }
         }
@@ -1606,18 +1647,11 @@ int zclient_publishOTAAck(ZohoIOTclient *client, char *correlation_id, ZcommandA
 
     char *command_ack_payload = NULL;
     command_ack_payload = cJSON_Print(Ack_payload);
-    MQTTMessage pubmsg;
-    pubmsg.id = rand()%10000;
-    pubmsg.qos = 1;
-    pubmsg.dup = '0';
-    pubmsg.retained = '0';
-    pubmsg.payload = command_ack_payload;
-    pubmsg.payloadlen = strlen(pubmsg.payload);
-    rc = MQTTPublish(&(client->mqtt_client), commandAckTopic, &pubmsg);
+    rc = publishMessage(client, commandAckTopic, command_ack_payload);
     if (rc == ZSUCCESS)
     {
         log_debug("\x1b[36m OTA ACK Published \x1b[0m");
-        log_trace("OTA Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", pubmsg.payload, commandAckTopic);
+        log_trace("OTA Ack published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", command_ack_payload, commandAckTopic);
     }
     else if (client->mqtt_client.isconnected == 0)
     {
@@ -1635,4 +1669,37 @@ int zclient_publishOTAAck(ZohoIOTclient *client, char *correlation_id, ZcommandA
     free(command_ack_payload);
     return rc;
 
+}
+
+int publishMessage(ZohoIOTclient *client, const char *topic, char *payload)
+{
+    int rc;
+    MQTTMessage pubmsg;
+
+    // Prepare the MQTT message
+    pubmsg.id = rand() % 10000;
+    pubmsg.qos = 1;
+    pubmsg.dup = 0;
+    pubmsg.retained = 0;
+    pubmsg.payload = payload;
+    pubmsg.payloadlen = strlen(pubmsg.payload);
+    if(pubmsg.payloadlen>client->config.payload_size)
+    {
+        log_error("Error on Pubish,payload \x1b[31m(%d)\x1b[0m size is greater than client max payload size \x1b[31m(%d)\x1b[0m", pubmsg.payloadlen,client->config.payload_size);
+        return ZFAILURE;
+    }
+    // Lock the mutex
+    log_trace("Getting client lock for publish");
+    pthread_mutex_lock(&client->lock);
+    log_trace("Got client lock for publish");
+    
+    // Publish the MQTT message
+    rc = MQTTPublish(&(client->mqtt_client), topic, &pubmsg);
+
+    // Unlock the mutex
+    log_trace("Releasing client lock for publish");
+    pthread_mutex_unlock(&client->lock);
+    log_trace("Released client lock for publish");
+
+    return rc;
 }
