@@ -154,10 +154,6 @@ int zclient_addNumber(ZohoIOTclient *client, char *key, double val_int, char *as
 int zclient_addObject(ZohoIOTclient *client, char *key, cJSON* val_object, char *assetName);
 
 cJSON* zclient_FormReceivedACK(char* payload);
-#if defined(Z_CLOUD_LOGGING)
-void handle_cloud_logging(ZohoIOTclient *client, char *payload);
-bool get_cloud_logging_status();
-#endif
 
 int zclient_free(ZohoIOTclient *client);
 void zclient_enable_paho_debug(bool state);
