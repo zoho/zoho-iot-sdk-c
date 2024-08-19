@@ -1174,7 +1174,7 @@ cJSON* generateProcessedACK(char* payload,ZcommandAckResponseCodes status_code, 
     }
     
     switch (status_code) {
-        case SUCCESFULLY_EXECUTED:
+        case SUCCESSFULLY_EXECUTED:
         case CONFIG_SUCCESSFULLY_UPDATED:
         case EXECUTION_FAILURE:
         case METHOD_NOT_FOUND:
