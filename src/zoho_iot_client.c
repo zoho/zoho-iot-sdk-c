@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 #define MQTT_EMB_LOGGING
-//TODO: read from config file.
+
 Network n;
 certsParseMode parse_mode;
 time_t start_time = 0;
@@ -51,8 +51,6 @@ bool get_cloud_logging_status(){
     return false;
 }
 
-//TODO: Remove all debug statements and use logger.
-//TODO: Add logging for all important connection scenarios.
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
 
 cJSON* generateACKPayload(char* payload,ZcommandAckResponseCodes status_code, char *responseMessage);
@@ -98,9 +96,6 @@ int populateConfigObject(char *MQTTUserName, Zconfig *config)
 
 int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password, ZlogConfig *logConfig)
 {
-    //TODO:1
-    // All config.h and device related validations should be done here itself !
-
     
     log_initialize(logConfig);
     #if defined(Z_CLOUD_LOGGING)
@@ -222,7 +217,6 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     }
 #endif
 
-    //TODO: freeup config.
     iot_client->message.data = cJSON_CreateObject();
     if (iot_client->message.data == NULL)
     {
@@ -236,7 +230,7 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     initMessageHandler(iot_client, commandTopic, commandAckTopic, configTopic,configAckTopic);
     if (pthread_mutex_init(&iot_client->lock, NULL) != 0) {
         log_error("Mutex initialization failed");
-        exit(EXIT_FAILURE);
+        return ZFAILURE;
     }
     iot_client->current_state = INITIALIZED;
     log_info("Client Initialized!");
@@ -382,8 +376,9 @@ int zclient_connect(ZohoIOTclient *client)
         log_error("Error Connecting Network.. %d ", rc);
         if(rc == -11)
         {
-            log_fatal("Rebooting Because of Time Rest\n\n\n");
-            exit(0);
+            log_fatal("Device time got changed, disconnecting client");
+            zclient_disconnect(client);
+            start_time = 0;
         }
         return ZFAILURE;
     }
@@ -403,12 +398,11 @@ int zclient_connect(ZohoIOTclient *client)
     MQTTPacket_connectData conn_data = MQTTPacket_connectData_initializer;
 
     conn_data.MQTTVersion = 4;
-    conn_data.cleansession = 1; //TODO: tobe confirmed with Hub
+    conn_data.cleansession = 1; 
     conn_data.keepAliveInterval = 120;
     conn_data.clientID.cstring = client->config.client_id;
     conn_data.willFlag = 0;
 
-    //TODO:2: to be verified with HUB.
     conn_data.username.cstring = formConnectionString(client->config.MqttUserName);
     conn_data.password.cstring = client->config.auth_token;
 
@@ -626,7 +620,7 @@ int zclient_dispatch(ZohoIOTclient *client)
         log_debug("Can not dispatch, since connection is lost/not established");
         return ZFAILURE;
     }
-    //TODO: Add time stamp, Client ID
+    
     char *payload = NULL;
     payload = cJSON_Print(client->message.data);
     int status = zclient_publish(client, payload);
@@ -771,7 +765,7 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
         cJSON_Delete(eventDispatchObject);
     }
     rc = publishMessage(client, eventTopic, payload);
-    //TODO: check for connection and retry to send the message once the conn got restroed.
+    
     if (rc == ZSUCCESS)
     {
         log_debug("\x1b[36m Event Message Published \x1b[0m");
@@ -892,7 +886,6 @@ int zclient_command_subscribe(ZohoIOTclient *client, messageHandler on_message)
     log_trace("Getting client lock for subscribe");
     pthread_mutex_lock(&client->lock);
     log_trace("Got client lock for subscribe");
-    //TODO: add basic validation & callback method and append it on error logs.
     rc = MQTTSubscribe(&(client->mqtt_client), commandTopic, QOS0, onMessageReceived);
     // Unlock the mutex
     log_trace("Releasing client lock for subscribe");
@@ -932,7 +925,6 @@ int zclient_config_subscribe(ZohoIOTclient *client, messageHandler on_message)
     log_trace("Getting client lock for subscribe");
     pthread_mutex_lock(&client->lock);
     log_trace("Got client lock for subscribe");
-    //TODO: add basic validation & callback method and append it on error logs.
     rc = MQTTSubscribe(&(client->mqtt_client), configTopic, QOS0, onMessageReceived);
     // Unlock the mutex
     log_trace("Releasing client lock for subscribe");
@@ -968,10 +960,6 @@ int zclient_yield(ZohoIOTclient *client, int time_out)
         log_error("timeout can't be Zero or Negative");
         return ZFAILURE;
     }
-    // if (client->current_state == DISCONNECTED)
-    // {
-    //     rc = zclient_connect(client);
-    // }
     // lock the mutex
     log_trace("Getting client lock for yield");
     pthread_mutex_lock(&client->lock);
@@ -990,7 +978,6 @@ int zclient_yield(ZohoIOTclient *client, int time_out)
         if (client->mqtt_client.isconnected == 0)
         {
             client->current_state = DISCONNECTED;
-            // log_error("Error on Yielding due to lost connection. Error code: %d", rc);
             return ZFAILURE;
         }
     }
@@ -1131,7 +1118,6 @@ int zclient_addString(ZohoIOTclient *client, char *key, char *val_string, char *
             rc = ZFAILURE;
         }
     }
-    //TODO: null check for object required
     else
     {
         cJSON_ReplaceItemInObject(obj, key, cJSON_CreateString(val_string));
@@ -1152,7 +1138,6 @@ int zclient_addObject(ZohoIOTclient *client, char *key, cJSON* val_object, char 
     }
     cJSON *obj = addAssetNameTopayload(client, assetName);
     rc = ZSUCCESS;
-    //TODO: null check for object required
     cJSON* val_object_copy = cJSON_Duplicate(val_object, 1);
     if (!cJSON_HasObjectItem(obj, key))
     {
