@@ -229,7 +229,7 @@ void check_OTA_state()
                 // Publish OTA acknowledgment message based on status
                 if (strcmp(buffer, "success\n") == 0)
                 {
-                    zclient_publishOTAAck(&client, correlation_id, SUCCESFULLY_EXECUTED, "OTA update success");
+                    zclient_publishOTAAck(&client, correlation_id, SUCCESSFULLY_EXECUTED, "OTA update success");
                 }
                 else
                 {
@@ -266,7 +266,7 @@ void message_command_handler(MessageData *data)
     strncat(topic, data->topicName->lenstring.data, data->topicName->lenstring.len);
     strncat(payload, data->message->payload, data->message->payloadlen);
     log_debug("\n\n Got new command message on '%s'\n%s \n\n", topic, payload);
-    log_debug("Second level Command Ack status : %d", zclient_publishCommandAck(&client, payload, SUCCESFULLY_EXECUTED, "Command based task Executed."));
+    log_debug("Second level Command Ack status : %d", zclient_publishCommandAck(&client, payload, SUCCESSFULLY_EXECUTED, "Command based task Executed."));
 }
 
 void interruptHandler(int signo)

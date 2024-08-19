@@ -73,7 +73,7 @@ void message_command_handler(MessageData *data)
          zclient_publishCommandAck(&client,payload, EXECUTION_FAILURE, "Command based task Failed.");
         log_error("unsupported command value");
     }
-    log_debug("Second level Command Ack status : %d", zclient_publishCommandAck(&client,payload, SUCCESFULLY_EXECUTED, "Command based task Executed."));
+    log_debug("Second level Command Ack status : %d", zclient_publishCommandAck(&client,payload, SUCCESSFULLY_EXECUTED, "Command based task Executed."));
 }
 
 void interruptHandler(int signo)

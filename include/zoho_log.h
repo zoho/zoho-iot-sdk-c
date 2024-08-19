@@ -9,13 +9,13 @@
 
 #define LOG_PATH "./"
 #define LOG_PREFIX "zoho_SDK_logs"
-#define LOG_FORMAT ".txt"
+#define LOG_FORMAT ".log"
 #define MAX_LOG_FILE_SIZE  5242880  //file size in Bytes 5MB MAX
-#define MIN_LOG_FILE_SIZE  10240 // file size in Bytes 10KB MAX
+#define MIN_LOG_FILE_SIZE  10240 // file size in Bytes 10KB MIN
 #define MAX_ROLLING_LOG_FILE 2   // No of rolling log file in addition to the main
 
 #if defined(Z_CLOUD_LOGGING)
-#define MAXIMUM_READ 800000  //800KB only read form file as the jsonconversion takes some size
+#define MAXIMUM_READ 800000  //800KB only read form file as the json conversion takes some size
 #define LINE_SIZE 256
 #endif
 
@@ -97,7 +97,7 @@ ZlogConfig *getZlogger();
 
 void log_log(int level, const char *file, int line, const char *fmt, ...);
 #if defined (Z_CLOUD_LOGGING)
-  void intitialize_cloud_log();
+  void initialize_cloud_log();
   cJSON* get_cloud_log();
 #endif
 

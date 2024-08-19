@@ -30,7 +30,7 @@ void message_command_handler(MessageData *data)
     strncat(topic, data->topicName->lenstring.data, data->topicName->lenstring.len);
     strncat(payload, data->message->payload, data->message->payloadlen);
     log_debug("\n\n Got new command message on '%s'\n%s \n\n", topic, payload);
-    log_debug("Second level Command Ack status : %d", zclient_publishCommandAck(&client,payload, SUCCESFULLY_EXECUTED, "Command based task Executed."));
+    log_debug("Second level Command Ack status : %d", zclient_publishCommandAck(&client,payload, SUCCESSFULLY_EXECUTED, "Command based task Executed."));
 }
 
 void interruptHandler(int signo)

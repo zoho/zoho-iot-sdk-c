@@ -100,7 +100,7 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     log_initialize(logConfig);
     #if defined(Z_CLOUD_LOGGING)
         log_info("Cloud_Logging is enabled");
-        intitialize_cloud_log();
+        initialize_cloud_log();
     #endif
     log_info("\n\n\nSDK Initializing.. version: %s",Z_SDK_VERSION);
 
@@ -568,7 +568,7 @@ int zclient_reconnect(ZohoIOTclient *client)
         log_info("Trying to reconnect \x1b[32m %s : %d \x1b[0m in %d sec ", client->config.hostname, ZPORT, client->ZretryInterval);
         if (client->current_state != DISCONNECTED && client->current_state != CONNECTED)
         {
-            log_info("Retrying indefinetely");
+            log_info("Retrying indefinitely");
             return ZCONNECTION_ERROR;
         }
     }
@@ -599,11 +599,11 @@ int zclient_publish(ZohoIOTclient *client, char *payload)
     else if (client->mqtt_client.isconnected == 0)
     {
         client->current_state = DISCONNECTED;
-        log_error("Error on Pubish due to lost connection. Error code: %d", rc);
+        log_error("Error on Publish due to lost connection. Error code: %d", rc);
     }
     else
     {
-        log_error("Error on Pubish. Error code: %d", rc);
+        log_error("Error on Publish. Error code: %d", rc);
     }
     return rc;
 }
@@ -750,7 +750,7 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
         return ZFAILURE;
     }
     cJSON_AddStringToObject(eventObject, "event_type", eventType);
-    cJSON_AddStringToObject(eventObject, "event_descr", eventDescription);
+    cJSON_AddStringToObject(eventObject, "event_desc", eventDescription);
     cJSON_AddStringToObject(eventObject, "event_timestamp", time_val);
     cJSON_AddItemToObject(eventObject, "event_data", dataObject);
     if (!isStringValid(assetName))
@@ -1494,10 +1494,10 @@ int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * response
         strcpy(responseMessage, "Error in parsing the http response");
         return ZFAILURE;
     }
-    log_info("Cloud logging is Successfull");
-    char succesResponse[150];
-    sprintf(succesResponse,"Log Published Successfully. Number of lines read - %d, Size of log read - %lld KB",numberOfLinesRead,sizeOfLogRead);
-    strcpy(responseMessage, succesResponse);
+    log_info("Cloud logging is Successfully");
+    char successResponse[150];
+    sprintf(successResponse,"Log Published Successfully. Number of lines read - %d, Size of log read - %lld KB",numberOfLinesRead,sizeOfLogRead);
+    strcpy(responseMessage, successResponse);
     return ZSUCCESS;
 
 }
@@ -1510,7 +1510,7 @@ void handle_cloud_logging(ZohoIOTclient *client, char *payload){
     char responseMessage[100];
     #if defined(Z_CLOUD_LOGGING)
         if(http_post_cloud_logging(client, payload,responseMessage) == ZSUCCESS){
-            command_response_code = SUCCESFULLY_EXECUTED;
+            command_response_code = SUCCESSFULLY_EXECUTED;
         }
         else{
             command_response_code = EXECUTION_FAILURE;
