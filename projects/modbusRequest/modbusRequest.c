@@ -145,22 +145,6 @@ int main()
             modbus_close(ctx);
             modbus_free(ctx);
 
-            if (mc != -1 && status != -1)
-            {
-                if (temp > THRESHOLD_VALUE && alert_state == 0)
-                {
-                    alert_state = 1;
-                    zclient_addEventDataNumber("temperature", temp);
-                    zclient_dispatchEventFromEventDataObject(&client, "High Temperature", " Storage Temperature is high", "StorageRoom");
-                }
-                else if (temp <= THRESHOLD_VALUE && alert_state == 1)
-                {
-                    alert_state = 0;
-                    zclient_addEventDataNumber("temperature", temp);
-                    zclient_dispatchEventFromEventDataObject(&client, "Normal Temperature", " Storage Temperature is normal", "StorageRoom");
-                }
-            }
-
             if (getTime() > periodic_dispatch + DISPATCH_INTERVAL) //check if it is time to dispatch data to Hub
             {
                 if (mc != -1 && status != -1)
