@@ -309,6 +309,7 @@ int main()
 
     ZlogConfig *logConfig = getZlogger();
     logConfig->enableFileLog = 1;
+    logConfig->level = LOG_DEBUG;
     logConfig->logPrefix = "ota_basic";
     logConfig->logPath = "./";
     logConfig->maxLogFileSize = 100000; // File size in bytes

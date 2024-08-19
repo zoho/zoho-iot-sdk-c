@@ -101,6 +101,7 @@ int main()
 {
     ZlogConfig *logConfig = getZlogger();
     logConfig->enableFileLog = 1;
+    logConfig->level = LOG_DEBUG;
     logConfig->logPrefix = "rpi5_gpio";
     logConfig->logPath = "./";
     logConfig->maxLogFileSize = 5000000; // File size in bytes
