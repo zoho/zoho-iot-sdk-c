@@ -20,7 +20,7 @@
     
 #6
     #LED on Raspberry Pi: gpio
-    #ADD_SUBDIRECTORY(rpi_3,4_gpio)
+    #ADD_SUBDIRECTORY(rpi_3_4_gpio)
 
 #7
     #LED on Raspberry Pi 5: gpio
