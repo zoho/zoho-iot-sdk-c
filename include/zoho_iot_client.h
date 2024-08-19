@@ -112,7 +112,7 @@ typedef struct
 
 typedef enum
 {
-    SUCCESFULLY_EXECUTED = 1001,
+    SUCCESSFULLY_EXECUTED = 1001,
     CONFIG_SUCCESSFULLY_UPDATED = 1003,
     EXECUTION_FAILURE = 4000,
     METHOD_NOT_FOUND = 4001,
@@ -133,7 +133,6 @@ int zclient_disconnect(ZohoIOTclient *client);
 int zclient_command_subscribe(ZohoIOTclient *client, messageHandler on_message);
 int zclient_config_subscribe(ZohoIOTclient *client, messageHandler on_message);
 int zclient_yield(ZohoIOTclient *client, int time_out);
-//TODO: to be tested and removed.
 int zclient_reconnect(ZohoIOTclient *client);
 int zclient_dispatch(ZohoIOTclient *client);
 

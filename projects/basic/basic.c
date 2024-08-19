@@ -30,7 +30,7 @@ void message_command_handler(MessageData *data)
     strncat(topic, data->topicName->lenstring.data, data->topicName->lenstring.len);
     strncat(payload, data->message->payload, data->message->payloadlen);
     log_debug("\n\n Got new command message on '%s'\n%s \n\n", topic, payload);
-    log_debug("Second level Command Ack status : %d", zclient_publishCommandAck(&client,payload, SUCCESFULLY_EXECUTED, "Command based task Executed."));
+    log_debug("Second level Command Ack status : %d", zclient_publishCommandAck(&client,payload, SUCCESSFULLY_EXECUTED, "Command based task Executed."));
 }
 
 void interruptHandler(int signo)
@@ -74,6 +74,7 @@ int main()
     //
     ZlogConfig *logConfig = getZlogger();
     logConfig->enableFileLog = 1;
+    logConfig->level = LOG_DEBUG;
     logConfig->logPrefix = "basic";
     logConfig->logPath = "./";
     logConfig->maxLogFileSize = 100000; // File size in bytes
@@ -149,9 +150,6 @@ int main()
                 rc = zclient_markDataPointAsError(&client, "mositure", "room2");
                 rc = zclient_markDataPointAsError(&client, "air_quality");
                 rc = zclient_addString(&client, "status", "OK");
-
-                //payload = zclient_getpayload();
-                //rc = zclient_publish(&client, payload);
 
                 rc = zclient_dispatch(&client);
             }

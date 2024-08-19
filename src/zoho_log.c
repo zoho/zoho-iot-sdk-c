@@ -456,7 +456,7 @@ cJSON * get_last_lines(FILE *fp, int num_lines,long long file_old_ending_positio
 
 }
 
-void intitialize_cloud_log()
+void initialize_cloud_log()
 {
   sprintf(ZcloudLog.currentLogFile, "%s%s%s", Zlog.logPath, Zlog.logPrefix, LOG_FORMAT);
   ZcloudLog.file = fopen(ZcloudLog.currentLogFile, "r");

@@ -306,7 +306,7 @@ int NetworkConnectTLS(Network *n, char *addr, int port, certsParseMode mode, cha
 
     if (rc = init_tls(n, mode, ca_crt, client_cert, client_key, cert_password) != 0)
     {
-        log_debug("Intializing TLS failed");
+        log_debug("Initializing TLS failed");
         return -1;
     }
 #if defined(Z_USE_CLIENT_CERTS)

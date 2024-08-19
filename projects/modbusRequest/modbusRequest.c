@@ -28,8 +28,7 @@ ZohoIOTclient client;
 #define MODBUS_DATA_ADDRESS 0
 // Modbus data size
 #define MODBUS_DATA_SIZE 1
-// Alert threshold value
-#define THRESHOLD_VALUE 20
+
 
 // Intervals in which the telemetry data needs to be dispatched to the hub
 #define DISPATCH_INTERVAL 30 // Dispatch data every 30 sec
@@ -146,23 +145,6 @@ int main()
             modbus_close(ctx);
             modbus_free(ctx);
 
-            // Check for any threshold break and notify the hub when the modbus response is received properly
-            if (mc != -1 && status != -1)
-            {
-                if (temp > THRESHOLD_VALUE && alert_state == 0)
-                {
-                    alert_state = 1;
-                    zclient_addEventDataNumber("temperature", temp);
-                    zclient_dispatchEventFromEventDataObject(&client, "High Temperature", " Storage Temperature is high", "StorageRoom");
-                }
-                else if (temp <= THRESHOLD_VALUE && alert_state == 1)
-                {
-                    alert_state = 0;
-                    zclient_addEventDataNumber("temperature", temp);
-                    zclient_dispatchEventFromEventDataObject(&client, "Normal Temperature", " Storage Temperature is normal", "StorageRoom");
-                }
-            }
-
             if (getTime() > periodic_dispatch + DISPATCH_INTERVAL) //check if it is time to dispatch data to Hub
             {
                 if (mc != -1 && status != -1)
@@ -192,5 +174,6 @@ int main()
         }
     }
     zclient_disconnect(&client);
+    zclient_free(&client);
     return 0;
 }
