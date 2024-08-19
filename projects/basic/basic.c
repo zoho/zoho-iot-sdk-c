@@ -151,9 +151,6 @@ int main()
                 rc = zclient_markDataPointAsError(&client, "air_quality");
                 rc = zclient_addString(&client, "status", "OK");
 
-                //payload = zclient_getpayload();
-                //rc = zclient_publish(&client, payload);
-
                 rc = zclient_dispatch(&client);
             }
             poll_time = getTime();
