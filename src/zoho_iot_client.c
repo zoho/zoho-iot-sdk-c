@@ -1494,7 +1494,7 @@ int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * response
         strcpy(responseMessage, "Error in parsing the http response");
         return ZFAILURE;
     }
-    log_info("Cloud logging is Successfully");
+    log_info("Cloud log published successfully");
     char successResponse[150];
     sprintf(successResponse,"Log Published Successfully. Number of lines read - %d, Size of log read - %lld KB",numberOfLinesRead,sizeOfLogRead);
     strcpy(responseMessage, successResponse);
