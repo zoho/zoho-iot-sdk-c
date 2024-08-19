@@ -1594,7 +1594,7 @@ void handle_OTA(ZohoIOTclient *client,char* payload)
         }
 
         //check whether to validate the hash or not
-        if(strcmp(edge_command_key,"${YES}") == 0)
+        if(strcmp(edge_command_key,"YES") == 0)
         {
             validity_check = true;
             //check if the hash is valid
