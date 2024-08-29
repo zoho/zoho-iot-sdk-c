@@ -1,6 +1,6 @@
 include(ExternalProject)
 set(OPENSSL_LIBRARY_VERSION 3.3.1)  # Replace with the desired Paho version
-set(OPENSSL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/openssl-3.3.1)
+set(OPENSSL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/openssl-${OPENSSL_LIBRARY_VERSION})
 set(OPENSSL_BIN ${CMAKE_CURRENT_BINARY_DIR}/libopenssl)
 set(OPENSSL_STATIC_LIB ${OPENSSL_BIN}/lib/libssl.a)
 set(OPENSSL_STATIC_CRYPTO_LIB ${OPENSSL_BIN}/lib/libcrypto.a)
