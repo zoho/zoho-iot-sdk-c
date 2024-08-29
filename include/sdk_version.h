@@ -1,1 +1,1 @@
-#define Z_SDK_VERSION "0.0.1"
+#define Z_SDK_VERSION "0.1.0"

@@ -1,12 +1,18 @@
 include(ExternalProject)
 set(OPENSSL_LIBRARY_VERSION 3.3.1)  # Replace with the desired Paho version
-set(OPENSSL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/openssl-3.3.1)
+set(OPENSSL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/openssl-${OPENSSL_LIBRARY_VERSION})
 set(OPENSSL_BIN ${CMAKE_CURRENT_BINARY_DIR}/libopenssl)
 set(OPENSSL_STATIC_LIB ${OPENSSL_BIN}/lib/libssl.a)
 set(OPENSSL_STATIC_CRYPTO_LIB ${OPENSSL_BIN}/lib/libcrypto.a)
 set(OPENSSL_INCLUDES ${OPENSSL_BIN}/include)
 
 file(MAKE_DIRECTORY ${OPENSSL_INCLUDES})
+
+# Check for lib64
+if (CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(OPENSSL_STATIC_LIB ${OPENSSL_BIN}/lib64/libssl.a)
+    set(OPENSSL_STATIC_CRYPTO_LIB ${OPENSSL_BIN}/lib64/libcrypto.a)
+endif()
 
 #OS_NAME - SHOULD BE DEFINED AT THE TIME OF BUILD. ELSE TAKEN THE SYSTEM OS
 MESSAGE("Building static openssl library")
@@ -19,12 +25,6 @@ ExternalProject_Add(
   BUILD_COMMAND make -j4 VERBOSE=1
   BUILD_BYPRODUCTS ${OPENSSL_STATIC_LIB} ${OPENSSL_STATIC_CRYPTO_LIB}
 )
-
-# Check for lib64
-if (NOT EXISTS ${OPENSSL_STATIC_LIB})
-    set(OPENSSL_STATIC_LIB ${OPENSSL_BIN}/lib64/libssl.a)
-    set(OPENSSL_STATIC_CRYPTO_LIB ${OPENSSL_BIN}/lib64/libcrypto.a)
-endif()
 
 add_library(openssl_ssl STATIC IMPORTED GLOBAL)
 add_dependencies(openssl_ssl libopenssl)
