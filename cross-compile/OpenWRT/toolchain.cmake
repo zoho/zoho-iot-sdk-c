@@ -1,4 +1,3 @@
-#SET(ENV{STAGING_DIR} "/tool_chain/staging_dir/")
 INCLUDE(CMakeForceCompiler)
 
 SET(CMAKE_SYSTEM_NAME Linux)
@@ -8,16 +7,13 @@ SET(CMAKE_SYSTEM_VERSION 1)
 # For other OpenWRT based devices, edit the toolchain root path and the compiler correspondingly.
 
 # Update your toolchain root path below:
-#SET(TOOLCHAIN_BASE_DIR /tool_chain/staging_dir)
 SET(CMAKE_FIND_ROOT_PATH ${TOOLCHAIN_BASE_DIR}/${TOOLCHAIN_ARCH_TYPE})
 
 # Update your compiler name below:
-#SET(TOOLCHAIN_COMPILER bin/arm-openwrt-linux-gcc)
+SET(TOOLCHAIN_COMPILER ${TOOLCHAIN_COMPILER})
 
-#Seeting STAGING_DIR ENV through Cmake is not working, so doing it through shell
-#SET(ENV{STAGING_DIR} ${TOOLCHAIN_BASE_DIR})
-#SET(STAGING_DIR ${TOOLCHAIN_BASE_DIR})
-#message("Environment variable : $ENV{STAGING_DIR}")
+SET(ENV{STAGING_DIR} ${CMAKE_FIND_ROOT_PATH})
+
 
 SET(CMAKE_C_COMPILER ${CMAKE_FIND_ROOT_PATH}/${TOOLCHAIN_COMPILER})
 
