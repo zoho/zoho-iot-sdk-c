@@ -50,16 +50,17 @@ If you need to run the tests, the following packages need to be installed.
 - `lcov`
 - `covr`
 
-### Getting the Source
+### Getting the Latest version
 
-> The source of this SDK are located at: `https://github.com/zoho/zoho-iot-sdk-c`
+> The latest version of this SDK are located at: `https://github.com/zoho/zoho-iot-sdk-c/releases`
 
-Run the below command to download the sources:
+Run the below commands to download the latest version:
 
 ```
-git clone https://github.com/zoho/zoho-iot-sdk-c
+curl -L -o zoho-iot-sdk-c.zip https://github.com/zoho/zoho-iot-sdk-c/archive/refs/tags/0.1.0.zip
+unzip zoho-iot-sdk-c.zip
+mv zoho-iot-sdk-c-0.1.0 zoho-iot-sdk-c
 ```
-
 ### Configure Build parameters
 Edit `CMakeList.txt` file located on root to update the below build configurations:
 - **Unit Test Support**
