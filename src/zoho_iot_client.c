@@ -18,6 +18,8 @@ bool retryACK;
 ZfailedACK failedACK;
 bool retryEvent;
 ZfailedEvent failedEvent;
+unsigned long long yield_time = 0;
+int yield_interval = 2;
 
 bool paho_debug = false;
 bool TLS_MODE = true;
@@ -950,6 +952,11 @@ int zclient_config_subscribe(ZohoIOTclient *client, messageHandler on_message)
 
 int zclient_yield(ZohoIOTclient *client, int time_out)
 {
+    if (getCurrentTime() - yield_time < yield_interval){
+        return 2;
+     }
+     yield_time = getCurrentTime();
+
     int rc = validateClientState(client);
     if (rc != 0)
     {
