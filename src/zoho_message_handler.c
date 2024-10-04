@@ -80,20 +80,18 @@ void* subcribe_ack_function(void* arg) {
             {
                 //handle OTA
                 log_info("Received OTA command. Handling OTA...");
-                handle_OTA(iot_client,payload);
-                return;
+                handle_OTA(iot_client, args->payload);
+                return NULL;
             }
             if(get_cloud_logging_status())
             {
                 //handle Cloud logging
                 log_info("Received cloud logging command. Handling cloud logging...");
-                handle_cloud_logging(iot_client,payload);
-                return;
+                handle_cloud_logging(iot_client, args->payload);
+                return NULL;
             }
             on_command_message_handler(args->topic, args->payload);
         }
-
-
     }
     else if (strcmp(args->topic, handler_CONFIG_TOPIC) == 0)
     {
@@ -113,7 +111,6 @@ void* subcribe_ack_function(void* arg) {
             }
             pthread_detach(thread);
             cJSON_Delete(configAckObject);
-            free(config_ack_payload);
             on_config_message_handler(args->topic, args->payload);
         }
     }

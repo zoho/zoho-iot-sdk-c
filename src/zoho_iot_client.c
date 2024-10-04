@@ -520,18 +520,13 @@ int zclient_connect(ZohoIOTclient *client)
 
 unsigned long long getCurrentTime()
 {
-    #if defined(Z_PAHO_C)
+
     struct timespec currentTime;
     if (clock_gettime(CLOCK_REALTIME, &currentTime) == -1) {
      return 0;
     }
     return (unsigned long long)(currentTime.tv_sec);
-    #else
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    unsigned long long seconds = (unsigned long long)(tv.tv_sec);
-    return seconds;
-    #endif
+
 }
 
 int zclient_reconnect(ZohoIOTclient *client)
@@ -1056,6 +1051,12 @@ int zclient_config_subscribe(ZohoIOTclient *client, SubscribeMessageHandler on_m
 
 int zclient_yield(ZohoIOTclient *client, int time_out)
 {
+     int rc = validateClientState(client);
+    if (rc != 0)
+    {
+        return rc;
+    }
+    
     #if defined(Z_PAHO_C)
         if(MQTTClient_isConnected(client->mqtt_client) == 0)
         {
@@ -1068,12 +1069,6 @@ int zclient_yield(ZohoIOTclient *client, int time_out)
             return 2;
         }
         yield_time = getCurrentTime();
-
-        int rc = validateClientState(client);
-        if (rc != 0)
-        {
-            return rc;
-        }
         if (time_out <= 0)
         {
             log_error("timeout can't be Zero or Negative");

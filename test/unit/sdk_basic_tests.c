@@ -10,6 +10,56 @@
 
 #define ACK_SAMPLE_PAYLOAD (char *)"[{\"payload\":[{\"edge_command_key\":\"cname\",\"value\":\"4\"}],\"command_name\":\"cname\",\"correlation_id\":\"5f12bd40-f010-11ed-8a24-5354005d2854\"}]"
 
+#if defined(Z_PAHO_C)
+int __wrap_MQTTClient_isConnected(MQTTClient handle)
+{
+    return mock_type(int);
+}
+
+int __wrap_MQTTClient_create(MQTTClient* handle, const char* serverURI, const char* clientId,
+		int persistence_type, void* persistence_context)
+{
+    return mock_type(int);
+}
+
+int __wrap_MQTTClient_setCallbacks(MQTTClient handle, void* context, MQTTClient_connectionLost* cl,
+														MQTTClient_messageArrived* ma, MQTTClient_deliveryComplete* dc)
+{
+    return mock_type(int);
+}
+
+int __wrap_MQTTClient_connect(MQTTClient handle, MQTTClient_connectOptions* options)
+{
+    return mock_type(int);
+}
+
+void __wrap_MQTTClient_destroy(MQTTClient* handle)
+{
+    
+}
+
+int __wrap_MQTTClient_disconnect(MQTTClient handle, int timeout)
+{
+    return mock_type(int);
+}
+
+int __wrap_MQTTClient_subscribe(MQTTClient handle, const char* topic, int qos)
+{
+    return mock_type(int);
+}
+
+int __wrap_MQTTClient_publishMessage(MQTTClient handle, const char* topicName, MQTTClient_message* message,
+															 MQTTClient_deliveryToken* deliveryToken)
+{
+    return mock_type(int);
+}
+
+int __wrap_MQTTClient_waitForCompletion(MQTTClient handle, MQTTClient_deliveryToken mdt, unsigned long timeout)
+{
+    return mock_type(int);
+}
+
+#else
 int __wrap_MQTTConnect(MQTTClient *c, MQTTPacket_connectData *options)
 {
     return mock_type(int);
@@ -48,6 +98,7 @@ void __wrap_NetworkDisconnect(Network *n)
 {
    
 }
+#endif
 
 static int Turn_off_TLS_mode(void **state)
 {
@@ -166,8 +217,14 @@ static void ConnectMethod_OnConnectOverExistingConnetion_ShouldSucceed(void **st
 static void ConnectMethod_WithNonNullArguments_ShouldSucceed(void **state)
 {
     // Connect method returns SUCCEDD with proper device credentials
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    #else
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    #endif
 
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
@@ -177,16 +234,24 @@ static void ConnectMethod_WithNonNullArguments_ShouldSucceed(void **state)
 static void ConnectMethod_WithLostNetworkConnection_ShouldFail(void **state)
 {
     // Connect method returns failure as Network connection is not available.
-    will_return(__wrap_NetworkConnect, ZFAILURE);
+    #ifndef Z_PAHO_C
+    will_return_always(__wrap_NetworkConnect, ZFAILURE);
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     assert_int_equal(zclient_connect(&client), ZFAILURE);
+    #endif
 }
 static void ConnectMethod_WithWrongCredentials_ShouldFail(void **state)
 {
     // connect method returns failure as credentials for network connection are incorrect.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, 5);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, 5);
+    #else
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, 5);
+    #endif
 
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
@@ -197,8 +262,14 @@ static void ConnectMethod_WithWrongCredentials_ShouldFail(void **state)
 static void ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed(void **state)
 {
     // With Appropriate TLS Server Certificate and login credentials connect to HUB should succeed .
-    will_return(__wrap_NetworkConnectTLS, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    #else
+    will_return_always(__wrap_NetworkConnectTLS, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    #endif
 
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "./ca.crt", "", "", "");
@@ -209,8 +280,14 @@ static void ConnectMethod_WithAppropriateTLSServerCertificates_shouldSucceed(voi
 static void ConnectMethod_WithAppropriateTLSClientCertificates_shouldSucceed(void **state)
 {
     // With Appropriate TLS Server and Client Certificates and login credentials connect to HUB should succeed .
-    will_return(__wrap_NetworkConnectTLS, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    #else
+    will_return_always(__wrap_NetworkConnectTLS, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    #endif
 
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "./ca.crt", "./client.crt", "./client.key", "");
@@ -237,21 +314,38 @@ static void PublishMethod_OnCallingBeforeInitialization_ShouldFail()
 static void PublishMethod_WithLostConnection_ShouldFail(void **state)
 {
     // Publishing with lost connection will return failure.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTPublish, ZFAILURE);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_publishMessage, ZFAILURE);
+    will_return_always(__wrap_MQTTClient_isConnected, ZSUCCESS);
+    #else
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTPublish, ZFAILURE);
+    #endif
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
-    assert_int_equal(zclient_publish(&client, "payload"), ZFAILURE);
+    assert_int_equal(zclient_publish(&client, "payload"),ZFAILURE);
 }
 
 static void PublishMethod_WithNonNullArguments_ShouldSucceed(void **state)
 {
     // Publish method with appropriate arguments should succeed.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTPublish, ZSUCCESS);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_publishMessage, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_waitForCompletion, ZSUCCESS);
+    #else
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTPublish, ZSUCCESS);
+    #endif
+
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -261,13 +355,15 @@ static void PublishMethod_WithNonNullArguments_ShouldSucceed(void **state)
 static void PublishMethod_WithPayloadSizeGreaterThanDefinedPayloadSize_ShouldFail(void **state)
 {
     // Publish method with bigger payload than defined should fail
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    #ifndef Z_PAHO_C
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_setMaxPayloadSize(&client,5);
     zclient_connect(&client);
     assert_int_equal(zclient_publish(&client, "1234567"), ZFAILURE);
+    #endif
 }
 
 static void PublishMethod_ShouldFail_If_Client_is_On_Disconnected_State(void **state)
@@ -305,9 +401,17 @@ static void DispatchMethod_WithNoConnection_ShouldFail(void **state)
 static void DispatchMethod_WithProperConnection_ShouldSucceed(void **state)
 {
     // Dispatch with Active connection should succeed.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTPublish, ZSUCCESS);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_publishMessage, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_waitForCompletion, ZSUCCESS);
+    #else
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTPublish, ZSUCCESS);
+    #endif
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -341,9 +445,18 @@ static void DispatchEventEventDataObject_WithNoConnection_ShouldFail(void **stat
 static void DispatchEventFromEventDataObject_WithProperConnectionWithAndWithOutAssetName_ShouldSucceed(void **state)
 {
     // DispatchEvent from event data object with Active connection with and without AssetName should succeed.
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_publishMessage, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_waitForCompletion, ZSUCCESS);
+
+    #else
     will_return_always(__wrap_NetworkConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTPublish, ZSUCCESS);
+    #endif
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -356,8 +469,14 @@ static void DispatchEventFromEventDataObject_WithProperConnectionWithAndWithOutA
 static void DispatchEventFromEventDataObject_WithImproperArgumentsOrEventDataWithAndWithOutAssetName_ShouldFail(void **state)
 {
     // DispatchEvent from event data object with ImproperEventData with and without AssetName should fail.
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    #else
     will_return_always(__wrap_NetworkConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    #endif
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -392,8 +511,14 @@ static void DispatchEventFromJSONString_WithNoConnection_ShouldFail(void **state
 static void DispatchEventFromJSONString_WithImproperEventDataWithAndWithOutAssetName_ShouldFail(void **state)
 {
     // DispatchEvent from json string with ImproperEventData with and without AssetName should fail.
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    #else
     will_return_always(__wrap_NetworkConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    #endif
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -406,9 +531,18 @@ static void DispatchEventFromJSONString_WithImproperEventDataWithAndWithOutAsset
 static void DispatchEventFromJSONString_WithproperEventDataWithAndWithOutAssetName_ShouldSucceed(void **state)
 {
     // DispatchEvent from json string with properEventData with and without AssetName should Succeed.
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_publishMessage, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_waitForCompletion, ZSUCCESS);
+
+    #else
     will_return_always(__wrap_NetworkConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTPublish, ZSUCCESS);
+    #endif
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -422,8 +556,9 @@ static void DispatchEventFromJSONString_WithproperEventDataWithAndWithOutAssetNa
 static void DispatchEventFromJSONString_WithPayloadSizeGreaterThanDefinedPayloadSize_ShouldFail(void **state)
 {
     // Dispatch method with bigger payload than defined should fail
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
+    #ifndef Z_PAHO_C
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_setMaxPayloadSize(&client,5);
@@ -431,13 +566,23 @@ static void DispatchEventFromJSONString_WithPayloadSizeGreaterThanDefinedPayload
     cJSON *obj = cJSON_CreateObject();
     cJSON_AddNumberToObject(obj, "key1", 123);
     assert_int_equal(zclient_dispatchEventFromJSONString(&client, "eventType", "eventDescription", cJSON_Print(obj), ""), ZFAILURE);
+    #endif
 }
 static void DispatchEventFromJSONString_should_fail_when_MQTTPublish_is_not_Succeeded(void **state)
 {
     // DispatchEvent from json string with properEventData with and without AssetName should Succeed.
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_publishMessage, ZFAILURE);
+    will_return_always(__wrap_MQTTClient_isConnected, ZSUCCESS);
+    #else
     will_return_always(__wrap_NetworkConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTPublish, ZFAILURE);
+    #endif
+    
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -468,9 +613,18 @@ static void PublishCommandAck_WithNoConnection_ShouldFail(void **state)
 static void PublishCommandAck_WithproperArguments_ShouldSucceed(void **state)
 {
     // PublishCommandAck with proper arguments should succeed.
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_publishMessage, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_waitForCompletion, ZSUCCESS);
+    #else
     will_return_always(__wrap_NetworkConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTPublish, ZSUCCESS);
+    #endif
+    
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -481,8 +635,14 @@ static void PublishCommandAck_WithproperArguments_ShouldSucceed(void **state)
 static void PublishCommandAck_WithNullOrEmptyproperArguments_ShouldFail(void **state)
 {
     // PublishCommandAck with Improper Null or empty arguments should Fail.
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    #else
     will_return_always(__wrap_NetworkConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    #endif
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -494,9 +654,19 @@ static void PublishCommandAck_WithNullOrEmptyproperArguments_ShouldFail(void **s
 static void PublishCommandAck_WithoutMQTTPublish_ShouldFail(void **state)
 {
     // PublishCommandAck with proper arguments should succeed.
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_publishMessage, ZFAILURE);
+
+    will_return_always(__wrap_MQTTClient_isConnected, ZSUCCESS);
+    #else
     will_return_always(__wrap_NetworkConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTPublish, ZFAILURE);
+    #endif
+    
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -509,14 +679,14 @@ static void SubscribeMethod_OnCallingBeforeInitialization_ShouldFail()
 {
     // Subscribing with out initializing client would return FAILURE
     ZohoIOTclient client;
-    messageHandler msghnd;
+    SubscribeMessageHandler msghnd;
     assert_int_equal(zclient_command_subscribe(&client, msghnd), -2);
 }
 
 static void SubscribeMethod_OnNullArguments_ShouldFail(void **state)
 {
     // Subscribe returns Failure for Null Client .
-    messageHandler msghnd;
+    SubscribeMessageHandler msghnd;
     assert_int_equal(zclient_command_subscribe(NULL, msghnd), ZFAILURE);
     // Subscribe returns Failure for Null messageHandler .
     ZohoIOTclient client;
@@ -524,14 +694,23 @@ static void SubscribeMethod_OnNullArguments_ShouldFail(void **state)
     assert_int_equal(zclient_command_subscribe(&client, NULL), ZFAILURE);
 }
 
-void message_handler(MessageData *data) {}
+void message_handler(char *topic, char *payload) {}
 
 static void SubscribeMethod_WithLostConnection_ShouldFail(void **state)
 {
     // Subscribe with lost connection should Fail
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTSubscribe, ZFAILURE);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_subscribe, ZFAILURE);
+    will_return_always(__wrap_MQTTClient_isConnected, ZSUCCESS);
+    #else
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTSubscribe, ZFAILURE);
+    #endif
+
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -541,17 +720,24 @@ static void SubscribeMethod_WithLostConnection_ShouldFail(void **state)
 static void SubscribeMethod_WithNonNullArguments_ShouldSucceed(void **state)
 {
     // Subscribe method returns success with appropriate connection.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTSubscribe, ZSUCCESS);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_subscribe, ZSUCCESS);
+    #else
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTSubscribe, ZSUCCESS);
+    #endif
+    
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
     assert_int_equal(zclient_command_subscribe(&client, message_handler), ZSUCCESS);
 }
 
-// YIELD :
-
+#if defined(Z_PAHO_C)
 static void YieldMethod_OnCallingBeforeInitialization_ShouldFail()
 {
     // Subscribing with out initializing client would return FAILURE
@@ -559,11 +745,52 @@ static void YieldMethod_OnCallingBeforeInitialization_ShouldFail()
     assert_int_equal(zclient_yield(&client, 100), -2);
 }
 
+static void YieldMethod_OnCallingWhenDisconnectedShouldChangeStateandFails()
+{
+    will_return_always(__wrap_MQTTClient_isConnected, 0);
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    assert_int_equal(zclient_yield(&client, 100), ZFAILURE);
+    assert_int_equal(client.current_state,DISCONNECTED);
+    
+}
+
+static void YieldMethod_OnCallingWhenConnectedShouldSuccess()
+{
+    will_return_always(__wrap_MQTTClient_isConnected, 1);
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    assert_int_equal(zclient_yield(&client, 100), 0);
+}
+ #else
+// YIELD :
+static void YieldMethod_OnCallingBeforeInitialization_ShouldFail()
+{
+    // Subscribing with out initializing client would return FAILURE
+    extern unsigned long long yield_time ;
+    yield_time = getCurrentTime() + 3;
+    ZohoIOTclient client;
+    assert_int_equal(zclient_yield(&client, 100), -2);
+}
+
+static void YieldMethod_CallingIntervalLessthan2seconds_ShouldFail()
+{
+    // Calling yield befor 2 seconds should return 2
+    extern unsigned long long yield_time ;
+    yield_time = getCurrentTime();
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    assert_int_equal(zclient_yield(&client, 100), 2);
+}
+
 static void YieldMethod_OnNullArguments_ShouldFail(void **state)
 {
     //Yield returns Failure for Null Client .
+    extern unsigned long long yield_time ;
+    yield_time = getCurrentTime() + 3;
     assert_int_equal(zclient_yield(NULL, 1000), ZFAILURE);
 
+    yield_time = getCurrentTime() + 3;
     //Yield returns Failure for non positive timeout.
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
@@ -572,10 +799,13 @@ static void YieldMethod_OnNullArguments_ShouldFail(void **state)
 
 static void YieldMethod_OnNonNullArguments_ShouldSucceed(void **state)
 {
+    extern unsigned long long yield_time ;
+    yield_time = getCurrentTime() + 3;
+
     // yield method with appropriate arguments should succeed.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTYield, ZSUCCESS);
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTYield, ZSUCCESS);
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -584,15 +814,19 @@ static void YieldMethod_OnNonNullArguments_ShouldSucceed(void **state)
 
 static void YieldMethod_WithLostConnection_ShouldFail(void **state)
 {
+    extern unsigned long long yield_time ;
+    yield_time = getCurrentTime() + 3;
+
     // Yield method wehn connection lost returns failure
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTYield, ZFAILURE);
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTYield, ZFAILURE);
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
     assert_int_equal(zclient_yield(&client, 300), ZFAILURE);
 }
+#endif
 
 // DISCONNECT :
 
@@ -613,9 +847,18 @@ static void DisconnectMethod_OnUnEstablishedConnetion_ShouldSucceed(void **state
 static void DisconnectMethod_WithActiveConnection_ShouldDisconnectAndReturnSuccess(void **state)
 {
     // Disconnect method with active connection get disconnected properly from HUB and return success.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTDisconnect, ZSUCCESS);
+
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_disconnect, ZSUCCESS);
+    #else
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTDisconnect, ZSUCCESS);
+    #endif
+
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -850,10 +1093,17 @@ static void GetRetryInterval_withValuesGreaterthenMaxRetryInterval_ShouldReturnD
 static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
 {
     // Reconnect method with lost connection can Retry connection and succeed.
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_subscribe, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_publishMessage, ZSUCCESS);
+     will_return_always(__wrap_MQTTClient_waitForCompletion, ZSUCCESS);
+    #else
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTSubscribe, ZSUCCESS);
     will_return_always(__wrap_MQTTPublish, ZSUCCESS);
+    #endif
     
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
@@ -869,8 +1119,12 @@ static void ReconnectMethod_OnLostConnection_ShouldExponentiallyIncrease(void **
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     client.current_state = DISCONNECTED;
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZFAILURE);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_connect, ZFAILURE);
+    #else
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZFAILURE);
+    #endif
     zclient_reconnect(&client);
     sleep(5);
     zclient_reconnect(&client);
@@ -880,10 +1134,16 @@ static void ReconnectMethod_OnLostConnection_ShouldExponentiallyIncrease(void **
 static void ReconnectMethod_WithMQTTPublishFailure_OnLostConnection_ShouldRetryAndFails(void **state)
 {
     // Reconnect method with lost connection can Retry connection and succeed.
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_subscribe, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_publishMessage, ZFAILURE);
+    #else
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
     will_return(__wrap_MQTTSubscribe, ZSUCCESS);
     will_return_always(__wrap_MQTTPublish, ZFAILURE);
+    #endif
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     client.current_state = DISCONNECTED;
@@ -895,9 +1155,17 @@ static void ReconnectMethod_WithMQTTPublishFailure_OnLostConnection_ShouldRetryA
 //Config Publish
 static void zclient_publishConfigAck_should_MQTT_NotConnected_ShouldFail(void ** state)
 {
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTPublish, ZFAILURE);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_publishMessage, ZFAILURE);
+    will_return_always(__wrap_MQTTClient_isConnected, ZSUCCESS);
+    #else
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTPublish, ZFAILURE);
+    #endif
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -906,9 +1174,17 @@ static void zclient_publishConfigAck_should_MQTT_NotConnected_ShouldFail(void **
 
 static void zclient_publishConfigAck_withProperArguments_shouldSuccess(void ** state)
 {
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTPublish, ZSUCCESS);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_publishMessage, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_waitForCompletion, ZSUCCESS);
+    #else
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTPublish, ZSUCCESS);
+    #endif
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -925,9 +1201,17 @@ static void zclient_publishConfigAck_withNoConnection_shouldFail(void ** state){
 static void  config_subscribe_WithNonNullArguments_ShouldSucceed(void **state)
 {
     // Subscribe method returns success with appropriate connection.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTSubscribe, ZSUCCESS);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_subscribe, ZSUCCESS);
+
+    #else
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTSubscribe, ZSUCCESS);
+    #endif
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -937,9 +1221,17 @@ static void  config_subscribe_WithNonNullArguments_ShouldSucceed(void **state)
 static void  config_subscribe_WithLostConnection_ShouldFail(void **state)
 {
     // Subscribe method returns success with appropriate connection.
-    will_return(__wrap_NetworkConnect, ZSUCCESS);
-    will_return(__wrap_MQTTConnect, ZSUCCESS);
-    will_return(__wrap_MQTTSubscribe, ZFAILURE);
+    #if defined(Z_PAHO_C)
+    will_return_always(__wrap_MQTTClient_create, MQTTCLIENT_SUCCESS);
+    will_return_always(__wrap_MQTTClient_setCallbacks, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
+    will_return_always(__wrap_MQTTClient_subscribe, ZFAILURE);
+    will_return_always(__wrap_MQTTClient_isConnected, ZSUCCESS);
+    #else
+    will_return_always(__wrap_NetworkConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTConnect, ZSUCCESS);
+    will_return_always(__wrap_MQTTSubscribe, ZFAILURE);
+    #endif
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
@@ -950,14 +1242,14 @@ static void ConfigSubscribeMethod_OnCallingBeforeInitialization_ShouldFail()
 {
     // Subscribing with out initializing client would return FAILURE
     ZohoIOTclient client;
-    messageHandler msghnd;
+    SubscribeMessageHandler msghnd;
     assert_int_equal(zclient_config_subscribe(&client, msghnd), -2);
 }
 
 static void ConfigSubscribeMethod_OnNullArguments_ShouldFail(void **state)
 {
     // Subscribe returns Failure for Null Client .
-    messageHandler msghnd;
+    SubscribeMessageHandler msghnd;
     assert_int_equal(zclient_config_subscribe(NULL, msghnd), ZFAILURE);
     // Subscribe returns Failure for Null messageHandler .
     ZohoIOTclient client;
@@ -1159,10 +1451,17 @@ int main(void)
         cmocka_unit_test_setup(SubscribeMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
         cmocka_unit_test_setup(SubscribeMethod_WithNonNullArguments_ShouldSucceed,Turn_off_TLS_mode),
         cmocka_unit_test_setup(SubscribeMethod_WithLostConnection_ShouldFail,Turn_off_TLS_mode),
+        #if defined(Z_PAHO_C)
         cmocka_unit_test_setup(YieldMethod_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(YieldMethod_OnCallingWhenDisconnectedShouldChangeStateandFails,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(YieldMethod_OnCallingWhenConnectedShouldSuccess,Turn_off_TLS_mode),
+         #else
+        cmocka_unit_test_setup(YieldMethod_OnCallingBeforeInitialization_ShouldFail,Turn_off_TLS_mode),
+        cmocka_unit_test_setup(YieldMethod_CallingIntervalLessthan2seconds_ShouldFail,Turn_off_TLS_mode),
         cmocka_unit_test_setup(YieldMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
         cmocka_unit_test_setup(YieldMethod_OnNonNullArguments_ShouldSucceed,Turn_off_TLS_mode),
         cmocka_unit_test_setup(YieldMethod_WithLostConnection_ShouldFail,Turn_off_TLS_mode),
+        #endif
         cmocka_unit_test_setup(DisconnectMethod_OnNullArguments_ShouldFail,Turn_off_TLS_mode),
         cmocka_unit_test_setup(DisconnectMethod_OnUnEstablishedConnetion_ShouldSucceed,Turn_off_TLS_mode),
         cmocka_unit_test_setup(DisconnectMethod_WithActiveConnection_ShouldDisconnectAndReturnSuccess,Turn_off_TLS_mode),
