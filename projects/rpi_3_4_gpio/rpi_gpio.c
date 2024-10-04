@@ -41,14 +41,8 @@ void gpiointerrupt_handling(int pin, int level, uint32_t tick,void * arguments){
 }
 
 
-void message_command_handler(MessageData *data)
+void message_command_handler(char * topic,char * payload)
 {
-    char payload[data->message->payloadlen];
-    char topic[data->topicName->lenstring.len];
-    *topic = '\0';
-    *payload = '\0';
-    strncat(topic, data->topicName->lenstring.data, data->topicName->lenstring.len);
-    strncat(payload, data->message->payload, data->message->payloadlen);
     log_debug("\n\n Got new command message on '%s'\n%s \n\n", topic, payload);
     cJSON * commandMessageArray = cJSON_Parse(payload);
  

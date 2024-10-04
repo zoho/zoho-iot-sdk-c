@@ -21,14 +21,8 @@ ZohoIOTclient client;
 // Frequency in which the data needs to be fetched
 #define POLL_FREQUENCY 5 // poll data every 5 sec
 
-void message_command_handler(MessageData *data)
+void message_command_handler(char * topic,char * payload)
 {
-    char payload[data->message->payloadlen+1];
-    char topic[data->topicName->lenstring.len+1];
-    *topic = '\0';
-    *payload = '\0';
-    strncat(topic, data->topicName->lenstring.data, data->topicName->lenstring.len);
-    strncat(payload, data->message->payload, data->message->payloadlen);
     log_debug("\n\n Got new command message on '%s'\n%s \n\n", topic, payload);
     log_debug("Second level Command Ack status : %d", zclient_publishCommandAck(&client,payload, SUCCESSFULLY_EXECUTED, "Command based task Executed."));
 }
