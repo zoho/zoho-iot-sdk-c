@@ -19,7 +19,7 @@ ZfailedACK failedACK;
 bool retryEvent;
 ZfailedEvent failedEvent;
 unsigned long long yield_time = 0;
-int yield_interval = 2;
+int yield_interval = 1;
 
 bool paho_debug = false;
 bool TLS_MODE = true;
