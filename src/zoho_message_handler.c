@@ -1,6 +1,30 @@
 #include "zoho_message_handler.h"
 #include <pthread.h>
 #include <stdlib.h>
+typedef struct {
+    ZohoIOTclient* client;
+    char* topic;
+    char* payload;
+} PublishPayloadData;
+
+void* publishCommandAck(void* arg) {
+    PublishPayloadData* data = (PublishPayloadData*)arg;
+    publishMessage(data->client, data->topic, data->payload);
+    free(data->payload);  
+    free(data->topic);    
+    free(data);           
+    return NULL;
+}
+
+void* publishConfigAck(void* arg) {
+    PublishPayloadData* data = (PublishPayloadData*)arg;
+    publishMessage(data->client, data->topic, data->payload);
+    free(data->payload);  
+    free(data->topic);    
+    free(data);           
+    return NULL;
+}
+
 void processMessageReceived(MessageData *md);
 void initMessageHandler(ZohoIOTclient *client, char *comm_topic, char *comm_ack_topic, char *conf_topic, char *conf_ack_topic)
 {
@@ -109,11 +133,20 @@ void processMessageReceived(MessageData *md)
         
         cJSON* commandAckObject = zclient_FormReceivedACK(payload);
         if (commandAckObject != NULL) {
-            char *command_ack_payload = NULL;
-            command_ack_payload = cJSON_Print(commandAckObject);
-            publishMessage(iot_client, handler_COMMAND_ACK_TOPIC, command_ack_payload);
+            char *command_ack_payload = cJSON_Print(commandAckObject);
+            PublishPayloadData* data = (PublishPayloadData*)malloc(sizeof(PublishPayloadData));
+            data->client = iot_client;
+            data->topic = strdup(handler_COMMAND_ACK_TOPIC);
+            data->payload = command_ack_payload;
+            pthread_t thread;
+            int result = pthread_create(&thread, NULL, publishCommandAck, (void*)data);
+            if (result != 0) {
+                log_error("Failed to create command publish thread");
+                free(command_ack_payload);
+                free(data);
+            }
+            pthread_detach(thread);
             cJSON_Delete(commandAckObject);
-            free(command_ack_payload);
             if(get_OTA_status())
             {
                 //handle OTA
@@ -135,11 +168,20 @@ void processMessageReceived(MessageData *md)
     {
         cJSON* configAckObject = zclient_FormReceivedACK(payload);
         if (configAckObject != NULL) {
-            char *config_ack_payload = NULL;
-            config_ack_payload = cJSON_Print(configAckObject);
-            publishMessage(iot_client, handler_CONFIG_ACK_TOPIC, config_ack_payload);
+            char *config_ack_payload = cJSON_Print(configAckObject);
+            PublishPayloadData* data = (PublishPayloadData*)malloc(sizeof(PublishPayloadData));
+            data->client = iot_client;
+            data->topic = strdup(handler_CONFIG_ACK_TOPIC);
+            data->payload = config_ack_payload;
+            pthread_t thread;
+            int result = pthread_create(&thread, NULL, publishConfigAck, (void*)data);
+            if (result != 0) {
+                log_error("Failed to create config publish thread");
+                free(config_ack_payload);  
+                free(data);
+            }
+            pthread_detach(thread); 
             cJSON_Delete(configAckObject);
-            free(config_ack_payload);
             on_config_message_handler(md);
         }
     }
