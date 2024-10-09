@@ -362,11 +362,10 @@ int zclient_connect(ZohoIOTclient *client)
         #else
         sprintf(address, "tcp://%s:%d", client->config.hostname, ZPORT);
         #endif
-        log_debug("URL :%s",address);
         if ((rc = MQTTClient_create(&client->mqtt_client,  address,  client->config.client_id,
             MQTTCLIENT_PERSISTENCE_NONE, NULL)) != MQTTCLIENT_SUCCESS)
         {
-            log_debug("Failed to create client, return code %d\n", rc);
+            log_error("Failed to create client, return code %d\n", rc);
             return ZFAILURE;
         }
         rc = MQTTClient_setCallbacks(client->mqtt_client, NULL, NULL, onMessageReceived, NULL);
