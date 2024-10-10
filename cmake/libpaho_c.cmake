@@ -1,5 +1,5 @@
 include(ExternalProject)
-set(PAHO_LIBRARY_VERSION 1.3.0)  # Replace with the desired Paho version
+set(PAHO_LIBRARY_VERSION 1.3.13)  # Replace with the desired Paho version
 set(PAHO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/paho.mqtt.c)
 set(PAHO_BIN ${CMAKE_CURRENT_BINARY_DIR}/libpaho)
 IF(Z_ENABLE_TLS)
