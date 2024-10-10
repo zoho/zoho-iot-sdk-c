@@ -1,9 +1,11 @@
 #ifndef ZOHO_IOT_CLIENT_H_
 #define ZOHO_IOT_CLIENT_H_
-#if defined(Z_SECURE_CONNECTION)
-#include "tls_network.h"
-#else
-#include <MQTTLinux.h>
+#ifndef Z_PAHO_C
+    #if defined(Z_SECURE_CONNECTION)
+        #include "tls_network.h"
+    #else
+        #include <MQTTLinux.h>
+    #endif
 #endif
 #include <MQTTClient.h>
 #define MQTT_TASK 1
@@ -123,6 +125,8 @@ typedef enum
     ALREADY_ON_SAME_STATE = 4006,
     CONFIG_FAILED = 4008
 } ZcommandAckResponseCodes;
+
+typedef void (*SubscribeMessageHandler)(char *topic, char *payload);
 bool zclient_setAgentNameandVersion(char * name,char * version);
 bool zclient_setPlatformName(char * platformName);
 int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password, ZlogConfig *logConfig);
@@ -130,8 +134,9 @@ int zclient_setMaxPayloadSize(ZohoIOTclient *iot_client,int size);
 int zclient_connect(ZohoIOTclient *client);
 int zclient_publish(ZohoIOTclient *client, char *payload);
 int zclient_disconnect(ZohoIOTclient *client);
-int zclient_command_subscribe(ZohoIOTclient *client, messageHandler on_message);
-int zclient_config_subscribe(ZohoIOTclient *client, messageHandler on_message);
+
+int zclient_command_subscribe(ZohoIOTclient *client, SubscribeMessageHandler on_message);
+int zclient_config_subscribe(ZohoIOTclient *client, SubscribeMessageHandler on_message);
 int zclient_yield(ZohoIOTclient *client, int time_out);
 int zclient_reconnect(ZohoIOTclient *client);
 int zclient_dispatch(ZohoIOTclient *client);
@@ -166,6 +171,7 @@ void handle_OTA(ZohoIOTclient *client, char* payload);
 int zclient_ota_handler(OTAHandler on_OTA);
 int zclient_publishOTAAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage);
 int publishMessage(ZohoIOTclient *client, const char *topic, char *payload);
+unsigned long long getCurrentTime();
 //int zclient_setRetrycount(ZohoIOTclient *client, int count);
 //char *zclient_getpayload();
 #endif //# ZOHO_IOT_CLIENT_H_
