@@ -14,6 +14,7 @@
 #include "zoho_utils.h"
 #include "zclient_constants.h"
 #include <time.h>
+#include <pthread.h>
 #if defined(Z_CLOUD_LOGGING)
 #include <openssl/ssl.h>
 #include <openssl/bio.h>
