@@ -36,3 +36,5 @@ add_library(paho STATIC IMPORTED GLOBAL)
 add_dependencies(paho libpaho)
 set_target_properties(paho PROPERTIES IMPORTED_LOCATION ${PAHO_STATIC_LIB})
 set_target_properties(paho PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${PAHO_INCLUDES})
+
+link_directories(${OPENSSL_BIN})
