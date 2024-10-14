@@ -16,6 +16,7 @@ IF(Z_STATIC_OPENSSL)
   set(OPENSSL_INCLUDE_DIR ${OPENSSL_INCLUDES})
   set(OPENSSL_SSL_LIBRARY ${OPENSSL_STATIC_LIB})
   set(OPENSSL_CRYPTO_LIBRARY ${OPENSSL_STATIC_CRYPTO_LIB})
+  set(PAHO_STATIC_LIB ${PAHO_BIN}/lib/libpaho-mqtt3cs.a)
   set(PAHO_C_TLS TRUE)
 ENDIF(Z_STATIC_OPENSSL)
 
@@ -42,6 +43,9 @@ ExternalProject_Add(
 
 add_library(paho STATIC IMPORTED GLOBAL)
 add_dependencies(paho libpaho)
+IF(Z_STATIC_OPENSSL)
+    add_dependencies(paho openssl_ssl openssl_crypto)
+ENDIF(Z_STATIC_OPENSSL)
 set_target_properties(paho PROPERTIES IMPORTED_LOCATION ${PAHO_STATIC_LIB})
 set_target_properties(paho PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${PAHO_INCLUDES})
 
