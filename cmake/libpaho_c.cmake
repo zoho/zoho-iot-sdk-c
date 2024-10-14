@@ -44,7 +44,7 @@ ExternalProject_Add(
 add_library(paho STATIC IMPORTED GLOBAL)
 add_dependencies(paho libpaho)
 IF(Z_STATIC_OPENSSL)
-    add_dependencies(paho openssl_ssl openssl_crypto)
+    add_dependencies(libpaho openssl_ssl openssl_crypto)
 ENDIF(Z_STATIC_OPENSSL)
 set_target_properties(paho PROPERTIES IMPORTED_LOCATION ${PAHO_STATIC_LIB})
 set_target_properties(paho PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${PAHO_INCLUDES})
