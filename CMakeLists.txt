@@ -105,6 +105,10 @@ ENDIF(Z_ENABLE_COVERAGE)
 
 INCLUDE_DIRECTORIES(test include lib/cjson src)
 
+IF(Z_STATIC_OPENSSL)
+    INCLUDE(${PROJECT_SOURCE_DIR}/cmake/libopenssl.cmake)
+ENDIF(Z_STATIC_OPENSSL)
+
 IF(Z_PAHO_C)
     INCLUDE_DIRECTORIES(lib/paho.mqtt/MQTTPacket/src lib/paho.mqtt.c/MQTTClient-C/src)
     LIST(APPEND FEATURES "-DZ_PAHO_C")
@@ -127,9 +131,6 @@ ENDIF(Z_PAHO_DEBUG)
 
 IF(Z_ENABLE_TLS)
     IF(Z_PAHO_C)
-        IF(Z_STATIC_OPENSSL)
-            INCLUDE(${PROJECT_SOURCE_DIR}/cmake/libopenssl.cmake)
-        ENDIF(Z_STATIC_OPENSSL)
         INCLUDE(${PROJECT_SOURCE_DIR}/cmake/libpaho_c.cmake)
     ELSE()
 
@@ -204,7 +205,6 @@ TARGET_COMPILE_DEFINITIONS(zoho_iot_sdk PUBLIC ${FEATURES})
 set(TARGET_DEPENDENCIES)
 IF(Z_CLOUD_LOGGING)
     IF(Z_STATIC_OPENSSL)
-        INCLUDE(${PROJECT_SOURCE_DIR}/cmake/libopenssl.cmake)
         add_dependencies(zoho_iot_sdk  openssl_ssl openssl_crypto)
         list(APPEND TARGET_DEPENDENCIES openssl_ssl openssl_crypto)
 
