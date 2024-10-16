@@ -358,9 +358,14 @@ int zclient_connect(ZohoIOTclient *client)
     if(client->current_state == INITIALIZED)
     {
         #if defined(Z_SECURE_CONNECTION)
-        sprintf(address, "ssl://%s:%d", client->config.hostname, ZPORT);
+            if(TLS_MODE){
+                sprintf(address, "ssl://%s:%d", client->config.hostname, ZPORT);
+            }
+            else{
+                sprintf(address, "tcp://%s:%d", client->config.hostname, ZPORT);
+            }
         #else
-        sprintf(address, "tcp://%s:%d", client->config.hostname, ZPORT);
+            sprintf(address, "tcp://%s:%d", client->config.hostname, ZPORT);
         #endif
         if ((rc = MQTTClient_create(&client->mqtt_client,  address,  client->config.client_id,
             MQTTCLIENT_PERSISTENCE_NONE, NULL)) != MQTTCLIENT_SUCCESS)
@@ -384,12 +389,14 @@ int zclient_connect(ZohoIOTclient *client)
     conn_opts.username = formConnectionString(client->config.MqttUserName);
     conn_opts.password = client->config.auth_token;
     #if defined(Z_SECURE_CONNECTION)
+    if(TLS_MODE){
         MQTTClient_SSLOptions ssl_opts = MQTTClient_SSLOptions_initializer;
         conn_opts.ssl = &ssl_opts;
         ssl_opts.keyStore = client->certs.client_cert;
         ssl_opts.trustStore = client->certs.ca_crt;
         ssl_opts.privateKey = client->certs.client_key;
         ssl_opts.privateKeyPassword = client->certs.cert_password;
+    }
     #endif
     log_error("Connection paho connect");
     rc = MQTTClient_connect(client->mqtt_client, &conn_opts);
