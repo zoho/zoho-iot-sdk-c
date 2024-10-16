@@ -48,5 +48,14 @@ IF(Z_STATIC_OPENSSL)
 ENDIF(Z_STATIC_OPENSSL)
 set_target_properties(paho PROPERTIES IMPORTED_LOCATION ${PAHO_STATIC_LIB})
 set_target_properties(paho PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${PAHO_INCLUDES})
-target_link_libraries(paho INTERFACE ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY})
+
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+    ${OPENSSL_BIN}/libssl.so.1.1 ${OPENSSL_BIN}/libssl.so
+)
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+    ${OPENSSL_BIN}/libcrypto.so.1.1 ${OPENSSL_BIN}/libcrypto.so
+)
+
 link_directories(${OPENSSL_BIN})
