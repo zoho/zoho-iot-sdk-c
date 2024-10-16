@@ -398,7 +398,7 @@ int zclient_connect(ZohoIOTclient *client)
         ssl_opts.privateKeyPassword = client->certs.cert_password;
     }
     #endif
-    log_error("Connection paho connect");
+    log_info("Connection paho connect");
     rc = MQTTClient_connect(client->mqtt_client, &conn_opts);
 
 #else
