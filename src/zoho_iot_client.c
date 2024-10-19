@@ -121,6 +121,13 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     #else
         log_info("Build type: \033[35m NON_TLS build \033[0m");
     #endif
+
+    #if(Z_PAHO_C)
+        log_info("Paho type: \033[35m Paho_C \033[0m");
+    #else
+         log_info("Paho type: \033[35m Embeded Paho \033[0m");
+    #endif
+
     if (iot_client == NULL)
     {
         log_error("Client object is NULL");

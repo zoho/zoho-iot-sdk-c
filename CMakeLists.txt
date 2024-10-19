@@ -106,7 +106,6 @@ ENDIF(Z_ENABLE_COVERAGE)
 INCLUDE_DIRECTORIES(test include lib/cjson src)
 
 IF(Z_STATIC_OPENSSL)
-    MESSAGE(STATUS "Libopenssl Cmake is Included")
     INCLUDE(${PROJECT_SOURCE_DIR}/cmake/libopenssl.cmake)
 ENDIF(Z_STATIC_OPENSSL)
 
@@ -132,7 +131,6 @@ ENDIF(Z_PAHO_DEBUG)
 
 IF(Z_ENABLE_TLS)
     IF(Z_PAHO_C)
-        MESSAGE(STATUS "Libpaho Cmake is Included")
         INCLUDE(${PROJECT_SOURCE_DIR}/cmake/libpaho_c.cmake)
     ELSE()
 
@@ -148,7 +146,6 @@ IF(Z_ENABLE_TLS)
     
 ELSE()
     IF(Z_PAHO_C)
-        MESSAGE(STATUS "Libpaho Cmake is Included")
         INCLUDE(${PROJECT_SOURCE_DIR}/cmake/libpaho_c.cmake)
     ELSE()
         INCLUDE_DIRECTORIES(lib/paho.mqtt/MQTTClient-C/src/linux)
