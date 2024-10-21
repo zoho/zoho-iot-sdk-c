@@ -1076,6 +1076,7 @@ int zclient_yield(ZohoIOTclient *client, int time_out)
             client->current_state = DISCONNECTED;
             return ZFAILURE;
         }
+        sleep(1);
         return 0;
     #else
         if (getCurrentTime() - yield_time < yield_interval){
