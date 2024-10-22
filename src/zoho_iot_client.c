@@ -1411,7 +1411,9 @@ int zclient_free(ZohoIOTclient *client)
     }
     free(client->config.hostname);
     free(client->config.client_id);
-    free(client->config.auth_token);
+    #ifndef Z_USE_CLIENT_CERTS
+        free(client->config.auth_token);
+    #endif
     free(client->config.MqttUserName);
     free(client->config.mqttBuff);
     free(client->config.mqttReadBuff);
