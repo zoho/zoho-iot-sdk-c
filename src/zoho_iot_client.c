@@ -121,6 +121,13 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     #else
         log_info("Build type: \033[35m NON_TLS build \033[0m");
     #endif
+
+    #if(Z_PAHO_C)
+        log_info("Paho type: \033[35m Paho_C \033[0m");
+    #else
+         log_info("Paho type: \033[35m Embeded Paho \033[0m");
+    #endif
+
     if (iot_client == NULL)
     {
         log_error("Client object is NULL");
@@ -358,9 +365,14 @@ int zclient_connect(ZohoIOTclient *client)
     if(client->current_state == INITIALIZED)
     {
         #if defined(Z_SECURE_CONNECTION)
-        sprintf(address, "ssl://%s:%d", client->config.hostname, ZPORT);
+            if(TLS_MODE){
+                sprintf(address, "ssl://%s:%d", client->config.hostname, ZPORT);
+            }
+            else{
+                sprintf(address, "tcp://%s:%d", client->config.hostname, ZPORT);
+            }
         #else
-        sprintf(address, "tcp://%s:%d", client->config.hostname, ZPORT);
+            sprintf(address, "tcp://%s:%d", client->config.hostname, ZPORT);
         #endif
         if ((rc = MQTTClient_create(&client->mqtt_client,  address,  client->config.client_id,
             MQTTCLIENT_PERSISTENCE_NONE, NULL)) != MQTTCLIENT_SUCCESS)
@@ -384,14 +396,16 @@ int zclient_connect(ZohoIOTclient *client)
     conn_opts.username = formConnectionString(client->config.MqttUserName);
     conn_opts.password = client->config.auth_token;
     #if defined(Z_SECURE_CONNECTION)
+    if(TLS_MODE){
         MQTTClient_SSLOptions ssl_opts = MQTTClient_SSLOptions_initializer;
         conn_opts.ssl = &ssl_opts;
         ssl_opts.keyStore = client->certs.client_cert;
         ssl_opts.trustStore = client->certs.ca_crt;
         ssl_opts.privateKey = client->certs.client_key;
         ssl_opts.privateKeyPassword = client->certs.cert_password;
+    }
     #endif
-    log_error("Connection paho connect");
+    log_info("Connection paho connect");
     rc = MQTTClient_connect(client->mqtt_client, &conn_opts);
 
 #else
@@ -1062,6 +1076,7 @@ int zclient_yield(ZohoIOTclient *client, int time_out)
             client->current_state = DISCONNECTED;
             return ZFAILURE;
         }
+        sleep(1);
         return 0;
     #else
         if (getCurrentTime() - yield_time < yield_interval){
@@ -1396,7 +1411,9 @@ int zclient_free(ZohoIOTclient *client)
     }
     free(client->config.hostname);
     free(client->config.client_id);
-    free(client->config.auth_token);
+    #ifndef Z_USE_CLIENT_CERTS
+        free(client->config.auth_token);
+    #endif
     free(client->config.MqttUserName);
     free(client->config.mqttBuff);
     free(client->config.mqttReadBuff);
