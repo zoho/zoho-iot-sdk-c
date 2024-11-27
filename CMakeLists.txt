@@ -24,14 +24,15 @@ ENDIF()
 FIND_PROGRAM(CURL_FOUND NAMES curl)
 FIND_PROGRAM(UNZIP_FOUND NAMES unzip)
 FIND_PROGRAM(PATCH_FOUND NAMES patch)
-IF(NOT UNZIP_FOUND OR NOT CURL_FOUND OR NOT PATCH_FOUND)
+FIND_PROGRAM(XXD_FOUND NAMES xxd)
+IF(NOT UNZIP_FOUND OR NOT CURL_FOUND OR NOT PATCH_FOUND OR NOT XXD_FOUND)
     MESSAGE(
         FATAL_ERROR
             "Check if dependecies curl,unzip & patch are pre-installed, if not install them and try again."
         )
 ENDIF()
 
-OPTION(Z_PAHO_C "Enable Paho C" ON)
+OPTION(Z_PAHO_C "Enable Paho C" OFF)
 OPTION(Z_ENABLE_SHARED "Enable SHARED for DYNAMIC lib(.so)" OFF)
 OPTION(Z_ENABLE_TLS "Enable TLS for Secure connection" OFF)
 OPTION(Z_USE_CLIENT_CERTS "Use Client side Certs for Secure connection" OFF)
@@ -258,26 +259,42 @@ ENDIF(BUILD_EXPORTABLE_LIB)
 
 FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/include)
 FILE(COPY
-${CMAKE_SOURCE_DIR}/include/tls_config.h
-${CMAKE_SOURCE_DIR}/include/tls_network.h
-${CMAKE_SOURCE_DIR}/include/zclient_constants.h
-${CMAKE_SOURCE_DIR}/include/zoho_iot_client.h
-${CMAKE_SOURCE_DIR}/include/zoho_log.h
-${CMAKE_SOURCE_DIR}/include/zoho_message_handler.h
-${CMAKE_SOURCE_DIR}/include/zoho_utils.h
-${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTConnect.h
-${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTFormat.h
-${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTPacket.h
-${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTPublish.h
-${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTSubscribe.h
-${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTUnsubscribe.h
-${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/StackTrace.h
-${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTClient-C/src/MQTTClient.h
-${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTClient-C/src/linux/MQTTLinux.h
-${CMAKE_SOURCE_DIR}/lib/cjson/cJSON_Utils.h
-${CMAKE_SOURCE_DIR}/lib/cjson/cJSON.h
-DESTINATION ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_SOURCE_DIR}/include/tls_config.h
+    ${CMAKE_SOURCE_DIR}/include/tls_network.h
+    ${CMAKE_SOURCE_DIR}/include/zclient_constants.h
+    ${CMAKE_SOURCE_DIR}/include/zoho_iot_client.h
+    ${CMAKE_SOURCE_DIR}/include/zoho_log.h
+    ${CMAKE_SOURCE_DIR}/include/zoho_message_handler.h
+    ${CMAKE_SOURCE_DIR}/include/zoho_utils.h
+    ${CMAKE_SOURCE_DIR}/lib/cjson/cJSON_Utils.h
+    ${CMAKE_SOURCE_DIR}/lib/cjson/cJSON.h
+    DESTINATION ${CMAKE_BINARY_DIR}/include
 )
+IF(Z_PAHO_C)
+    FILE(COPY
+    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTAsync.h
+    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTClient.h
+    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTClientPersistence.h
+    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTExportDeclarations.h
+    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTProperties.h
+    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTReasonCodes.h
+    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTSubscribeOpts.h 
+    DESTINATION ${CMAKE_BINARY_DIR}/include
+    )
+ELSE()
+    FILE(COPY
+    ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTConnect.h
+    ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTFormat.h
+    ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTPacket.h
+    ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTPublish.h
+    ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTSubscribe.h
+    ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTUnsubscribe.h
+    ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/StackTrace.h
+    ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTClient-C/src/MQTTClient.h
+    ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTClient-C/src/linux/MQTTLinux.h
+    DESTINATION ${CMAKE_BINARY_DIR}/include
+    )
+ENDIF(Z_PAHO_C)
 
  IF(Z_ENABLE_TLS)
  FILE(COPY
@@ -305,5 +322,5 @@ IF(Z_RUN_TESTS)
     add_subdirectory(test/unit)
 ENDIF(Z_RUN_TESTS)
 
-INSTALL(TARGETS zoho_iot_sdk DESTINATION /usr/local/lib)
-INSTALL(DIRECTORY ${CMAKE_BINARY_DIR}/include/ DESTINATION /usr/local/include)
+INSTALL(TARGETS zoho_iot_sdk DESTINATION /usr/lib)
+INSTALL(DIRECTORY ${CMAKE_BINARY_DIR}/include/ DESTINATION /usr/include)

@@ -1190,11 +1190,21 @@ cJSON *addAssetNameTopayload(ZohoIOTclient *client, char *assetName)
 
     if (isStringValid(assetName))
     {
-        if (!cJSON_HasObjectItem(client->message.data, assetName))
+        cJSON *current = client->message.data;
+        char *assetName_dup = strdup(assetName);
+        char *token = strtok(assetName_dup, ".");
+        while (token != NULL)
         {
-            cJSON_AddObjectToObject(client->message.data, assetName);
+            if (!cJSON_HasObjectItem(current, token))
+            {
+                cJSON *new_obj = cJSON_CreateObject();
+                cJSON_AddItemToObject(current, token, new_obj);
+            }
+            current = cJSON_GetObjectItem(current, token);
+            token = strtok(NULL, ".");
         }
-        return cJSON_GetObjectItem(client->message.data, assetName);
+        free(assetName_dup); 
+        return current;
     }
     else
     {
