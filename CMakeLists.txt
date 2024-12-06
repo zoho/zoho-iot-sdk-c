@@ -272,13 +272,13 @@ FILE(COPY
 )
 IF(Z_PAHO_C)
     FILE(COPY
-    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTAsync.h
-    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTClient.h
-    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTClientPersistence.h
-    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTExportDeclarations.h
-    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTProperties.h
-    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTReasonCodes.h
-    ${CMAKE_BINARY_DIR}/libpaho/include/MQTTSubscribeOpts.h 
+    ${PROJECT_SOURCE_DIR}/lib/paho.mqtt.c/src/MQTTAsync.h
+    ${PROJECT_SOURCE_DIR}/lib/paho.mqtt.c/src/MQTTClient.h
+    ${PROJECT_SOURCE_DIR}/lib/paho.mqtt.c/src/MQTTClientPersistence.h
+    ${PROJECT_SOURCE_DIR}/lib/paho.mqtt.c/src/MQTTExportDeclarations.h
+    ${PROJECT_SOURCE_DIR}/lib/paho.mqtt.c/src/MQTTProperties.h
+    ${PROJECT_SOURCE_DIR}/lib/paho.mqtt.c/src/MQTTReasonCodes.h
+    ${PROJECT_SOURCE_DIR}/lib/paho.mqtt.c/src/MQTTSubscribeOpts.h 
     DESTINATION ${CMAKE_BINARY_DIR}/include
     )
 ELSE()
