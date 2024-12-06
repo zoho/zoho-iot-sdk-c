@@ -1,6 +1,6 @@
 include(ExternalProject)
-set(PAHO_LIBRARY_VERSION 1.3.13)  # Replace with the desired Paho version
-set(PAHO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/paho.mqtt.c)
+set(PAHO_LIBRARY_VERSION 1.3.13)  
+set(PAHO_DIR ${PROJECT_SOURCE_DIR}/lib/paho.mqtt.c)
 set(PAHO_BIN ${CMAKE_CURRENT_BINARY_DIR}/libpaho)
 IF(Z_ENABLE_TLS)
 set(PAHO_STATIC_LIB ${PAHO_BIN}/lib/libpaho-mqtt3cs.a)
@@ -22,11 +22,36 @@ ENDIF(Z_STATIC_OPENSSL)
 
 file(MAKE_DIRECTORY ${PAHO_INCLUDES})
 message(STATUS "OPENSSL_BIN: ${OPENSSL_BIN}")
+
+IF(NOT EXISTS ${PAHO_DIR})
+    MESSAGE("\nDownloading paho c\n")
+    EXECUTE_PROCESS(
+        COMMAND wget https://github.com/eclipse/paho.mqtt.c/archive/v${PAHO_LIBRARY_VERSION}.tar.gz
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        TIMEOUT 900
+        RESULT_VARIABLE STATUS)
+    
+    IF(NOT ${STATUS} EQUAL 0)
+        MESSAGE(
+            FATAL_ERROR
+                "Failed to fetch paho c or Download manually to lib folder"
+        )
+    ENDIF()
+
+    EXECUTE_PROCESS(
+        COMMAND tar -xf v${PAHO_LIBRARY_VERSION}.tar.gz -C ${PROJECT_SOURCE_DIR}/lib
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+    FILE(REMOVE ${PROJECT_BINARY_DIR}/v-${PAHO_LIBRARY_VERSION}.tar.gz)
+    FILE(RENAME ${PROJECT_SOURCE_DIR}/lib/paho.mqtt.c-${PAHO_LIBRARY_VERSION}
+                 ${PROJECT_SOURCE_DIR}/lib/paho.mqtt.c)
+ENDIF()
+
 ExternalProject_Add(
   libpaho
   PREFIX ${PAHO_BIN}
   SOURCE_DIR ${PAHO_DIR}
-  URL https://github.com/eclipse/paho.mqtt.c/archive/v${PAHO_LIBRARY_VERSION}.tar.gz
+  #URL https://github.com/eclipse/paho.mqtt.c/archive/v${PAHO_LIBRARY_VERSION}.tar.gz
   CMAKE_ARGS 
           -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> 
           -DCMAKE_INSTALL_LIBDIR=lib 
