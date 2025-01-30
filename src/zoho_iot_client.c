@@ -1498,9 +1498,11 @@ bool parse_http_response(const char* str) {
 
     if(strcasecmp(status, "success") != 0) {
         log_error("Http Error Message: %s\n", cJSON_GetObjectItem(json, "message")->valuestring);
+        cJSON_Delete(json);
         return false;
     }
     log_debug("Http Success Message: %s\n", cJSON_GetObjectItem(json, "message")->valuestring);
+    cJSON_Delete(json);
     return true;
 }
 
