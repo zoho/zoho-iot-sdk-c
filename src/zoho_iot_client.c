@@ -1472,7 +1472,6 @@ int zclient_free(ZohoIOTclient *client)
     return ZSUCCESS;
 }
 
-#if defined(Z_CLOUD_LOGGING)
 bool parse_http_response(const char* str) {
     const char* start = strchr(str, '{');
     log_debug("HTTP Server Response : %s\n", start);
@@ -1497,15 +1496,15 @@ bool parse_http_response(const char* str) {
     char *status = cJSON_GetObjectItem(json, "status")->valuestring;
 
     if(strcasecmp(status, "success") != 0) {
-        log_error("Cloud logging Error Message: %s\n", cJSON_GetObjectItem(json, "message")->valuestring);
+        log_error("Http Error Message: %s\n", cJSON_GetObjectItem(json, "message")->valuestring);
         return false;
     }
-    log_debug("Cloue logging Success Message: %s\n", cJSON_GetObjectItem(json, "message")->valuestring);
+    log_debug("Http Success Message: %s\n", cJSON_GetObjectItem(json, "message")->valuestring);
     return true;
 }
 
-int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * responseMessage)
-{
+int http_post(ZohoIOTclient *client, char * publishPayload, char * request_url,char * responseMessage){
+
     SSL_CTX *ctx;
     SSL *ssl;
     BIO *bio;
@@ -1586,50 +1585,25 @@ int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * response
         SSL_CTX_free(ctx);
         return ZFAILURE;
     }
+    int url_len = strlen(request_url);
+    int cloud_log_len = strlen(publishPayload);
 
-    cJSON * cloud_log = get_cloud_log();
-    if(cloud_log == NULL){
-        log_error("Error in fetching the log from the file");
-        strcpy(responseMessage, "Error in fetching the log from the file");
-        BIO_free_all(bio);
-        SSL_CTX_free(ctx);
-        return ZFAILURE;
-    }
-    char *cloud_log_string = cJSON_Print(cloud_log);
-    if (cloud_log_string == NULL){
-        log_error("Error in parsing cloudlog array to string");
-        strcpy(responseMessage, "Error in parsing cloudlog array to string");
-        BIO_free_all(bio);
-        SSL_CTX_free(ctx);
-        return ZFAILURE;
-    }
-    int cloud_log_len = strlen(cloud_log_string);
-    log_debug("cloud_data: log fetched successfully from the file");
-
-    char request_url[1000];
-    int len = snprintf(request_url,sizeof(request_url),"POST /v1/iot/logs/import?device_id=%s&device_token=%s HTTP/1.1\r\nHost: %s\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n", client_id, password, hostname, cloud_log_len);
-    log_info("Size of Cloud Log data is %f KB\n", cloud_log_len/1000.0);
-
-    if(BIO_write(bio, request_url, len) <= 0) {
+    if(BIO_write(bio, request_url, url_len) <= 0) {
         log_error( "Error sending POST request\n");
         strcpy(responseMessage, "Error sending POST request");
-        free(cloud_log_string);
-        cJSON_Delete(cloud_log);
         BIO_free_all(bio);
         SSL_CTX_free(ctx);
         return ZFAILURE;
     }
 
-    if (BIO_write(bio, cloud_log_string, cloud_log_len) <= 0) {
+    if (BIO_write(bio, publishPayload, cloud_log_len) <= 0) {
         log_error( "Error sending data\n");
         strcpy(responseMessage, "Error sending data");
-        free(cloud_log_string);
-        cJSON_Delete(cloud_log);
         BIO_free_all(bio);
         SSL_CTX_free(ctx);
         return ZFAILURE;
     }
-    log_debug("Cloud_data_writed");
+    log_debug("Http_data_writed");
 
     // Read response
     char buf[1000]={0};
@@ -1638,23 +1612,96 @@ int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * response
     }
     BIO_free_all(bio);
     SSL_CTX_free(ctx);
-    free(cloud_log_string);
-    cJSON_Delete(cloud_log);
 
      if(parse_http_response(buf)== false){
         log_debug("The respose is %s",buf);
         strcpy(responseMessage, "Error in parsing the http response");
         return ZFAILURE;
     }
-    log_info("Cloud log published successfully");
+    log_info("Http published successfully");
     char successResponse[150];
-    sprintf(successResponse,"Log Published Successfully. Number of lines read - %d, Size of log read - %lld KB",numberOfLinesRead,sizeOfLogRead);
+    sprintf(successResponse,"Http publish successful");
     strcpy(responseMessage, successResponse);
     return ZSUCCESS;
 
 }
 
+#if defined(Z_CLOUD_LOGGING)
+int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * responseMessage){
+
+    #if defined(Z_USE_CLIENT_CERTS)
+    if(TLS_CLIENT_CERTS){
+        log_error("Cloud Logging not supported in Authentication Type -> Client Certificate with TLS");
+        strcpy(responseMessage, "Cloud Logging not supported in Authentication Type -> Client Certificate with TLS");
+        return ZFAILURE;
+    }
+    #endif
+    
+    cJSON * cloud_log = get_cloud_log();
+    if(cloud_log == NULL){
+        log_error("Error in fetching the log from the file");
+        strcpy(responseMessage, "Error in fetching the log from the file");
+        return ZFAILURE;
+    }
+    char *cloud_log_string = cJSON_Print(cloud_log);
+    cJSON_Delete(cloud_log);
+    
+    if (cloud_log_string == NULL){
+        log_error("Error in parsing cloudlog array to string");
+        strcpy(responseMessage, "Error in parsing cloudlog array to string");
+        return ZFAILURE;
+    }
+    int cloud_log_len = strlen(cloud_log_string);
+    log_debug("cloud_data: log fetched successfully from the file");
+    log_info("Size of Cloud Log data is %f KB\n", cloud_log_len/1000.0);
+
+    char * hostname = client->config.hostname;
+    char * client_id = client->config.client_id;
+    char * password = client->config.auth_token;
+    char request_url[1000];
+    snprintf(request_url,sizeof(request_url),"POST /v1/iot/logs/import?device_id=%s&device_token=%s HTTP/1.1\r\nHost: %s\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n", client_id, password, hostname, cloud_log_len);
+
+    if(http_post(client,cloud_log_string,request_url,responseMessage) == ZSUCCESS){
+    char successResponse[150];
+    log_info("cloud log published successfully");
+    sprintf(successResponse,"Log Published Successfully. Number of lines read - %d, Size of log read - %lld KB",numberOfLinesRead,sizeOfLogRead);
+    strcpy(responseMessage, successResponse);
+    free(cloud_log_string);
+    return ZSUCCESS;
+    }
+    free(cloud_log_string);
+    return ZFAILURE;
+}
 #endif
+
+
+OfflinePublishResponse* publishOfflineData(ZohoIOTclient *client,char *payload){
+    OfflinePublishResponse *response = (OfflinePublishResponse *)malloc(sizeof(OfflinePublishResponse));
+    response->responseMessage = malloc(500);
+    response->status = ZFAILURE;
+    
+    #if defined(Z_USE_CLIENT_CERTS)
+    if(TLS_CLIENT_CERTS){
+        log_error("publishofflineData not supported in Authentication Type -> Client Certificate with TLS");
+        strcpy(response->responseMessage, "publishofflineData not supported in Authentication Type -> Client Certificate with TLS");
+        return response;
+    }
+    #endif
+    if(strlen(payload)>MAX_OFFLINE_DATA_SIZE){
+        log_error("Offline data size exceeds 1 MB");
+        strcpy(response->responseMessage, "Offline data size exceeds 1 MB");
+        return response;
+    }
+    char * hostname = client->config.hostname;
+    char * client_id = client->config.client_id;
+    char * password = client->config.auth_token;
+    char request_url[1000];
+    snprintf(request_url,sizeof(request_url),"POST /v1/iot/telemetry/import?device_id=%s&device_token=%s&allow_partial_import=true HTTP/1.1\r\nHost: %s\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n", client_id, password, hostname, strlen(payload));
+   
+    response->status =  http_post(client,payload,request_url,response->responseMessage);
+    return response;
+
+}
 
 void handle_cloud_logging(ZohoIOTclient *client, char *payload){
     cloud_logging_in_processing = true;

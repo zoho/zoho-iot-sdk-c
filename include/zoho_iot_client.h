@@ -75,6 +75,12 @@ typedef struct
 } ZclientCertificates;
 #endif
 
+typedef struct 
+{
+    int status;
+    char * responseMessage;
+} OfflinePublishResponse;
+
 typedef struct
 {
     cJSON *cJsonPayload;
@@ -173,6 +179,7 @@ int zclient_ota_handler(OTAHandler on_OTA);
 int zclient_publishOTAAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage);
 int publishMessage(ZohoIOTclient *client, const char *topic, char *payload);
 unsigned long long getCurrentTime();
+OfflinePublishResponse* publishOfflineData(ZohoIOTclient *client,char *payload);
 //int zclient_setRetrycount(ZohoIOTclient *client, int count);
 //char *zclient_getpayload();
 #endif //# ZOHO_IOT_CLIENT_H_

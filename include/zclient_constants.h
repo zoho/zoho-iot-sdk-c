@@ -2,6 +2,7 @@
 #define ZCLIENT_CONSTANTS_H_
 
 #define RECIEVED_ACK_CODE 1000
+#define MAX_OFFLINE_DATA_SIZE  1048576 //1MB
 typedef enum
 {
     REFERENCE = 0,
