@@ -36,7 +36,7 @@ extern Z_log Zlog;
 bool OTA_RECEIVED = false;
 OTAHandler on_OTA_handler = NULL;
 
-#if defined(Z_CLOUD_LOGGING)
+#if defined(Z_HTTP_PUBLISH_ENABLE)
 extern int numberOfLinesRead;
 extern long sizeOfLogRead;
 #endif
@@ -106,7 +106,7 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
 {
     
     log_initialize(logConfig);
-    #if defined(Z_CLOUD_LOGGING)
+    #if defined(Z_HTTP_PUBLISH_ENABLE)
         log_info("Cloud_Logging is enabled");
         initialize_cloud_log();
     #endif
@@ -1368,7 +1368,7 @@ cJSON* generateACKPayload(char* payload,ZcommandAckResponseCodes status_code, ch
                 if(strcmp(command_name,"Z_PUBLISH_DEVICE_LOGS")== 0)
                 {
                     CLOUD_LOGGING = true;
-                    #if defined(Z_CLOUD_LOGGING)
+                    #if defined(Z_HTTP_PUBLISH_ENABLE)
                         cJSON *payload_array = cJSON_GetObjectItem(commandMessage, "payload");
                         cJSON *payload_json = cJSON_GetArrayItem(payload_array, 0);
                         char *value = cJSON_GetObjectItem(payload_json, "value")->valuestring;
@@ -1472,6 +1472,7 @@ int zclient_free(ZohoIOTclient *client)
     return ZSUCCESS;
 }
 
+#if defined(Z_HTTP_PUBLISH_ENABLE)
 bool parse_http_response(const char* str) {
     const char* start = strchr(str, '{');
     log_debug("HTTP Server Response : %s\n", start);
@@ -1626,7 +1627,6 @@ int http_post(ZohoIOTclient *client, char * publishPayload, char * request_url,c
 
 }
 
-#if defined(Z_CLOUD_LOGGING)
 int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * responseMessage){
 
     #if defined(Z_USE_CLIENT_CERTS)
@@ -1672,7 +1672,6 @@ int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * response
     free(cloud_log_string);
     return ZFAILURE;
 }
-#endif
 
 
 OfflinePublishResponse* publishOfflineData(ZohoIOTclient *client,char *payload){
@@ -1702,12 +1701,13 @@ OfflinePublishResponse* publishOfflineData(ZohoIOTclient *client,char *payload){
     return response;
 
 }
+#endif
 
 void handle_cloud_logging(ZohoIOTclient *client, char *payload){
     cloud_logging_in_processing = true;
     int command_response_code;
     char responseMessage[100];
-    #if defined(Z_CLOUD_LOGGING)
+    #if defined(Z_HTTP_PUBLISH_ENABLE)
         if(http_post_cloud_logging(client, payload,responseMessage) == ZSUCCESS){
             command_response_code = SUCCESSFULLY_EXECUTED;
         }
@@ -1716,7 +1716,8 @@ void handle_cloud_logging(ZohoIOTclient *client, char *payload){
         }
     #else
         command_response_code = EXECUTION_FAILURE;
-        strcpy(responseMessage, "Cloud logging is not enabled");
+        strcpy(responseMessage, "Http Publish is not enabled for cloud logging");
+        log_error("Http Publish is not enabled for cloud logging");
     #endif
     zclient_publishCommandAck(client,payload,command_response_code,responseMessage);
     cloud_logging_in_processing = false;
