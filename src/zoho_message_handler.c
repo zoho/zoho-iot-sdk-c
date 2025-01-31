@@ -25,7 +25,7 @@ void* publishConfigAck(void* arg) {
     return NULL;
 }
 
-struct SubcribeThreadArgs {
+struct SubscribeThreadArgs {
     char* topic;
     char* payload;
 };
@@ -53,8 +53,8 @@ void setConfigMessageHandler(SubscribeMessageHandler message_handler)
 
 
 #if defined(Z_PAHO_C)
-void* subcribe_ack_function(void* arg) {
-    struct SubcribeThreadArgs* args = (struct SubcribeThreadArgs*)arg;
+void* subscribe_ack_function(void* arg) {
+    struct SubscribeThreadArgs* args = (struct SubscribeThreadArgs*)arg;
     log_debug("Thread received strings: %s and %s\n", args->topic, args->payload);
 
     if (strcmp(args->topic, handler_COMMAND_TOPIC) == 0)
@@ -125,14 +125,12 @@ void* subcribe_ack_function(void* arg) {
 
 int onMessageReceived(void *context, char *topicName, int topicLen, MQTTClient_message *message)
 {
-    log_info("Message arrived\n");
-    log_debug("     topic: %s\n", topicName);
-    log_debug("   message: %.*s\n", message->payloadlen, (char*)message->payload);
     pthread_t thread;
-    struct SubcribeThreadArgs* args = malloc(sizeof(struct SubcribeThreadArgs));
+    struct SubscribeThreadArgs* args = malloc(sizeof(struct SubscribeThreadArgs));
     cloneString(&args->topic, topicName);
     cloneString(&args->payload, (char*)message->payload);
-    pthread_create(&thread, NULL, subcribe_ack_function, args);
+    pthread_create(&thread, NULL, subscribe_ack_function, args);
+    pthread_join(thread, NULL);
     MQTTClient_freeMessage(&message);
     MQTTClient_free(topicName);
     return 1;
