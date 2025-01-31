@@ -15,7 +15,7 @@
 #include "zclient_constants.h"
 #include <time.h>
 #include <pthread.h>
-#if defined(Z_CLOUD_LOGGING)
+#if defined(Z_HTTP_PUBLISH_ENABLE)
 #include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -74,6 +74,12 @@ typedef struct
     char *cert_password;
 } ZclientCertificates;
 #endif
+
+typedef struct 
+{
+    int status;
+    char * responseMessage;
+} OfflinePublishResponse;
 
 typedef struct
 {
@@ -173,6 +179,9 @@ int zclient_ota_handler(OTAHandler on_OTA);
 int zclient_publishOTAAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage);
 int publishMessage(ZohoIOTclient *client, const char *topic, char *payload);
 unsigned long long getCurrentTime();
+#if defined(Z_HTTP_PUBLISH_ENABLE)
+OfflinePublishResponse* publishOfflineData(ZohoIOTclient *client,char *payload);
+#endif
 //int zclient_setRetrycount(ZohoIOTclient *client, int count);
 //char *zclient_getpayload();
 #endif //# ZOHO_IOT_CLIENT_H_

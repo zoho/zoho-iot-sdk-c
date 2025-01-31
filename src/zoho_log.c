@@ -21,7 +21,7 @@ static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 // common static logconfig structure that the user can get using the function getZlogger() and configure the logging properties
 static ZlogConfig logConfig;
 
-#if defined(Z_CLOUD_LOGGING)
+#if defined(Z_HTTP_PUBLISH_ENABLE)
 int NUM_LINES_TO_READ  = 100;
 int numberOfLinesRead=0;
 long sizeOfLogRead = 0;
@@ -403,7 +403,7 @@ ZlogConfig *getZlogger()
   return &logConfig;
 }
 
-#if defined(Z_CLOUD_LOGGING)
+#if defined(Z_HTTP_PUBLISH_ENABLE)
 cJSON * get_last_lines(FILE *fp, int num_lines,long long file_old_ending_position) {
 
     int lines_read = 0;

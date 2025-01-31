@@ -14,7 +14,7 @@
 #define MIN_LOG_FILE_SIZE  10240 // file size in Bytes 10KB MIN
 #define MAX_ROLLING_LOG_FILE 2   // No of rolling log file in addition to the main
 
-#if defined(Z_CLOUD_LOGGING)
+#if defined(Z_HTTP_PUBLISH_ENABLE)
 #define MAXIMUM_READ 800000  //800KB only read form file as the json conversion takes some size
 #define LINE_SIZE 256
 #endif
@@ -33,7 +33,7 @@ typedef struct
     int maxRollingLogFile;
 } Z_log;
 
-#if defined (Z_CLOUD_LOGGING)
+#if defined (Z_HTTP_PUBLISH_ENABLE)
 static struct {
 char currentLogFile[100];
 FILE *file;
@@ -96,7 +96,7 @@ void log_free();
 ZlogConfig *getZlogger();
 
 void log_log(int level, const char *file, int line, const char *fmt, ...);
-#if defined (Z_CLOUD_LOGGING)
+#if defined (Z_HTTP_PUBLISH_ENABLE)
   void initialize_cloud_log();
   cJSON* get_cloud_log();
 #endif
