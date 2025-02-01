@@ -50,8 +50,6 @@ int ZPORT = 1883;
 bool cloud_logging_in_processing = false;
 bool CLOUD_LOGGING = false;
 bool get_cloud_logging_status(){
-    log_debug("Cloud logging status : %d",CLOUD_LOGGING);
-    log_debug("Cloud logging in processing status : %d",cloud_logging_in_processing);
     if(CLOUD_LOGGING == true && cloud_logging_in_processing == false)
     {
         return true;
