@@ -213,7 +213,6 @@ IF(Z_HTTP_PUBLISH_ENABLE)
         IF(OPENSSL_ROOT_DIR)
             SET(OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR})
         ENDIF(OPENSSL_ROOT_DIR)
-        FIND_PACKAGE(OpenSSL REQUIRED)
         include_directories(${OPENSSL_INCLUDE_DIR})
         list(APPEND TARGET_DEPENDENCIES OpenSSL::SSL OpenSSL::Crypto)
     ENDIF(Z_STATIC_OPENSSL)
@@ -258,8 +257,6 @@ ENDIF(BUILD_EXPORTABLE_LIB)
 
 FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/include)
 FILE(COPY
-    ${CMAKE_SOURCE_DIR}/include/tls_config.h
-    ${CMAKE_SOURCE_DIR}/include/tls_network.h
     ${CMAKE_SOURCE_DIR}/include/zclient_constants.h
     ${CMAKE_SOURCE_DIR}/include/zoho_iot_client.h
     ${CMAKE_SOURCE_DIR}/include/zoho_log.h
@@ -282,6 +279,7 @@ IF(Z_PAHO_C)
     )
 ELSE()
     FILE(COPY
+    ${CMAKE_SOURCE_DIR}/include/tls_config.h
     ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTConnect.h
     ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTFormat.h
     ${CMAKE_SOURCE_DIR}/lib/paho.mqtt/MQTTPacket/src/MQTTPacket.h
@@ -297,6 +295,7 @@ ENDIF(Z_PAHO_C)
 
  IF(Z_ENABLE_TLS)
  FILE(COPY
+ ${CMAKE_SOURCE_DIR}/include/tls_network.h
  ${CMAKE_SOURCE_DIR}/lib/mbedtls/include/mbedtls
  DESTINATION ${CMAKE_BINARY_DIR}/include
  )

@@ -57,9 +57,9 @@ If you need to run the tests, the following packages need to be installed.
 Run the below commands to download the latest version:
 
 ```
-curl -L -o zoho-iot-sdk-c.zip https://github.com/zoho/zoho-iot-sdk-c/archive/refs/tags/0.1.0.zip
+curl -L -o zoho-iot-sdk-c.zip https://github.com/zoho/zoho-iot-sdk-c/archive/refs/tags/0.1.2.zip
 unzip zoho-iot-sdk-c.zip
-mv zoho-iot-sdk-c-0.1.0 zoho-iot-sdk-c
+mv zoho-iot-sdk-c-0.1.2 zoho-iot-sdk-c
 ```
 ### Configure Build parameters
 Edit `CMakeList.txt` file located on root to update the below build configurations:
