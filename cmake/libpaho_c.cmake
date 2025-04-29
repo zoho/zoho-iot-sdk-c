@@ -21,7 +21,7 @@ set(CMAKE_ARGS
     -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
 )
 
-IF(Z_ENABLE_TLS)
+IF(Z_HTTP_PUBLISH_ENABLE OR Z_ENABLE_TLS)
     IF(Z_STATIC_OPENSSL)
         set(OPENSSL_BIN ${OPENSSL_BIN})
         set(OPENSSL_INCLUDE_DIR ${OPENSSL_INCLUDES})
@@ -35,10 +35,25 @@ IF(Z_ENABLE_TLS)
             -DOPENSSL_SSL_LIBRARY=${OPENSSL_SSL_LIBRARY}
         )
     ELSE()
-        find_package(OpenSSL REQUIRED)
-        message(STATUS "OpenSSL libraries: ${OPENSSL_LIBRARIES}")
+        IF(DEFINED OPENSSL_BIN AND DEFINED OPENSSL_CRYPTO_LIBRARY AND DEFINED OPENSSL_INCLUDE_DIR AND DEFINED OPENSSL_SSL_LIBRARY)
+            list(APPEND CMAKE_ARGS 
+                -DOPENSSL_ROOT_DIR=${OPENSSL_BIN}
+                -DOPENSSL_CRYPTO_LIBRARY=${OPENSSL_CRYPTO_LIBRARY}
+                -DOPENSSL_INCLUDE_DIR=${OPENSSL_INCLUDE_DIR}
+                -DOPENSSL_SSL_LIBRARY=${OPENSSL_SSL_LIBRARY}
+            )
+            message(STATUS "Using user-specified OpenSSL paths:")
+            message(STATUS "  OPENSSL_BIN: ${OPENSSL_BIN}")
+            message(STATUS "  OPENSSL_CRYPTO_LIBRARY: ${OPENSSL_CRYPTO_LIBRARY}")
+            message(STATUS "  OPENSSL_INCLUDE_DIR: ${OPENSSL_INCLUDE_DIR}")
+            message(STATUS "  OPENSSL_SSL_LIBRARY: ${OPENSSL_SSL_LIBRARY}")
+        ELSE()
+            find_package(OpenSSL REQUIRED)
+            message(STATUS "Using system OpenSSL libraries: ${OPENSSL_LIBRARIES}")
+        ENDIF()
     ENDIF(Z_STATIC_OPENSSL)
-ENDIF(Z_ENABLE_TLS)
+ENDIF()
+
 
 file(MAKE_DIRECTORY ${PAHO_INCLUDES})
 
@@ -83,17 +98,15 @@ ENDIF(Z_STATIC_OPENSSL)
 set_target_properties(paho PROPERTIES IMPORTED_LOCATION ${PAHO_STATIC_LIB})
 set_target_properties(paho PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${PAHO_INCLUDES})
 
-IF(Z_ENABLE_TLS)
-    IF(Z_STATIC_OPENSSL)
-        execute_process(
-            COMMAND ${CMAKE_COMMAND} -E create_symlink
-            ${OPENSSL_BIN}/libssl.so.1.1 ${OPENSSL_BIN}/libssl.so
-        )
-        execute_process(
-            COMMAND ${CMAKE_COMMAND} -E create_symlink
-            ${OPENSSL_BIN}/libcrypto.so.1.1 ${OPENSSL_BIN}/libcrypto.so
-        )
 
-        link_directories(${OPENSSL_BIN})
-    ENDIF(Z_STATIC_OPENSSL)
-ENDIF(Z_ENABLE_TLS)   
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+    ${OPENSSL_BIN}/libssl.so.1.1 ${OPENSSL_BIN}/libssl.so
+)
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+    ${OPENSSL_BIN}/libcrypto.so.1.1 ${OPENSSL_BIN}/libcrypto.so
+)
+
+link_directories(${OPENSSL_BIN})
+  
