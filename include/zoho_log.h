@@ -98,6 +98,7 @@ ZlogConfig *getZlogger();
 void log_log(int level, const char *file, int line, const char *fmt, ...);
 #if defined (Z_HTTP_PUBLISH_ENABLE)
   void initialize_cloud_log();
+  int cloud_logging_set_lines(char * line);
   cJSON* get_cloud_log();
 #endif
 

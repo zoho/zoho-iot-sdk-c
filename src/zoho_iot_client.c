@@ -102,14 +102,14 @@ int populateConfigObject(char *MQTTUserName, Zconfig *config)
 
 int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password, ZlogConfig *logConfig)
 {
-    
+    log_info("\n\n\tZoho IoT SDK Version:\033[35m %s \033[0m\n",Z_SDK_VERSION);
+
     log_initialize(logConfig);
     #if defined(Z_HTTP_PUBLISH_ENABLE)
         log_info("Cloud_Logging is enabled");
         initialize_cloud_log();
     #endif
-    log_info("\n\n\nSDK Initializing.. version: %s",Z_SDK_VERSION);
-
+    
     #if(Z_SECURE_CONNECTION)
         #if(Z_USE_CLIENT_CERTS)
             log_info("Build type: \033[35m TLS build with client certs \033[0m");
@@ -1478,8 +1478,15 @@ bool parse_http_response(const char* str) {
         log_error("Error: Starting brace not found\n");
         return false;
     }
-    const char* end = strchr(start, '}');
-    if (end == NULL) {
+    const char* end = str + strlen(str) - 1;
+    while (end > start) {
+        if (*end == '}') {
+            break;
+        }
+        end--;
+    }
+
+    if (end <= start) {
         log_error("Error: Ending brace not found\n");
         return false;
     }
@@ -1506,9 +1513,9 @@ bool parse_http_response(const char* str) {
 
 int http_post(ZohoIOTclient *client, char * publishPayload, char * request_url,char * responseMessage){
 
-    SSL_CTX *ctx;
-    SSL *ssl;
-    BIO *bio;
+    SSL_CTX *ctx = NULL;
+    SSL *ssl = NULL;
+    BIO *bio = NULL;
 
     // Initialize OpenSSL
     SSL_library_init();
@@ -1587,7 +1594,7 @@ int http_post(ZohoIOTclient *client, char * publishPayload, char * request_url,c
         return ZFAILURE;
     }
     int url_len = strlen(request_url);
-    int cloud_log_len = strlen(publishPayload);
+    int len = strlen(publishPayload);
 
     if(BIO_write(bio, request_url, url_len) <= 0) {
         log_error( "Error sending POST request\n");
@@ -1597,7 +1604,7 @@ int http_post(ZohoIOTclient *client, char * publishPayload, char * request_url,c
         return ZFAILURE;
     }
 
-    if (BIO_write(bio, publishPayload, cloud_log_len) <= 0) {
+    if (BIO_write(bio, publishPayload, len) <= 0) {
         log_error( "Error sending data\n");
         strcpy(responseMessage, "Error sending data");
         BIO_free_all(bio);
@@ -1607,7 +1614,7 @@ int http_post(ZohoIOTclient *client, char * publishPayload, char * request_url,c
     log_debug("Http_data_writed");
 
     // Read response
-    char buf[1000]={0};
+    char buf[100000]={0};
     int bytes_read;
     while ((bytes_read = BIO_read(bio, buf, sizeof(buf))) > 0) {
     }
@@ -1664,7 +1671,7 @@ int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * response
     if(http_post(client,cloud_log_string,request_url,responseMessage) == ZSUCCESS){
     char successResponse[150];
     log_info("cloud log published successfully");
-    sprintf(successResponse,"Log Published Successfully. Number of lines read - %d, Size of log read - %lld KB",numberOfLinesRead,sizeOfLogRead);
+    sprintf(successResponse,"Log Published Successfully. Number of lines read - %d, Size of log read - %ld KB",numberOfLinesRead,sizeOfLogRead);
     strcpy(responseMessage, successResponse);
     free(cloud_log_string);
     return ZSUCCESS;
@@ -1695,7 +1702,12 @@ OfflinePublishResponse* publishOfflineData(ZohoIOTclient *client,char *payload){
     char * client_id = client->config.client_id;
     char * password = client->config.auth_token;
     char request_url[1000];
-    snprintf(request_url,sizeof(request_url),"POST /v1/iot/telemetry/import?device_id=%s&device_token=%s&allow_partial_import=true HTTP/1.1\r\nHost: %s\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n", client_id, password, hostname, strlen(payload));
+    int ret = snprintf(request_url, sizeof(request_url),
+                       "POST /v1/iot/telemetry/import?device_id=%s&device_token=%s&allow_partial_import=true HTTP/1.1\r\n"
+                       "Host: %s\r\n"
+                       "Content-Type: application/json\r\n"
+                       "Content-Length: %zu\r\n\r\n",
+                       client_id, password, hostname, strlen(payload));
    
     response->status =  http_post(client,payload,request_url,response->responseMessage);
     return response;

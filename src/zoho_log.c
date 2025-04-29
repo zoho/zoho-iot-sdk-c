@@ -450,7 +450,7 @@ cJSON * get_last_lines(FILE *fp, int num_lines,long long file_old_ending_positio
         lines_read--;
     }
     char sizeLengthString [100];
-    sprintf(sizeLengthString,"Number of lines read: %d Size of log read: %lld KB",numberOfLinesRead,sizeOfLogRead);
+    sprintf(sizeLengthString,"Number of lines read: %d Size of log read: %ld KB",numberOfLinesRead,sizeOfLogRead);
     cJSON_AddItemToArray(log_json_array,cJSON_CreateString(sizeLengthString));
     return log_json_array;
 
