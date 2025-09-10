@@ -388,11 +388,12 @@ int zclient_connect(ZohoIOTclient *client)
 
     MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
     conn_opts.MQTTVersion = MQTTVERSION_3_1_1;
-    conn_opts.connectTimeout = 10000;
+    conn_opts.connectTimeout = 30000;
     conn_opts.cleansession = 1;
-    conn_opts.keepAliveInterval = 10;
+    conn_opts.keepAliveInterval = 60;
     conn_opts.username = formConnectionString(client->config.MqttUserName);
     conn_opts.password = client->config.auth_token;
+    MQTTClient_setCommandTimeout(client->mqtt_client,30);
     #if defined(Z_SECURE_CONNECTION)
     if(TLS_MODE){
         MQTTClient_SSLOptions ssl_opts = MQTTClient_SSLOptions_initializer;
@@ -461,7 +462,7 @@ int zclient_connect(ZohoIOTclient *client)
 
     conn_data.MQTTVersion = 4;
     conn_data.cleansession = 1; 
-    conn_data.keepAliveInterval = 120;
+    conn_data.keepAliveInterval = 60;
     conn_data.clientID.cstring = client->config.client_id;
     conn_data.willFlag = 0;
 
