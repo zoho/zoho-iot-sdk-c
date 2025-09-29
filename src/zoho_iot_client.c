@@ -969,6 +969,7 @@ int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckRe
 
 int zclient_command_subscribe(ZohoIOTclient *client, SubscribeMessageHandler on_message)
 {
+    setCommandMessageHandler(on_message);
     int rc = validateClientState(client);
     if (rc != 0)
     {
@@ -992,7 +993,6 @@ int zclient_command_subscribe(ZohoIOTclient *client, SubscribeMessageHandler on_
     log_trace("Releasing client lock for subscribe");
     pthread_mutex_unlock(&client->lock);
     log_trace("Released client lock for subscribe");
-    setCommandMessageHandler(on_message);
     if (rc == ZSUCCESS)
     {
         log_info("Subscribed on \x1b[36m '%s' \x1b[0m", commandTopic);
@@ -1016,6 +1016,7 @@ int zclient_command_subscribe(ZohoIOTclient *client, SubscribeMessageHandler on_
 
 int zclient_config_subscribe(ZohoIOTclient *client, SubscribeMessageHandler on_message)
 {
+    setConfigMessageHandler(on_message);
     int rc = validateClientState(client);
     if (rc != 0)
     {
@@ -1039,7 +1040,6 @@ int zclient_config_subscribe(ZohoIOTclient *client, SubscribeMessageHandler on_m
     log_trace("Releasing client lock for subscribe");
     pthread_mutex_unlock(&client->lock);
     log_trace("Released client lock for subscribe");
-    setConfigMessageHandler(on_message);
     if (rc == ZSUCCESS)
     {
         log_info("Subscribed on \x1b[36m '%s' \x1b[0m", configTopic);
