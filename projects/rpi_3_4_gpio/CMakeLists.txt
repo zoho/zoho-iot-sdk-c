@@ -8,6 +8,10 @@ SET(CLIENT_KEY /usr/local/certs/client.key)
 # certificates needs to be copied along with application.
 OPTION(EMBED_CERT_MODE "Embed certificates along with application" OFF)
 
+IF(EMBED_CERT_MODE AND Z_PAHO_C)
+    MESSAGE(FATAL_ERROR "PAHO C doesn't support Embed certificates")
+ENDIF()
+
 INCLUDE(${PROJECT_SOURCE_DIR}/cmake/internalFuncs.cmake)
 
 IF(EMBED_CERT_MODE)
