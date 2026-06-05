@@ -544,6 +544,7 @@ unsigned long long getCurrentTime()
 int zclient_reconnect(ZohoIOTclient *client)
 {
     int rc = validateClientState(client);
+    int subscribe_rc = ZSUCCESS;
     if (rc != 0)
     {
         return rc;
@@ -588,11 +589,21 @@ int zclient_reconnect(ZohoIOTclient *client)
             client->ZretryInterval = MIN_RETRY_INTERVAL;
             if(on_command_message_handler!= NULL)
             {
-                zclient_command_subscribe(client, on_command_message_handler);
+                subscribe_rc = zclient_command_subscribe(client, on_command_message_handler);
+                if (subscribe_rc != ZSUCCESS)
+                {
+                    log_error("Command subscribe failed during reconnect. Error code: %d", subscribe_rc);
+                    return ZFAILURE;
+                }
             }
             if(on_config_message_handler!=NULL)
             {
-                zclient_config_subscribe(client, on_config_message_handler);
+                subscribe_rc = zclient_config_subscribe(client, on_config_message_handler);
+                if (subscribe_rc != ZSUCCESS)
+                {
+                    log_error("Config subscribe failed during reconnect. Error code: %d", subscribe_rc);
+                    return ZFAILURE;
+                }
             }
             if(retryACK)
             {
@@ -1008,6 +1019,7 @@ int zclient_command_subscribe(ZohoIOTclient *client, SubscribeMessageHandler on_
     }
     else
     {
+        client->current_state = DISCONNECTED;
         log_error("Error on Subscribe. Error code: %d", rc);
     }
 
@@ -1055,6 +1067,7 @@ int zclient_config_subscribe(ZohoIOTclient *client, SubscribeMessageHandler on_m
     }
     else
     {
+        client->current_state = DISCONNECTED;
         log_error("Error on Subscribe. Error code: %d", rc);
     }
 
