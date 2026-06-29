@@ -26,46 +26,62 @@ void* publishConfigAck(void* arg) {
 }
 
 struct SubscribeThreadArgs {
+    ZohoIOTclient *client;
     char* topic;
     char* payload;
 };
 
+#define MAX_CLIENT_REGISTRY 16
+static ZohoIOTclient *client_registry[MAX_CLIENT_REGISTRY];
+static int client_registry_count = 0;
+
+static ZohoIOTclient *findClientByTopic(const char *topic)
+{
+    for (int i = 0; i < client_registry_count; i++) {
+        ZohoIOTclient *c = client_registry[i];
+        if (strcmp(topic, c->commandTopic) == 0 || strcmp(topic, c->configTopic) == 0)
+            return c;
+    }
+    return NULL;
+}
+
 #ifndef Z_PAHO_C
 void processMessageReceived(MessageData *md);
 #endif
-void initMessageHandler(ZohoIOTclient *client, char *comm_topic, char *comm_ack_topic, char *conf_topic, char *conf_ack_topic)
+void initMessageHandler(ZohoIOTclient *client)
 {
-    iot_client = client;
-    strcpy(handler_COMMAND_TOPIC, comm_topic);
-    strcpy(handler_COMMAND_ACK_TOPIC, comm_ack_topic);
-    strcpy(handler_CONFIG_TOPIC, conf_topic);
-    strcpy(handler_CONFIG_ACK_TOPIC, conf_ack_topic);
+    for (int i = 0; i < client_registry_count; i++) {
+        if (client_registry[i] == client) return;
+    }
+    if (client_registry_count < MAX_CLIENT_REGISTRY)
+        client_registry[client_registry_count++] = client;
 }
 
-void setCommandMessageHandler(SubscribeMessageHandler message_handler)
+void setCommandMessageHandler(ZohoIOTclient *client, SubscribeMessageHandler message_handler)
 {
-    on_command_message_handler = message_handler;
+    client->on_command_message_handler = message_handler;
 }
-void setConfigMessageHandler(SubscribeMessageHandler message_handler)
+void setConfigMessageHandler(ZohoIOTclient *client, SubscribeMessageHandler message_handler)
 {
-    on_config_message_handler = message_handler;
+    client->on_config_message_handler = message_handler;
 }
 
 
 #if defined(Z_PAHO_C)
 void* subscribe_ack_function(void* arg) {
     struct SubscribeThreadArgs* args = (struct SubscribeThreadArgs*)arg;
+    ZohoIOTclient *iot_client = args->client;
     log_debug("Thread received strings: %s and %s\n", args->topic, args->payload);
 
-    if (strcmp(args->topic, handler_COMMAND_TOPIC) == 0)
+    if (strcmp(args->topic, iot_client->commandTopic) == 0)
     {
 
-        cJSON* commandAckObject = zclient_FormReceivedACK((char*)args->payload);
+        cJSON* commandAckObject = zclient_FormReceivedACK(iot_client, (char*)args->payload);
         if (commandAckObject != NULL) {
             char *command_ack_payload = cJSON_Print(commandAckObject);
             PublishPayloadData* data = (PublishPayloadData*)malloc(sizeof(PublishPayloadData));
             data->client = iot_client;
-            data->topic = strdup(handler_COMMAND_ACK_TOPIC);
+            data->topic = strdup(iot_client->commandAckTopic);
             data->payload = command_ack_payload;
             pthread_t thread;
             int result = pthread_create(&thread, NULL, publishCommandAck, (void*)data);
@@ -76,31 +92,31 @@ void* subscribe_ack_function(void* arg) {
             }
             pthread_detach(thread);
             cJSON_Delete(commandAckObject);
-            if(get_OTA_status())
+            if(get_OTA_status(iot_client))
             {
                 //handle OTA
                 log_info("Received OTA command. Handling OTA...");
                 handle_OTA(iot_client, args->payload);
                 return NULL;
             }
-            if(get_cloud_logging_status())
+            if(get_cloud_logging_status(iot_client))
             {
                 //handle Cloud logging
                 log_info("Received cloud logging command. Handling cloud logging...");
                 handle_cloud_logging(iot_client, args->payload);
                 return NULL;
             }
-            on_command_message_handler(args->topic, args->payload);
+            iot_client->on_command_message_handler(args->topic, args->payload);
         }
     }
-    else if (strcmp(args->topic, handler_CONFIG_TOPIC) == 0)
+    else if (strcmp(args->topic, iot_client->configTopic) == 0)
     {
-        cJSON* configAckObject = zclient_FormReceivedACK((char*)args->payload);
+        cJSON* configAckObject = zclient_FormReceivedACK(iot_client, (char*)args->payload);
         if (configAckObject != NULL) {
             char *config_ack_payload = cJSON_Print(configAckObject);
             PublishPayloadData* data = (PublishPayloadData*)malloc(sizeof(PublishPayloadData));
             data->client = iot_client;
-            data->topic = strdup(handler_CONFIG_ACK_TOPIC);
+            data->topic = strdup(iot_client->configAckTopic);
             data->payload = config_ack_payload;
             pthread_t thread;
             int result = pthread_create(&thread, NULL, publishConfigAck, (void*)data);
@@ -111,7 +127,7 @@ void* subscribe_ack_function(void* arg) {
             }
             pthread_detach(thread);
             cJSON_Delete(configAckObject);
-            on_config_message_handler(args->topic, args->payload);
+            iot_client->on_config_message_handler(args->topic, args->payload);
         }
     }
     free(args->topic);
@@ -125,14 +141,22 @@ void* subscribe_ack_function(void* arg) {
 
 int onMessageReceived(void *context, char *topicName, int topicLen, MQTTClient_message *message)
 {
+    ZohoIOTclient *client = (ZohoIOTclient *)context;
     pthread_t thread;
     struct SubscribeThreadArgs* args = malloc(sizeof(struct SubscribeThreadArgs));
-    cloneString(&args->topic, topicName);
-    cloneString(&args->payload, (char*)message->payload);
-    pthread_create(&thread, NULL, subscribe_ack_function, args);
-    pthread_join(thread, NULL);
+    args->client = client;
+    int tlen = (topicLen > 0) ? topicLen : (int)strlen(topicName);
+    args->topic = (char *)malloc(tlen + 1);
+    memcpy(args->topic, topicName, tlen);
+    args->topic[tlen] = '\0';
+    int plen = message->payloadlen;
+    args->payload = (char *)malloc(plen + 1);
+    memcpy(args->payload, message->payload, plen);
+    args->payload[plen] = '\0';
     MQTTClient_freeMessage(&message);
     MQTTClient_free(topicName);
+    pthread_create(&thread, NULL, subscribe_ack_function, args);
+    pthread_detach(thread);
     return 1;
 }
 #else
@@ -220,15 +244,21 @@ void processMessageReceived(MessageData *md)
     memcpy(payload, message->payload, message->payloadlen);
     payload[message->payloadlen] = '\0';
 
-    if (strcmp(topic, handler_COMMAND_TOPIC) == 0)
+    ZohoIOTclient *iot_client = findClientByTopic(topic);
+    if (iot_client == NULL) {
+        log_error("No registered client found for topic: %s", topic);
+        return;
+    }
+
+    if (strcmp(topic, iot_client->commandTopic) == 0)
     {
         
-        cJSON* commandAckObject = zclient_FormReceivedACK(payload);
+        cJSON* commandAckObject = zclient_FormReceivedACK(iot_client, payload);
         if (commandAckObject != NULL) {
             char *command_ack_payload = cJSON_Print(commandAckObject);
             PublishPayloadData* data = (PublishPayloadData*)malloc(sizeof(PublishPayloadData));
             data->client = iot_client;
-            data->topic = strdup(handler_COMMAND_ACK_TOPIC);
+            data->topic = strdup(iot_client->commandAckTopic);
             data->payload = command_ack_payload;
             pthread_t thread;
             int result = pthread_create(&thread, NULL, publishCommandAck, (void*)data);
@@ -239,31 +269,31 @@ void processMessageReceived(MessageData *md)
             }
             pthread_detach(thread);
             cJSON_Delete(commandAckObject);
-            if(get_OTA_status())
+            if(get_OTA_status(iot_client))
             {
                 //handle OTA
                 log_info("Received OTA command. Handling OTA...");
                 handle_OTA(iot_client,payload);
                 return;
             }
-            if(get_cloud_logging_status())
+            if(get_cloud_logging_status(iot_client))
             {
                 //handle Cloud logging
                 log_info("Received cloud logging command. Handling cloud logging...");
                 handle_cloud_logging(iot_client,payload);
                 return;
             }
-            on_command_message_handler(topic, payload);
+            iot_client->on_command_message_handler(topic, payload);
         }
     }
-    else if (strcmp(topic, handler_CONFIG_TOPIC) == 0)
+    else if (strcmp(topic, iot_client->configTopic) == 0)
     {
-        cJSON* configAckObject = zclient_FormReceivedACK(payload);
+        cJSON* configAckObject = zclient_FormReceivedACK(iot_client, payload);
         if (configAckObject != NULL) {
             char *config_ack_payload = cJSON_Print(configAckObject);
             PublishPayloadData* data = (PublishPayloadData*)malloc(sizeof(PublishPayloadData));
             data->client = iot_client;
-            data->topic = strdup(handler_CONFIG_ACK_TOPIC);
+            data->topic = strdup(iot_client->configAckTopic);
             data->payload = config_ack_payload;
             pthread_t thread;
             int result = pthread_create(&thread, NULL, publishConfigAck, (void*)data);
@@ -274,7 +304,7 @@ void processMessageReceived(MessageData *md)
             }
             pthread_detach(thread);
             cJSON_Delete(configAckObject);
-            on_config_message_handler(topic, payload);
+            iot_client->on_config_message_handler(topic, payload);
         }
     }
 

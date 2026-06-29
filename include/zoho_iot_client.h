@@ -53,6 +53,7 @@
 #define zclient_init_without_logConfig(iot_client, MQTTUserName, MQTTPassword, mode, ca_crt, client_cert, client_key, cert_password, logConfig, ...) zclient_init(iot_client, MQTTUserName, MQTTPassword, mode, ca_crt, client_cert, client_key, cert_password, logConfig)
 
 typedef void (*OTAHandler)(char *, char *, bool, char *);
+typedef void (*SubscribeMessageHandler)(char *topic, char *payload);
 typedef struct
 {
     char *client_id;
@@ -117,6 +118,52 @@ typedef struct
     ZclientCertificates certs;
 #endif
     pthread_mutex_t lock;
+
+    // Client-specific topics
+    char dataTopic[100];
+    char commandTopic[100];
+    char eventTopic[100];
+    char configTopic[100];
+    char commandAckTopic[100];
+    char configAckTopic[100];
+    char connectionStringBuff[256];
+
+    // Connection / reconnect state
+    certsParseMode parse_mode;
+    time_t start_time;
+    int retryCount;
+
+    // Subscribe handlers
+    SubscribeMessageHandler on_command_message_handler;
+    SubscribeMessageHandler on_config_message_handler;
+
+    // Event data staging object
+    cJSON *eventDataObject;
+
+    // Failed-publish retry state
+    bool retryACK;
+    ZfailedACK failedACK;
+    bool retryEvent;
+    ZfailedEvent failedEvent;
+
+    // Yield interval control
+    unsigned long long yield_time;
+    int yield_interval;
+
+    // OTA state
+    bool OTA_RECEIVED;
+    OTAHandler on_OTA_handler;
+
+    // Cloud-logging state
+    bool cloud_logging_in_processing;
+    bool CLOUD_LOGGING;
+
+    // Network handle
+#ifndef Z_PAHO_C
+    Network network;
+#else
+    char address[100];
+#endif
 } ZohoIOTclient;
 
 typedef enum
@@ -133,7 +180,6 @@ typedef enum
     CONFIG_FAILED = 4008
 } ZcommandAckResponseCodes;
 
-typedef void (*SubscribeMessageHandler)(char *topic, char *payload);
 bool zclient_setAgentNameandVersion(char * name,char * version);
 bool zclient_setPlatformName(char * platformName);
 int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPassword, certsParseMode mode, char *ca_crt, char *client_cert, char *client_key, char *cert_password, ZlogConfig *logConfig);
@@ -150,13 +196,13 @@ int zclient_dispatch(ZohoIOTclient *client);
 
 int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, char *eventDescription, char *eventDataJSONString, char *assettName);
 int zclient_dispatchEventFromEventDataObject(ZohoIOTclient *client, char *eventType, char *eventDescription, char *assetName);
-int zclient_addEventDataNumber(char *key, double val);
-int zclient_addEventDataString(char *key, char *val);
-int zclient_addEventDataObject(char *key, cJSON* Object);
+int zclient_addEventDataNumber(ZohoIOTclient *client, char *key, double val);
+int zclient_addEventDataString(ZohoIOTclient *client, char *key, char *val);
+int zclient_addEventDataObject(ZohoIOTclient *client, char *key, cJSON* Object);
 
 int zclient_publishCommandAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage);
 int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckResponseCodes status_code, char *responseMessage);
-void zclient_addConnectionParameter(char *connectionParamKey, char *connectionParamValue);
+void zclient_addConnectionParameter(ZohoIOTclient *client, char *connectionParamKey, char *connectionParamValue);
 int zclient_markDataPointAsError(ZohoIOTclient *client, char *key, char *assetName);
 // In add String method , assetName parameter as optional.
 int zclient_addString(ZohoIOTclient *client, char *key, char *val_string, char *assetName);
@@ -165,17 +211,17 @@ int zclient_addNumber(ZohoIOTclient *client, char *key, double val_int, char *as
 // In add object method , assetName parameter as optional.
 int zclient_addObject(ZohoIOTclient *client, char *key, cJSON* val_object, char *assetName);
 
-cJSON* zclient_FormReceivedACK(char* payload);
+cJSON* zclient_FormReceivedACK(ZohoIOTclient *client, char* payload);
 
 int zclient_free(ZohoIOTclient *client);
 void zclient_enable_paho_debug(bool state);
 void zclient_set_tls(bool state);
 void zclient_set_client_certs(bool state);
-bool get_OTA_status();
-bool get_cloud_logging_status();
+bool get_OTA_status(ZohoIOTclient *client);
+bool get_cloud_logging_status(ZohoIOTclient *client);
 void handle_cloud_logging(ZohoIOTclient *client, char *payload);
 void handle_OTA(ZohoIOTclient *client, char* payload);
-int zclient_ota_handler(OTAHandler on_OTA);
+int zclient_ota_handler(ZohoIOTclient *client, OTAHandler on_OTA);
 int zclient_publishOTAAck(ZohoIOTclient *client, char *correlation_id, ZcommandAckResponseCodes status_code, char *responseMessage);
 int publishMessage(ZohoIOTclient *client, const char *topic, char *payload);
 unsigned long long getCurrentTime();

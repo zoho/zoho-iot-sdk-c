@@ -26,7 +26,9 @@
     #LED on Raspberry Pi 5: gpio
     #ADD_SUBDIRECTORY(rpi5_gpio)
 
-
+#8
+    #Sample application to connect multiple clients to the hub
+    #ADD_SUBDIRECTORY(multi_client)
 
 # Include your own projects as sub-directories here
 # ADD_SUBDIRECTORY(yourProject)
