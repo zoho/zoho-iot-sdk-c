@@ -18,7 +18,6 @@ FILE *log_file;
 Z_log Zlog ={0};
 
 static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
-static const char *log_client_tag = NULL;
 static bool log_initialized = false;
 // common static logconfig structure that the user can get using the function getZlogger() and configure the logging properties
 static ZlogConfig logConfig;
@@ -72,11 +71,6 @@ void compressAndSaveFile(const char *sourceFileName, const char *compressedFileN
     }
 }
 #endif
-
-void log_set_client_tag(const char *tag)
-{
-    log_client_tag = tag;
-}
 
 bool is_log_initialized(void)
 {
@@ -277,7 +271,6 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
     // #else
     //     fprintf(stderr, "%s %-5s %s:%d: ", buf, level_names[level], file, line);
     // #endif
-    if (log_client_tag) { fprintf(stderr, "[%s] ", log_client_tag); }
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     va_end(args);
@@ -401,7 +394,6 @@ void log_log(int level, const char *file, int line, const char *fmt, ...)
     }
 
     fprintf(Zlog.fp, "%s [%-5s] %s:%d: ", buf, level_names[level], file, line);
-    if (log_client_tag) { fprintf(Zlog.fp, "[%s] ", log_client_tag); }
     va_start(args, fmt);
     vfprintf(Zlog.fp, fmt, args);
     va_end(args);

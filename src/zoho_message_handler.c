@@ -71,7 +71,7 @@ void setConfigMessageHandler(ZohoIOTclient *client, SubscribeMessageHandler mess
 void* subscribe_ack_function(void* arg) {
     struct SubscribeThreadArgs* args = (struct SubscribeThreadArgs*)arg;
     ZohoIOTclient *iot_client = args->client;
-    log_debug("Thread received strings: %s and %s\n", args->topic, args->payload);
+    log_debug("[%s] Thread received strings: %s and %s\n", iot_client->config.client_id, args->topic, args->payload);
 
     if (strcmp(args->topic, iot_client->commandTopic) == 0)
     {
@@ -86,7 +86,7 @@ void* subscribe_ack_function(void* arg) {
             pthread_t thread;
             int result = pthread_create(&thread, NULL, publishCommandAck, (void*)data);
             if (result != 0) {
-                log_error("Failed to create command publish thread");
+                log_error("[%s] Failed to create command publish thread", iot_client->config.client_id);
                 free(command_ack_payload);
                 free(data);
             }
@@ -95,14 +95,14 @@ void* subscribe_ack_function(void* arg) {
             if(get_OTA_status(iot_client))
             {
                 //handle OTA
-                log_info("Received OTA command. Handling OTA...");
+                log_info("[%s] Received OTA command. Handling OTA...", iot_client->config.client_id);
                 handle_OTA(iot_client, args->payload);
                 return NULL;
             }
             if(get_cloud_logging_status(iot_client))
             {
                 //handle Cloud logging
-                log_info("Received cloud logging command. Handling cloud logging...");
+                log_info("[%s] Received cloud logging command. Handling cloud logging...", iot_client->config.client_id);
                 handle_cloud_logging(iot_client, args->payload);
                 return NULL;
             }
@@ -121,7 +121,7 @@ void* subscribe_ack_function(void* arg) {
             pthread_t thread;
             int result = pthread_create(&thread, NULL, publishConfigAck, (void*)data);
             if (result != 0) {
-                log_error("Failed to create config publish thread");
+                log_error("[%s] Failed to create config publish thread", iot_client->config.client_id);
                 free(config_ack_payload);
                 free(data);
             }
@@ -263,7 +263,7 @@ void processMessageReceived(MessageData *md)
             pthread_t thread;
             int result = pthread_create(&thread, NULL, publishCommandAck, (void*)data);
             if (result != 0) {
-                log_error("Failed to create command publish thread");
+                log_error("[%s] Failed to create command publish thread", iot_client->config.client_id);
                 free(command_ack_payload);
                 free(data);
             }
@@ -272,14 +272,14 @@ void processMessageReceived(MessageData *md)
             if(get_OTA_status(iot_client))
             {
                 //handle OTA
-                log_info("Received OTA command. Handling OTA...");
+                log_info("[%s] Received OTA command. Handling OTA...", iot_client->config.client_id);
                 handle_OTA(iot_client,payload);
                 return;
             }
             if(get_cloud_logging_status(iot_client))
             {
                 //handle Cloud logging
-                log_info("Received cloud logging command. Handling cloud logging...");
+                log_info("[%s] Received cloud logging command. Handling cloud logging...", iot_client->config.client_id);
                 handle_cloud_logging(iot_client,payload);
                 return;
             }
@@ -298,7 +298,7 @@ void processMessageReceived(MessageData *md)
             pthread_t thread;
             int result = pthread_create(&thread, NULL, publishConfigAck, (void*)data);
             if (result != 0) {
-                log_error("Failed to create config publish thread");
+                log_error("[%s] Failed to create config publish thread", iot_client->config.client_id);
                 free(config_ack_payload);
                 free(data);
             }
