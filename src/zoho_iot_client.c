@@ -59,7 +59,6 @@ bool get_OTA_status(ZohoIOTclient *client)
 
 #if defined(Z_PAHO_C) && defined(Z_SECURE_CONNECTION)
 // Callback invoked by Paho-C for every OpenSSL error during TLS handshake.
-// Without this, TLS failures only report error code -1 with no detail.
 static int ssl_error_log(const char *str, size_t len, void *u)
 {
     (void)u;
@@ -68,44 +67,6 @@ static int ssl_error_log(const char *str, size_t len, void *u)
     return 1;
 }
 #endif
-
-static void zclient_debug_dump(ZohoIOTclient *client)
-{
-    /*
-    log_debug("=== ZohoIOTclient state dump ===");
-    log_debug("  client_id                  : %s", client->config.client_id  ? client->config.client_id  : "(null)");
-    log_debug("  hostname                   : %s", client->config.hostname   ? client->config.hostname   : "(null)");
-    log_debug("  MqttUserName               : %s", client->config.MqttUserName ? client->config.MqttUserName : "(null)");
-    log_debug("  payload_size               : %d", client->config.payload_size);
-    log_debug("  retry_limit                : %d", client->config.retry_limit);
-    log_debug("  parse_mode                 : %d", (int)client->parse_mode);
-    log_debug("  current_state              : %d", (int)client->current_state);
-    log_debug("  ZretryInterval             : %d", client->ZretryInterval);
-    log_debug("  retryCount                 : %d", client->retryCount);
-    log_debug("  start_time                 : %ld", (long)client->start_time);
-    log_debug("  dataTopic                  : %s", client->dataTopic);
-    log_debug("  commandTopic               : %s", client->commandTopic);
-    log_debug("  eventTopic                 : %s", client->eventTopic);
-    log_debug("  configTopic                : %s", client->configTopic);
-    log_debug("  commandAckTopic            : %s", client->commandAckTopic);
-    log_debug("  configAckTopic             : %s", client->configAckTopic);
-    log_debug("  retryACK                   : %d", (int)client->retryACK);
-    log_debug("  retryEvent                 : %d", (int)client->retryEvent);
-    log_debug("  yield_time                 : %llu", client->yield_time);
-    log_debug("  yield_interval             : %d", client->yield_interval);
-    log_debug("  OTA_RECEIVED               : %d", (int)client->OTA_RECEIVED);
-    log_debug("  CLOUD_LOGGING              : %d", (int)client->CLOUD_LOGGING);
-    log_debug("  cloud_logging_in_processing: %d", (int)client->cloud_logging_in_processing);
-    log_debug("  eventDataObject            : %s", client->eventDataObject ? "(set)" : "(null)");
-    log_debug("  on_command_handler         : %s", client->on_command_message_handler ? "(set)" : "(null)");
-    log_debug("  on_config_handler          : %s", client->on_config_message_handler  ? "(set)" : "(null)");
-    log_debug("  on_OTA_handler             : %s", client->on_OTA_handler ? "(set)" : "(null)");
-#if defined(Z_PAHO_C)
-    log_debug("  address                    : %s", client->address);
-#endif
-    log_debug("================================");
-    */
-}
 
 int populateConfigObject(char *MQTTUserName, Zconfig *config)
 {
@@ -305,7 +266,6 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
         return ZFAILURE;
     }
     iot_client->current_state = INITIALIZED;
-    zclient_debug_dump(iot_client);
     log_info("[%s] Client Initialized!", iot_client->config.client_id);
     return ZSUCCESS;
 }
@@ -466,7 +426,6 @@ int zclient_connect(ZohoIOTclient *client)
         ssl_opts.ssl_error_context = NULL;
     }
     #endif
-    zclient_debug_dump(client);
     log_info("[%s] Connection paho connect", client->config.client_id);
     rc = MQTTClient_connect(client->mqtt_client, &conn_opts);
 
@@ -483,7 +442,6 @@ int zclient_connect(ZohoIOTclient *client)
     client->config.mqttBuff = (char*)malloc(buff_size);
     client->config.mqttReadBuff = (char*)malloc(buff_size);
 
-    zclient_debug_dump(client);
     log_info("[%s] Preparing Network..", client->config.client_id);
     NetworkInit(&client->network);
 

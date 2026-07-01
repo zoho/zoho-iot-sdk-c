@@ -1,6 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10.2)
 
-SET(CA_CRT /mnt/renga/sdk_v94/zoho-iot-sdk-c/ZohoIoTServerRootCA.pem)
+SET(CA_CRT /usr/local/certs/ca.crt)
 SET(CLIENT_CRT /usr/local/certs/client.crt)
 SET(CLIENT_KEY /usr/local/certs/client.key)
 
