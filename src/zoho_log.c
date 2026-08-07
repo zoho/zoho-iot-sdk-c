@@ -18,6 +18,7 @@ FILE *log_file;
 Z_log Zlog ={0};
 
 static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
+static bool log_initialized = false;
 // common static logconfig structure that the user can get using the function getZlogger() and configure the logging properties
 static ZlogConfig logConfig;
 
@@ -70,6 +71,11 @@ void compressAndSaveFile(const char *sourceFileName, const char *compressedFileN
     }
 }
 #endif
+
+bool is_log_initialized(void)
+{
+    return log_initialized;
+}
 
 static void lock(void)
 {
@@ -124,6 +130,7 @@ void log_set_maxRollingLog(int size)
 void log_initialize(ZlogConfig *logConfig)
 {
   log_free();
+  log_initialized = true;
   //TODO: make ERROR as default level
   log_set_level(Z_LOG_LEVEL);
   if (logConfig == NULL)

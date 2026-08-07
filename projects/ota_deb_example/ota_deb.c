@@ -326,7 +326,7 @@ int main()
 
     rc = zclient_command_subscribe(&client, message_command_handler);
     // Registering the OTA callback function
-    rc = zclient_ota_handler(message_OTA_handler);
+    rc = zclient_ota_handler(&client,message_OTA_handler);
     // Check for OTA status file exist or not and publish the OTA acknowledgment message
     check_OTA_state();
 

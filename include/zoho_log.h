@@ -86,6 +86,7 @@ void log_set_lock(log_LockFn fn);
 void log_set_fp(FILE *fp);
 void log_set_level(int level);
 void log_set_quiet(int enable);
+bool is_log_initialized(void);
 void log_set_fileLog(int enable);
 void log_set_logPath(char *path);
 void log_set_logPrefix(char *prefix);

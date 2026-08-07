@@ -196,6 +196,7 @@ static void ConnectMethod_OnCallingBeforeInitialization_ShouldFail()
 {
     // connecting to HUB with out initializing client would return FAILURE
     ZohoIOTclient client;
+    client.current_state = 0;
     assert_int_equal(zclient_connect(&client), -2);
 }
 
@@ -308,6 +309,7 @@ static void PublishMethod_OnCallingBeforeInitialization_ShouldFail()
 {
     // publishing to HUB with out initializing client would return FAILURE
     ZohoIOTclient client;
+    client.current_state = 0;
     assert_int_equal(zclient_publish(&client, "hello"), -2);
 }
 
@@ -381,6 +383,7 @@ static void DispatchMethod_OnCallingBeforeInitialization_ShouldFail()
 {
     // Dispatch Payload with out initializing client would return FAILURE
     ZohoIOTclient client;
+    client.current_state = 0;
     assert_int_equal(zclient_dispatch(&client), -2);
 }
 
@@ -426,6 +429,7 @@ static void DispatchEventFromEventDataObject_OnCallingBeforeInitialization_Shoul
 {
     // DispatchEvent from event data object with out initializing should Fail.
     ZohoIOTclient client;
+    client.current_state = 0;
     cJSON *obj = cJSON_CreateObject();
     cJSON_AddNumberToObject(obj, "key1", 123);
     assert_int_equal(zclient_dispatchEventFromEventDataObject(&client, "eventType", "eventDescription", ""), -2);
@@ -460,9 +464,9 @@ static void DispatchEventFromEventDataObject_WithProperConnectionWithAndWithOutA
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     zclient_connect(&client);
-    zclient_addEventDataNumber("key1", 10);
+    zclient_addEventDataNumber(&client, "key1", 10);
     assert_int_equal(zclient_dispatchEventFromEventDataObject(&client, "eventType", "eventDescription", ""), ZSUCCESS);
-    zclient_addEventDataNumber("key1", 20);
+    zclient_addEventDataNumber(&client, "key1", 20);
     assert_int_equal(zclient_dispatchEventFromEventDataObject(&client, "eventType", "eventDescription", "assetName"), ZSUCCESS);
 }
 
@@ -599,6 +603,7 @@ static void PublishCommandAck_OnCallingBeforeInitialization_ShouldFail(void **st
 {
     // PublishCommandAck with out initializing should Fail.
     ZohoIOTclient client;
+    client.current_state = 0;
     assert_int_equal(zclient_publishCommandAck(&client, "", 1001, "response message"), -2);
 }
 
@@ -679,6 +684,7 @@ static void SubscribeMethod_OnCallingBeforeInitialization_ShouldFail()
 {
     // Subscribing with out initializing client would return FAILURE
     ZohoIOTclient client;
+    client.current_state = 0;
     SubscribeMessageHandler msghnd;
     assert_int_equal(zclient_command_subscribe(&client, msghnd), -2);
 }
@@ -742,6 +748,7 @@ static void YieldMethod_OnCallingBeforeInitialization_ShouldFail()
 {
     // Subscribing with out initializing client would return FAILURE
     ZohoIOTclient client;
+    client.current_state = 0;
     assert_int_equal(zclient_yield(&client, 100), -2);
 }
 
@@ -767,30 +774,25 @@ static void YieldMethod_OnCallingWhenConnectedShouldSuccess()
 static void YieldMethod_OnCallingBeforeInitialization_ShouldFail()
 {
     // Subscribing with out initializing client would return FAILURE
-    extern unsigned long long yield_time ;
-    yield_time = getCurrentTime() + 3;
     ZohoIOTclient client;
+    client.current_state = 0;
     assert_int_equal(zclient_yield(&client, 100), -2);
 }
 
 static void YieldMethod_CallingIntervalLessthan2seconds_ShouldFail()
 {
     // Calling yield befor 2 seconds should return 2
-    extern unsigned long long yield_time ;
-    yield_time = getCurrentTime();
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    client.yield_time = getCurrentTime();
     assert_int_equal(zclient_yield(&client, 100), 2);
 }
 
 static void YieldMethod_OnNullArguments_ShouldFail(void **state)
 {
     //Yield returns Failure for Null Client .
-    extern unsigned long long yield_time ;
-    yield_time = getCurrentTime() + 3;
     assert_int_equal(zclient_yield(NULL, 1000), ZFAILURE);
 
-    yield_time = getCurrentTime() + 3;
     //Yield returns Failure for non positive timeout.
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
@@ -799,9 +801,6 @@ static void YieldMethod_OnNullArguments_ShouldFail(void **state)
 
 static void YieldMethod_OnNonNullArguments_ShouldSucceed(void **state)
 {
-    extern unsigned long long yield_time ;
-    yield_time = getCurrentTime() + 3;
-
     // yield method with appropriate arguments should succeed.
     will_return_always(__wrap_NetworkConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTConnect, ZSUCCESS);
@@ -814,9 +813,6 @@ static void YieldMethod_OnNonNullArguments_ShouldSucceed(void **state)
 
 static void YieldMethod_WithLostConnection_ShouldFail(void **state)
 {
-    extern unsigned long long yield_time ;
-    yield_time = getCurrentTime() + 3;
-
     // Yield method wehn connection lost returns failure
     will_return_always(__wrap_NetworkConnect, ZSUCCESS);
     will_return_always(__wrap_MQTTConnect, ZSUCCESS);
@@ -880,6 +876,7 @@ static void AddNumberMethod_CalledWithoutInitialization_ShouldFail(void **state)
 {
     // Client must be initialized to add number to cjson payload.
     ZohoIOTclient client;
+    client.current_state = 0;
     assert_int_equal(zclient_addNumber(&client, "key1", 2), -2);
 }
 
@@ -926,55 +923,66 @@ static void AddNumberMethod_withEmptyAssetNameArgument_ShouldAddKeyToData(void *
 // ADD EVENTDATA NUMBER :
 static void AddEventDataNumber_WithProperArguments_ShouldSucceed(void **state)
 {
-     extern cJSON *eventDataObject;
-    eventDataObject=NULL;
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    client.eventDataObject = NULL;
     // AddEventDataNumber with Proper argument should add data to EventDataObject.
-    assert_int_equal(ZSUCCESS, zclient_addEventDataNumber("key1", 123));
+    assert_int_equal(ZSUCCESS, zclient_addEventDataNumber(&client, "key1", 123));
 }
 
 static void AddEventDataNumber_WithImProperArguments_ShouldFail(void **state)
 {
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     // AddEventDataNumber with ImProper arguments should Fail to add data to EventDataObject.
-    assert_int_equal(ZFAILURE, zclient_addEventDataNumber(NULL, 123));
-    assert_int_equal(ZFAILURE, zclient_addEventDataNumber("", 123));
+    assert_int_equal(ZFAILURE, zclient_addEventDataNumber(&client, NULL, 123));
+    assert_int_equal(ZFAILURE, zclient_addEventDataNumber(&client, "", 123));
 }
 
 
 static void AddEventDataString_InitializeEventDataObjectIsNull_WithProperArguments_ShouldSucceed(void **state)
 {
-    extern cJSON *eventDataObject;
-    eventDataObject=NULL;
-    assert_int_equal(ZSUCCESS, zclient_addEventDataString("key1", "value1"));
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    client.eventDataObject = NULL;
+    assert_int_equal(ZSUCCESS, zclient_addEventDataString(&client, "key1", "value1"));
 }
 
 static void AddEventDataString_WithProperArguments_ShouldSucceed(void **state)
 {
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     // AddEventDataString with Proper argument should add data to EventDataObject.
-    assert_int_equal(ZSUCCESS, zclient_addEventDataString("key1", "value1"));
+    assert_int_equal(ZSUCCESS, zclient_addEventDataString(&client, "key1", "value1"));
 }
 
 static void AddEventDataString_WithImProperArguments_ShouldFail(void **state)
 {
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
     // AddEventDataString with ImProper arguments should Fail to add data to EventDataObject.
-    assert_int_equal(ZFAILURE, zclient_addEventDataString("", "value1"));
-    assert_int_equal(ZFAILURE, zclient_addEventDataString(NULL, "value1"));
-    assert_int_equal(ZFAILURE, zclient_addEventDataString(NULL, NULL));
-    assert_int_equal(ZFAILURE, zclient_addEventDataString(NULL, ""));
+    assert_int_equal(ZFAILURE, zclient_addEventDataString(&client, "", "value1"));
+    assert_int_equal(ZFAILURE, zclient_addEventDataString(&client, NULL, "value1"));
+    assert_int_equal(ZFAILURE, zclient_addEventDataString(&client, NULL, NULL));
+    assert_int_equal(ZFAILURE, zclient_addEventDataString(&client, NULL, ""));
 }
 
 static void AddEventDataString_OnAddingSamekey_ShouldSucceed_ReplacingOldValue(void **state)
 {
-    zclient_addEventDataString("key1", "value1");
-    assert_int_equal(ZSUCCESS, zclient_addEventDataString("key1", "value2"));
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_addEventDataString(&client, "key1", "value1");
+    assert_int_equal(ZSUCCESS, zclient_addEventDataString(&client, "key1", "value2"));
 }
 
 static void AddEventDataObject_InitializeEventDataObjectIsNull_WithProperArguments_ShouldSucceed(void ** states){
-     extern cJSON *eventDataObject;
-    eventDataObject=NULL;
-     cJSON* Object=cJSON_CreateObject();
-     zclient_addEventDataObject("key1", Object);
-    assert_int_equal(ZSUCCESS, zclient_addEventDataObject("key1", Object));
-    assert_int_equal(ZFAILURE, zclient_addEventDataObject("", Object));
+    ZohoIOTclient client;
+    zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    client.eventDataObject = NULL;
+    cJSON* Object = cJSON_CreateObject();
+    zclient_addEventDataObject(&client, "key1", Object);
+    assert_int_equal(ZSUCCESS, zclient_addEventDataObject(&client, "key1", Object));
+    assert_int_equal(ZFAILURE, zclient_addEventDataObject(&client, "", Object));
 }
 
 // ADD STRING :
@@ -983,6 +991,7 @@ static void AddStringMethod_CalledWithoutInitialization_ShouldFail(void **state)
 {
     // Client must be initialized to add string to cjson payload.
     ZohoIOTclient client;
+    client.current_state = 0;
     assert_int_equal(zclient_addString(&client, "key1", "value1"), -2);
 }
 
@@ -1096,8 +1105,6 @@ static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
     #if defined(Z_PAHO_C)
     will_return_always(__wrap_MQTTClient_connect, ZSUCCESS);
     will_return_always(__wrap_MQTTClient_subscribe, ZSUCCESS);
-    will_return_always(__wrap_MQTTClient_publishMessage, ZSUCCESS);
-     will_return_always(__wrap_MQTTClient_waitForCompletion, ZSUCCESS);
     #else
     will_return(__wrap_NetworkConnect, ZSUCCESS);
     will_return(__wrap_MQTTConnect, ZSUCCESS);
@@ -1107,6 +1114,7 @@ static void ReconnectMethod_OnLostConnection_ShouldRetryAndSucceed(void **state)
     
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_command_subscribe(&client, message_handler);
     client.current_state = DISCONNECTED;
     zclient_reconnect(&client);
     sleep(3);
@@ -1146,6 +1154,10 @@ static void ReconnectMethod_WithMQTTPublishFailure_OnLostConnection_ShouldRetryA
     #endif
     ZohoIOTclient client;
     zclient_init(&client, mqttUserName, mqttPassword, EMBED, "", "", "", "");
+    zclient_command_subscribe(&client, message_handler);
+    client.retryACK = true;
+    client.failedACK.ackPayload = cJSON_CreateObject();
+    client.failedACK.topic = client.commandAckTopic;
     client.current_state = DISCONNECTED;
     zclient_reconnect(&client);
     sleep(3);
@@ -1242,6 +1254,7 @@ static void ConfigSubscribeMethod_OnCallingBeforeInitialization_ShouldFail()
 {
     // Subscribing with out initializing client would return FAILURE
     ZohoIOTclient client;
+    client.current_state = 0;
     SubscribeMessageHandler msghnd;
     assert_int_equal(zclient_config_subscribe(&client, msghnd), -2);
 }
@@ -1263,6 +1276,7 @@ static void AddObjectMethod_CalledWithoutInitialization_ShouldFail(void **state)
     cJSON *obj = cJSON_CreateObject();
     // Client must be initialized to add string to cjson payload.
     ZohoIOTclient client;
+    client.current_state = 0;
     assert_int_equal(zclient_addObject(&client, "key1", obj), -2);
 }
 
