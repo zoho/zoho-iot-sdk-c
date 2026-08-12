@@ -13,4 +13,4 @@ char *trim(char *s);
 int isStringValid(char *value);
 int getRetryInterval(int curr_delay);
 char *getSdkVersion();
-bool getOsnameOsversion(char * osName,char * osVersion);
+bool getOsnameOsversion(char * osName, size_t osNameSize, char * osVersion, size_t osVersionSize);

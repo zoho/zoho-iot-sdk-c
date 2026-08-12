@@ -120,12 +120,12 @@ typedef struct
     pthread_mutex_t lock;
 
     // Client-specific topics
-    char dataTopic[100];
-    char commandTopic[100];
-    char eventTopic[100];
-    char configTopic[100];
-    char commandAckTopic[100];
-    char configAckTopic[100];
+    char dataTopic[64];
+    char commandTopic[64];
+    char eventTopic[64];
+    char configTopic[64];
+    char commandAckTopic[64];
+    char configAckTopic[64];
     char connectionStringBuff[256];
 
     // Connection / reconnect state

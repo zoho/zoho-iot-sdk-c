@@ -24,11 +24,11 @@ char *trim(char *s)
 {
   int l = strlen(s);
 
-  while (isspace(s[l - 1]))
+  while (l > 0 && isspace((unsigned char)s[l - 1]))
   {
     --l;
   }
-  while (*s && isspace(*s))
+  while (*s && isspace((unsigned char)*s))
   {
     ++s, --l;
   }
@@ -62,7 +62,7 @@ int getRetryInterval(int curr_delay)
 
  }
 
- bool getOsnameOsversion(char * osName,char * osVersion){
+ bool getOsnameOsversion(char * osName, size_t osNameSize, char * osVersion, size_t osVersionSize){
 
     FILE *fp;
     char line[1024];
@@ -79,11 +79,13 @@ int getRetryInterval(int curr_delay)
         if (strstr(line, "NAME=") == line) {
             name = strchr(line, '"') + 1;
             strtok(name, "\"\n");
-            strcpy(osName,name);
+            strncpy(osName, name, osNameSize - 1);
+            osName[osNameSize - 1] = '\0';
         } else if (strstr(line, "VERSION=") == line) {
             version = strchr(line, '"') + 1;
             strtok(version, "\"\n"); 
-            strcpy(osVersion,version);
+            strncpy(osVersion, version, osVersionSize - 1);
+            osVersion[osVersionSize - 1] = '\0';
         }
         if (name != NULL && version != NULL) {
             break;

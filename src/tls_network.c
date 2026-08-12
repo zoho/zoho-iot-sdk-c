@@ -303,10 +303,10 @@ int NetworkConnectTLS(Network *n, char *addr, int port, certsParseMode mode, cha
 
     //TODO: Hardcode the value of hostname & port.
     sprintf(port_char, "%d", port);
-
-    if (rc = init_tls(n, mode, ca_crt, client_cert, client_key, cert_password) != 0)
+    rc = init_tls(n, mode, ca_crt, client_cert, client_key, cert_password);
+    if (rc != 0)
     {
-        log_debug("Initializing TLS failed");
+        log_debug("Initializing TLS failed, rc=%d", rc);
         return -1;
     }
 #if defined(Z_USE_CLIENT_CERTS)

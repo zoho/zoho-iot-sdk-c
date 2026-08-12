@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "zoho_iot_client.h"
 #include "sdk_version.h"
 #include "zoho_message_handler.h"
@@ -31,11 +32,10 @@ int ZPORT = 1883;
 #endif
 
 bool get_cloud_logging_status(ZohoIOTclient *client){
-    if(client->CLOUD_LOGGING == true && client->cloud_logging_in_processing == false)
-    {
-        return true;
-    }
-    return false;
+    pthread_mutex_lock(&client->lock);
+    bool result = (client->CLOUD_LOGGING == true && client->cloud_logging_in_processing == false);
+    pthread_mutex_unlock(&client->lock);
+    return result;
 }
 
 //TODO: Add idle methods when socket is busy as in ssl_client_2.
@@ -54,7 +54,10 @@ void zclient_set_client_certs(bool state){
 }
 bool get_OTA_status(ZohoIOTclient *client)
 {
-    return client->OTA_RECEIVED;
+    pthread_mutex_lock(&client->lock);
+    bool status = client->OTA_RECEIVED;
+    pthread_mutex_unlock(&client->lock);
+    return status;
 }
 
 #if defined(Z_PAHO_C) && defined(Z_SECURE_CONNECTION)
@@ -70,23 +73,39 @@ static int ssl_error_log(const char *str, size_t len, void *u)
 
 int populateConfigObject(char *MQTTUserName, Zconfig *config)
 {
-    int len = strlen(MQTTUserName), itr_cnt = 0;
-    char *delim = "/", userName[len];
-    strcpy(userName, MQTTUserName);
-    char *ptr = strtok(userName, delim);
+    size_t len = strlen(MQTTUserName);
+    if (len >= 64) {
+        log_error("MQTTUserName is too long");
+        return ZFAILURE;
+    }
+    int itr_cnt = 0;
+    char *delim = "/";
+    char *userName = malloc(len + 1);
+    if (userName == NULL) {
+        log_error("Failed to allocate memory for username parsing");
+        return ZFAILURE;
+    }
+    memcpy(userName, MQTTUserName, len + 1);
+    char *saveptr;
+    char *ptr = strtok_r(userName, delim, &saveptr);
     cloneString(&config->hostname, ptr);
     while (ptr != NULL)
     {
-        ptr = strtok(NULL, delim);
+        ptr = strtok_r(NULL, delim, &saveptr);
         itr_cnt++;
         if (itr_cnt == 3)
         {
             cloneString(&config->client_id, ptr);
         }
     }
+    free(userName);
     if (itr_cnt != 5)
     {
         log_error("populating config object failed");
+        free(config->hostname);
+        config->hostname  = NULL;
+        free(config->client_id);
+        config->client_id = NULL;
         return ZFAILURE;
     }
     return ZSUCCESS;
@@ -197,13 +216,16 @@ int zclient_init(ZohoIOTclient *iot_client, char *MQTTUserName, char *MQTTPasswo
     
     log_debug("client_id:%s", config.client_id);
     log_debug("hostname:%s", config.hostname);
-    //Populating dynamic topic names based on its deviceID
-    sprintf(iot_client->dataTopic, "%s/%s%s", TOPIC_PRE, config.client_id, DATA_TOPIC);
-    sprintf(iot_client->commandTopic, "%s/%s%s", TOPIC_PRE, config.client_id, COMMAND_TOPIC);
-    sprintf(iot_client->commandAckTopic, "%s/%s%s", TOPIC_PRE, config.client_id, COMMAND_ACK_TOPIC);
-    sprintf(iot_client->eventTopic, "%s/%s%s", TOPIC_PRE, config.client_id, EVENT_TOPIC);
-    sprintf(iot_client->configTopic, "%s/%s%s", TOPIC_PRE,config.client_id, CONFIG_TOPIC);
-    sprintf(iot_client->configAckTopic, "%s/%s%s", TOPIC_PRE,config.client_id, CONFIG_ACK_TOPIC);
+    if (snprintf(iot_client->dataTopic,       sizeof(iot_client->dataTopic),       "%s/%s%s", TOPIC_PRE, config.client_id, DATA_TOPIC)       >= (int)sizeof(iot_client->dataTopic)       ||
+        snprintf(iot_client->commandTopic,    sizeof(iot_client->commandTopic),    "%s/%s%s", TOPIC_PRE, config.client_id, COMMAND_TOPIC)    >= (int)sizeof(iot_client->commandTopic)    ||
+        snprintf(iot_client->commandAckTopic, sizeof(iot_client->commandAckTopic), "%s/%s%s", TOPIC_PRE, config.client_id, COMMAND_ACK_TOPIC)>= (int)sizeof(iot_client->commandAckTopic) ||
+        snprintf(iot_client->eventTopic,      sizeof(iot_client->eventTopic),      "%s/%s%s", TOPIC_PRE, config.client_id, EVENT_TOPIC)      >= (int)sizeof(iot_client->eventTopic)      ||
+        snprintf(iot_client->configTopic,     sizeof(iot_client->configTopic),     "%s/%s%s", TOPIC_PRE, config.client_id, CONFIG_TOPIC)     >= (int)sizeof(iot_client->configTopic)     ||
+        snprintf(iot_client->configAckTopic,  sizeof(iot_client->configAckTopic),  "%s/%s%s", TOPIC_PRE, config.client_id, CONFIG_ACK_TOPIC) >= (int)sizeof(iot_client->configAckTopic))
+    {
+        log_error("[%s] client_id is too long to build MQTT topic strings", config.client_id);
+        return ZFAILURE;
+    }
 
     config.retry_limit = 5;
     config.payload_size = DEFAULT_PAYLOAD_SIZE;
@@ -296,8 +318,10 @@ int zclient_setMaxPayloadSize(ZohoIOTclient *iot_client,int size)
         log_error("Agent name or version is invalid");
         return false;
     }
-    strcpy(agentName,name);
-    strcpy(agentVersion,version);
+    strncpy(agentName, name, sizeof(agentName) - 1);
+    agentName[sizeof(agentName) - 1] = '\0';
+    strncpy(agentVersion, version, sizeof(agentVersion) - 1);
+    agentVersion[sizeof(agentVersion) - 1] = '\0';
     return true;
 }
 
@@ -306,21 +330,23 @@ bool zclient_setPlatformName(char * platformName){
         log_error("Platform name is invalid");
         return false;
     }
-    strcpy(platform,platformName);
+    strncpy(platform, platformName, sizeof(platform) - 1);
+    platform[sizeof(platform) - 1] = '\0';
     return true;
 }
 
 void zclient_addConnectionParameter(ZohoIOTclient *client, char *connectionParamKey, char *connectionParamValue)
 {
-    strcat(client->connectionStringBuff, connectionParamKey);
-    strcat(client->connectionStringBuff, "=");
-    strcat(client->connectionStringBuff, connectionParamValue);
-    strcat(client->connectionStringBuff, "&");
+    size_t cap = sizeof(client->connectionStringBuff);
+    strncat(client->connectionStringBuff, connectionParamKey,   cap - strlen(client->connectionStringBuff) - 1);
+    strncat(client->connectionStringBuff, "=",                  cap - strlen(client->connectionStringBuff) - 1);
+    strncat(client->connectionStringBuff, connectionParamValue, cap - strlen(client->connectionStringBuff) - 1);
+    strncat(client->connectionStringBuff, "&",                  cap - strlen(client->connectionStringBuff) - 1);
 }
 void addOsdetailstoConnectionParameters(ZohoIOTclient *client){
     char osname[50];
     char osversion[50];
-    if(!getOsnameOsversion(osname,osversion)){
+    if(!getOsnameOsversion(osname, sizeof(osname), osversion, sizeof(osversion))){
         log_error("[%s] failed to get os details", client->config.client_id);
         return;
     }
@@ -330,20 +356,24 @@ void addOsdetailstoConnectionParameters(ZohoIOTclient *client){
 
 char *formConnectionString(ZohoIOTclient *client, char *username)
 {
+    size_t cap = sizeof(client->connectionStringBuff);
     client->connectionStringBuff[0] = '\0';
-    strcat(client->connectionStringBuff, username);
-    strcat(client->connectionStringBuff, "?");
+    strncat(client->connectionStringBuff, username, cap - 1);
+    strncat(client->connectionStringBuff, "?", cap - strlen(client->connectionStringBuff) - 1);
     zclient_addConnectionParameter(client, "sdk_name", "zoho-iot-sdk-c");
     zclient_addConnectionParameter(client, "sdk_version", Z_SDK_VERSION);
     if(isStringValid(agentName) && isStringValid(agentVersion)){
-        zclient_addConnectionParameter(client, "agent_name",agentName);
-        zclient_addConnectionParameter(client, "agent_version",agentVersion);
+        zclient_addConnectionParameter(client, "agent_name", agentName);
+        zclient_addConnectionParameter(client, "agent_version", agentVersion);
     }
     if(isStringValid(platform)){
-        zclient_addConnectionParameter(client, "agent_platform",platform);
+        zclient_addConnectionParameter(client, "agent_platform", platform);
     }
     addOsdetailstoConnectionParameters(client);
-    client->connectionStringBuff[strlen(client->connectionStringBuff) - 1] = '\0';
+    size_t len = strlen(client->connectionStringBuff);
+    if (len > 0 && client->connectionStringBuff[len - 1] == '&') {
+        client->connectionStringBuff[len - 1] = '\0';
+    }
     return client->connectionStringBuff;
 }
 
@@ -590,10 +620,7 @@ int zclient_reconnect(ZohoIOTclient *client)
             pthread_mutex_lock(&client->lock);
             log_trace("[%s] Got client lock for network disconnect", client->config.client_id);
             #if defined(Z_PAHO_C)
-            if(client->current_state == INITIALIZED)
-            {
-                MQTTClient_destroy(&client->mqtt_client);
-            }
+            MQTTClient_destroy(&client->mqtt_client);
             #else
             NetworkDisconnect(client->mqtt_client.ipstack);
             #endif
@@ -601,6 +628,7 @@ int zclient_reconnect(ZohoIOTclient *client)
             log_trace("[%s] Releasing client lock for network disconnect", client->config.client_id);
             pthread_mutex_unlock(&client->lock);
             log_trace("[%s] Released client lock for network disconnect", client->config.client_id);
+            client->current_state = INITIALIZED;
         }
         rc = zclient_connect(client);
         if (rc == ZSUCCESS)
@@ -627,45 +655,72 @@ int zclient_reconnect(ZohoIOTclient *client)
                     return ZFAILURE;
                 }
             }
-            if(client->retryACK)
+            pthread_mutex_lock(&client->lock);
+            bool do_retry_ack = client->retryACK;
+            pthread_mutex_unlock(&client->lock);
+            if(do_retry_ack)
             {
                 log_debug("[%s] Attempting to resend the ACK message that previously failed", client->config.client_id);
-                char *payload = NULL;
-                payload = cJSON_Print(client->failedACK.ackPayload);
+                pthread_mutex_lock(&client->lock);
+                char *payload = cJSON_Print(client->failedACK.ackPayload);
+                pthread_mutex_unlock(&client->lock);
+                if (payload == NULL) {
+                    log_error("[%s] Failed to serialize ACK payload", client->config.client_id);
+                    return ZFAILURE;
+                }
                 rc = publishMessage(client, client->failedACK.topic, payload);
                 if(rc == ZSUCCESS)
                 {
                     log_debug("[%s]\x1b[36m Failed ACK published \x1b[0m", client->config.client_id);
                     log_trace("[%s] ACK published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", client->config.client_id, payload, client->failedACK.topic);
+                    pthread_mutex_lock(&client->lock);
                     cJSON_Delete(client->failedACK.ackPayload);
+                    client->failedACK.ackPayload = NULL;
                     client->retryACK = false;
+                    pthread_mutex_unlock(&client->lock);
                 }
                 else{
                     log_error("[%s] Error publishing Ack, Error code: %d", client->config.client_id, rc);
                 }
                 free(payload);
-
             }
-            if(client->retryEvent)
+            pthread_mutex_lock(&client->lock);
+            bool do_retry_event = client->retryEvent;
+            pthread_mutex_unlock(&client->lock);
+            if(do_retry_event)
             {
-                if(client->failedEvent.eventPayloadTime + 300 < getCurrentTime())
+                pthread_mutex_lock(&client->lock);
+                bool event_expired = (client->failedEvent.eventPayloadTime + 300 < getCurrentTime());
+                pthread_mutex_unlock(&client->lock);
+                if(event_expired)
                 {
                     log_debug("[%s] Event is expired, so not attempting to resend the Event message that previously failed", client->config.client_id);
+                    pthread_mutex_lock(&client->lock);
                     cJSON_Delete(client->failedEvent.eventPayload);
+                    client->failedEvent.eventPayload = NULL;
                     client->retryEvent = false;
+                    pthread_mutex_unlock(&client->lock);
                 }
                 else
                 {
                     log_debug("[%s] Attempting to resend the Event message that previously failed", client->config.client_id);
-                    char *payload = NULL;
-                    payload = cJSON_Print(client->failedEvent.eventPayload);
+                    pthread_mutex_lock(&client->lock);
+                    char *payload = cJSON_Print(client->failedEvent.eventPayload);
+                    pthread_mutex_unlock(&client->lock);
+                    if (payload == NULL) {
+                        log_error("[%s] Failed to serialize Event payload", client->config.client_id);
+                        return ZFAILURE;
+                    }
                     rc = publishMessage(client, client->eventTopic, payload);
                     if(rc == ZSUCCESS)
                     {
                         log_debug("[%s]\x1b[36m Failed Event published \x1b[0m", client->config.client_id);
                         log_trace("[%s] Event published \x1b[32m '%s' \x1b[0m on \x1b[36m '%s' \x1b[0m", client->config.client_id, payload, client->eventTopic);
+                        pthread_mutex_lock(&client->lock);
                         cJSON_Delete(client->failedEvent.eventPayload);
+                        client->failedEvent.eventPayload = NULL;
                         client->retryEvent = false;
+                        pthread_mutex_unlock(&client->lock);
                     }
                     else{
                         log_error("[%s] Error publishing Event, Error code: %d", client->config.client_id, rc);
@@ -741,6 +796,10 @@ int zclient_dispatch(ZohoIOTclient *client)
     
     char *payload = NULL;
     payload = cJSON_Print(client->message.data);
+    if (payload == NULL) {
+        log_error("[%s] Failed to serialize JSON payload", client->config.client_id);
+        return ZFAILURE;
+    }
     int status = zclient_publish(client, payload);
     free(payload);
     cJSON_Delete(client->message.data);
@@ -902,20 +961,24 @@ int zclient_dispatchEventFromJSONString(ZohoIOTclient *client, char *eventType, 
     {
         client->current_state = DISCONNECTED;
         log_error("[%s] Error on dispatchEvent due to lost connection. Error code: %d", client->config.client_id, rc);
-        client->retryEvent = true;
-        if(client->failedEvent.eventPayload != NULL)
-        {
-            cJSON_Delete(client->failedEvent.eventPayload);
-        }
+        pthread_mutex_lock(&client->lock);
+        if(client->failedEvent.eventPayload != NULL) { cJSON_Delete(client->failedEvent.eventPayload); }
         client->failedEvent.eventPayload = cJSON_Duplicate(eventObject, 1);
         client->failedEvent.eventPayloadTime = getCurrentTime();
+        client->retryEvent = true;
+        pthread_mutex_unlock(&client->lock);
     }
     else
     {
         log_error("[%s] Error on dispatchEvent. Error code: %d", client->config.client_id, rc);
-        client->retryEvent = true;
+        pthread_mutex_lock(&client->lock);
+        if(client->failedEvent.eventPayload != NULL) { 
+            cJSON_Delete(client->failedEvent.eventPayload); 
+        }
         client->failedEvent.eventPayload = cJSON_Duplicate(eventObject, 1);
         client->failedEvent.eventPayloadTime = getCurrentTime();
+        client->retryEvent = true;
+        pthread_mutex_unlock(&client->lock);
     }
     free(payload);
     cJSON_Delete(eventObject);
@@ -950,9 +1013,12 @@ int zclient_publishCommandAck(ZohoIOTclient *client, char *payload, ZcommandAckR
     {
         client->current_state = DISCONNECTED;
         log_error("[%s] Error on publishing command ACK due to lost connection. Error code: %d", client->config.client_id, rc);
-        client->retryACK = true;
+        pthread_mutex_lock(&client->lock);
+        if (client->failedACK.ackPayload != NULL) { cJSON_Delete(client->failedACK.ackPayload); }
         client->failedACK.ackPayload = cJSON_Duplicate(Ack_payload, 1);
         client->failedACK.topic = client->commandAckTopic;
+        client->retryACK = true;
+        pthread_mutex_unlock(&client->lock);
     }
     else
     {
@@ -991,9 +1057,14 @@ int zclient_publishConfigAck(ZohoIOTclient *client, char *payload, ZcommandAckRe
     {
         client->current_state = DISCONNECTED;
         log_error("[%s] Error on publishing config ack due to lost connection. Error code: %d", client->config.client_id, rc);
-        client->retryACK = true;
+        pthread_mutex_lock(&client->lock);
+        if (client->failedACK.ackPayload != NULL) { 
+            cJSON_Delete(client->failedACK.ackPayload); 
+        }
         client->failedACK.ackPayload = cJSON_Duplicate(Ack_payload, 1);
         client->failedACK.topic = client->configAckTopic;
+        client->retryACK = true;
+        pthread_mutex_unlock(&client->lock);
     }
     else
     {
@@ -1056,6 +1127,7 @@ int zclient_command_subscribe(ZohoIOTclient *client, SubscribeMessageHandler on_
     }
     else
     {
+        //Subscribe mandatory, force to reconnect
         client->current_state = DISCONNECTED;
         log_error("[%s] Error on Subscribe. Error code: %d", client->config.client_id, rc);
     }
@@ -1114,6 +1186,7 @@ int zclient_config_subscribe(ZohoIOTclient *client, SubscribeMessageHandler on_m
     }
     else
     {
+        //Subscribe mandatory, force to reconnect
         client->current_state = DISCONNECTED;
         log_error("[%s] Error on Subscribe. Error code: %d", client->config.client_id, rc);
     }
@@ -1407,36 +1480,35 @@ cJSON* generateACKPayload(ZohoIOTclient *client, char* payload, ZcommandAckRespo
         int len = cJSON_GetArraySize(commandMessageArray);
         for (int iter = 0; iter < len; iter++) {
             commandMessage = cJSON_GetArrayItem(commandMessageArray, iter);
-            char *correlation_id = cJSON_GetObjectItem(commandMessage, "correlation_id")->valuestring;
-
+            cJSON *corr_item  = cJSON_GetObjectItem(commandMessage, "correlation_id");
+            if (corr_item == NULL || corr_item->valuestring == NULL) {
+                log_error("[%s] Missing correlation_id in command", client->config.client_id);
+                cJSON_Delete(commandMessageArray);
+                cJSON_Delete(commandAckObject);
+                return NULL;
+            }
+            char *correlation_id = corr_item->valuestring;
             //check if the command is OTA
             cJSON *command_name_json = cJSON_GetObjectItem(commandMessage, "command_name");
             if(command_name_json != NULL)
             {
                 char *command_name = command_name_json->valuestring;
-                if(strcmp(command_name,"Z_OTA")== 0)
-                {
-                    client->OTA_RECEIVED = true;
-                }
-                else
-                {
-                    client->OTA_RECEIVED = false;
-                }
-
-                //check if the command is for cloud logging
+                pthread_mutex_lock(&client->lock);
+                client->OTA_RECEIVED   = (strcmp(command_name, "Z_OTA") == 0);
+                client->CLOUD_LOGGING  = (strcmp(command_name, "Z_PUBLISH_DEVICE_LOGS") == 0);
+                pthread_mutex_unlock(&client->lock);
                 if(strcmp(command_name,"Z_PUBLISH_DEVICE_LOGS")== 0)
                 {
-                    client->CLOUD_LOGGING = true;
                     #if defined(Z_HTTP_PUBLISH_ENABLE)
                         cJSON *payload_array = cJSON_GetObjectItem(commandMessage, "payload");
-                        cJSON *payload_json = cJSON_GetArrayItem(payload_array, 0);
-                        char *value = cJSON_GetObjectItem(payload_json, "value")->valuestring;
-                        cloud_logging_set_lines(value);
+                        cJSON *payload_json = (payload_array != NULL) ? cJSON_GetArrayItem(payload_array, 0) : NULL;
+                        cJSON *value_item = (payload_json != NULL) ? cJSON_GetObjectItem(payload_json, "value") : NULL;
+                        if (value_item == NULL || value_item->valuestring == NULL) {
+                            log_error("[%s] Missing payload value in Z_PUBLISH_DEVICE_LOGS command", client->config.client_id);
+                        } else {
+                            cloud_logging_set_lines(value_item->valuestring);
+                        }
                     #endif
-                }
-                else
-                {
-                    client->CLOUD_LOGGING = false;
                 }
             }
 
@@ -1466,18 +1538,21 @@ cJSON* generateACKPayload(ZohoIOTclient *client, char* payload, ZcommandAckRespo
 }
 int zclient_free(ZohoIOTclient *client)
 {
-    #if defined(Z_PAHO_C)
-        MQTTClient_destroy(&client->mqtt_client); 
-    #endif
     if (client == NULL)
     {
         log_error("Client object is NULL");
         return ZFAILURE;
     }
+
     if (client->current_state == CONNECTED)
     {
         zclient_disconnect(client);
     }
+
+    #if defined(Z_PAHO_C)
+        MQTTClient_destroy(&client->mqtt_client); 
+    #endif
+
     free(client->config.hostname);
     free(client->config.client_id);
     #ifndef Z_USE_CLIENT_CERTS
@@ -1529,10 +1604,22 @@ int zclient_free(ZohoIOTclient *client)
 
 #if defined(Z_HTTP_PUBLISH_ENABLE)
 bool parse_http_response(const char* str) {
-    const char* start = strchr(str, '{');
-    log_debug("HTTP Server Response : %s\n", start);
+    if (strncmp(str, "HTTP/", 5) == 0) {
+        const char *sp = strchr(str, ' ');
+        if (sp != NULL) {
+            int http_status = atoi(sp + 1);
+            if (http_status < 200 || http_status >= 300) {
+                log_error("HTTP error status: %d\n", http_status);
+                return false;
+            }
+        }
+    }
+    const char *body = strstr(str, "\r\n\r\n");
+    const char *search_start = (body != NULL) ? body + 4 : str;
+    const char* start = strchr(search_start, '{');
+    log_debug("HTTP Server Response body: %s\n", start ? start : "(no JSON body)");
     if (start == NULL) {
-        log_error("Error: Starting brace not found\n");
+        log_error("Error: No JSON body in HTTP response\n");
         return false;
     }
     const char* end = str + strlen(str) - 1;
@@ -1548,22 +1635,34 @@ bool parse_http_response(const char* str) {
         return false;
     }
     size_t length = end - start + 1;
-    char json_str[length + 1];
+    char *json_str = malloc(length + 1);
+    if (json_str == NULL) {
+        log_error("Error: Failed to allocate JSON parse buffer\n");
+        return false;
+    }
     strncpy(json_str, start, length);
     json_str[length] = '\0';
     cJSON* json = cJSON_Parse(json_str);
+    free(json_str);
     if (json == NULL) {
         log_error("Error: Failed to parse JSON object\n");
         return false;
     }
-    char *status = cJSON_GetObjectItem(json, "status")->valuestring;
-
-    if(strcasecmp(status, "success") != 0) {
-        log_error("Http Error Message: %s\n", cJSON_GetObjectItem(json, "message")->valuestring);
+    cJSON *status_item = cJSON_GetObjectItem(json, "status");
+    if (!cJSON_IsString(status_item)) {
+        log_error("Error: HTTP response missing 'status' field\n");
         cJSON_Delete(json);
         return false;
     }
-    log_debug("Http Success Message: %s\n", cJSON_GetObjectItem(json, "message")->valuestring);
+    cJSON *msg_item = cJSON_GetObjectItem(json, "message");
+    const char *msg = cJSON_IsString(msg_item) ? msg_item->valuestring : "(no message)";
+
+    if (strcasecmp(status_item->valuestring, "success") != 0) {
+        log_error("Http Error Message: %s\n", msg);
+        cJSON_Delete(json);
+        return false;
+    }
+    log_debug("Http Success Message: %s\n", msg);
     cJSON_Delete(json);
     return true;
 }
@@ -1600,18 +1699,19 @@ int http_post(ZohoIOTclient *client, char * publishPayload, char * request_url,c
     // SSL_CTX_set_options(ctx, SSL_OP_ALL);
 
     #if defined(Z_SECURE_CONNECTION)
-        if (!SSL_CTX_load_verify_locations(ctx, server_root_cert, NULL)) {
-            log_error( "Error loading CA certificate\n, so setting to no verification\n");
-            SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+        if (server_root_cert != NULL) {
+            if (!SSL_CTX_load_verify_locations(ctx, server_root_cert, NULL)) {
+                log_error("Error loading CA certificate\n");
+                SSL_CTX_free(ctx);
+                return ZFAILURE;
+            }
+        } else {
+            SSL_CTX_set_default_verify_paths(ctx);
         }
-        else{
-            SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
-        }
-
     #else
-        SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
-
+        SSL_CTX_set_default_verify_paths(ctx);
     #endif
+        SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
 
     // Create BIO connection
     bio = BIO_new_ssl_connect(ctx);
@@ -1621,18 +1721,7 @@ int http_post(ZohoIOTclient *client, char * publishPayload, char * request_url,c
         SSL_CTX_free(ctx);
         return ZFAILURE;
     }
-    BIO_set_conn_hostname(bio, host_with_port);
-
-    // Perform the connection
-    if (BIO_do_connect(bio) <= 0) {
-        log_error( "Error connecting to server\n");
-        strcpy(responseMessage, "Error connecting to server");
-        BIO_free_all(bio);
-        SSL_CTX_free(ctx);
-        return ZFAILURE;
-    }
-
-    // Get SSL connection
+    // SNI and hostname verification must be configured before BIO_do_connect
     BIO_get_ssl(bio, &ssl);
     if (!ssl) {
         log_error( "Error establishing SSL connection\n");
@@ -1641,11 +1730,23 @@ int http_post(ZohoIOTclient *client, char * publishPayload, char * request_url,c
         SSL_CTX_free(ctx);
         return ZFAILURE;
     }
+    SSL_set_tlsext_host_name(ssl, hostname);
+    X509_VERIFY_PARAM *param = SSL_get0_param(ssl);
+    X509_VERIFY_PARAM_set1_host(param, hostname, 0);
+    BIO_set_conn_hostname(bio, host_with_port);
 
-    // Perform SSL handshake
-    if (SSL_do_handshake(ssl) <= 0) {
-        log_error( "Error performing SSL handshake\n");
-        strcpy(responseMessage, "Error performing SSL handshake");
+    // Perform the connection and TLS handshake
+    if (BIO_do_connect(bio) <= 0) {
+        log_error( "Error connecting to server\n");
+        strcpy(responseMessage, "Error connecting to server");
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return ZFAILURE;
+    }
+
+    if (SSL_get_verify_result(ssl) != X509_V_OK) {
+        log_error( "Certificate verification failed\n");
+        strcpy(responseMessage, "Certificate verification failed");
         BIO_free_all(bio);
         SSL_CTX_free(ctx);
         return ZFAILURE;
@@ -1668,21 +1769,54 @@ int http_post(ZohoIOTclient *client, char * publishPayload, char * request_url,c
         SSL_CTX_free(ctx);
         return ZFAILURE;
     }
-    log_debug("Http_data_writed");
 
-    // Read response
-    char buf[100000]={0};
-    int bytes_read;
-    while ((bytes_read = BIO_read(bio, buf, sizeof(buf))) > 0) {
+    char header_buf[2048] = {0};
+    int total = 0, n;
+    while (total < (int)(sizeof(header_buf) - 1)) {
+        n = BIO_read(bio, header_buf + total, 1);
+        if (n <= 0){
+            break;
+         }
+        total += n;
+        if (total >= 4 && memcmp(header_buf + total - 4, "\r\n\r\n", 4) == 0){
+            break;
+        }
     }
+    long content_length = -1;
+    char *cl_ptr = strcasestr(header_buf, "content-length:");
+    if (cl_ptr) {
+        content_length = atol(cl_ptr + 15);
+    }
+    size_t alloc_size = (content_length > 0 && content_length <= 65536)
+                        ? (size_t)total + (size_t)content_length + 1
+                        : (size_t)total + 8192;
+    char *buf = calloc(alloc_size, 1);
+    if (!buf) {
+        log_error("Failed to allocate HTTP response buffer");
+        strcpy(responseMessage, "Memory allocation failed");
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return ZFAILURE;
+    }
+    memcpy(buf, header_buf, total);
+    while (total < (int)(alloc_size - 1)) {
+        n = BIO_read(bio, buf + total, (int)(alloc_size - 1 - total));
+        if (n <= 0){
+            break;
+        } 
+        total += n;
+    }
+    buf[total] = '\0';
     BIO_free_all(bio);
     SSL_CTX_free(ctx);
 
-     if(parse_http_response(buf)== false){
-        log_debug("The respose is %s",buf);
+    if (parse_http_response(buf) == false) {
+        log_debug("The respose is %s", buf);
+        free(buf);
         strcpy(responseMessage, "Error in parsing the http response");
         return ZFAILURE;
     }
+    free(buf);
     log_info("Http published successfully");
     char successResponse[150];
     sprintf(successResponse,"Http publish successful");
@@ -1723,7 +1857,13 @@ int http_post_cloud_logging(ZohoIOTclient *client, char *payload,char * response
     char * client_id = client->config.client_id;
     char * password = client->config.auth_token;
     char request_url[1000];
-    snprintf(request_url,sizeof(request_url),"POST /v1/iot/logs/import?device_id=%s&device_token=%s HTTP/1.1\r\nHost: %s\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n", client_id, password, hostname, cloud_log_len);
+    snprintf(request_url,sizeof(request_url),
+             "POST /v1/iot/logs/import?device_id=%s HTTP/1.1\r\n"
+             "Host: %s\r\n"
+             "Authorization: Bearer %s\r\n"
+             "Content-Type: application/json\r\n"
+             "Content-Length: %d\r\n\r\n",
+             client_id, hostname, password, cloud_log_len);
 
     if(http_post(client,cloud_log_string,request_url,responseMessage) == ZSUCCESS){
     char successResponse[150];
@@ -1765,7 +1905,6 @@ OfflinePublishResponse* publishOfflineData(ZohoIOTclient *client,char *payload){
                        "Content-Type: application/json\r\n"
                        "Content-Length: %zu\r\n\r\n",
                        client_id, password, hostname, strlen(payload));
-   
     response->status =  http_post(client,payload,request_url,response->responseMessage);
     return response;
 
@@ -1807,10 +1946,33 @@ void handle_OTA(ZohoIOTclient *client,char* payload)
         int len = cJSON_GetArraySize(commandMessageArray);
         for (int iter = 0; iter < len; iter++) {
             commandMessage = cJSON_GetArrayItem(commandMessageArray, iter);
-            correlation_id = cJSON_GetObjectItem(commandMessage, "correlation_id")->valuestring;
+
+            cJSON *corr_item = cJSON_GetObjectItem(commandMessage, "correlation_id");
+            if (!cJSON_IsString(corr_item)) {
+                log_error("[%s] OTA payload missing correlation_id", client->config.client_id);
+                cJSON_Delete(commandMessageArray);
+                return;
+            }
+            correlation_id = corr_item->valuestring;
+
             cJSON *payload_array = cJSON_GetObjectItem(commandMessage, "payload");
-            cJSON *payload_message = cJSON_GetArrayItem(payload_array,0);
-            edge_command_key = cJSON_GetObjectItem(payload_message, "edge_command_key")->valuestring;
+            cJSON *payload_message = cJSON_GetArrayItem(payload_array, 0);
+            if (payload_message == NULL) {
+                log_error("[%s] OTA payload missing payload array", client->config.client_id);
+                zclient_publishOTAAck(client, correlation_id, EXECUTION_FAILURE, "Invalid OTA payload");
+                cJSON_Delete(commandMessageArray);
+                return;
+            }
+
+            cJSON *eck_item = cJSON_GetObjectItem(payload_message, "edge_command_key");
+            if (!cJSON_IsString(eck_item)) {
+                log_error("[%s] OTA payload missing edge_command_key", client->config.client_id);
+                zclient_publishOTAAck(client, correlation_id, EXECUTION_FAILURE, "Invalid OTA payload");
+                cJSON_Delete(commandMessageArray);
+                return;
+            }
+            edge_command_key = eck_item->valuestring;
+
             cJSON *attributes = cJSON_GetObjectItem(payload_message, "attributes");
             for(int i = 0; i < cJSON_GetArraySize(attributes); i++)
             {
@@ -1818,13 +1980,18 @@ void handle_OTA(ZohoIOTclient *client,char* payload)
                 char *attribute_json = cJSON_Print(attribute);
                 log_debug("attribute : %s",attribute_json);
                 free(attribute_json);
-                if(strcmp(cJSON_GetObjectItem(attribute, "field")->valuestring,"OTA_URL") == 0)
-                {
-                    OTA_URL = cJSON_GetObjectItem(attribute, "value")->valuestring;
+                cJSON *field_item = cJSON_GetObjectItem(attribute, "field");
+                cJSON *value_item = cJSON_GetObjectItem(attribute, "value");
+                if (!cJSON_IsString(field_item) || !cJSON_IsString(value_item)) {
+                    continue;
                 }
-                else if (strcmp(cJSON_GetObjectItem(attribute, "field")->valuestring,"HASH") == 0)
+                if(strcmp(field_item->valuestring,"OTA_URL") == 0)
                 {
-                    hash = cJSON_GetObjectItem(attribute, "value")->valuestring;
+                    OTA_URL = value_item->valuestring;
+                }
+                else if (strcmp(field_item->valuestring,"HASH") == 0)
+                {
+                    hash = value_item->valuestring;
                 }
             }
         }
@@ -1915,9 +2082,12 @@ int zclient_publishOTAAck(ZohoIOTclient *client, char *correlation_id, ZcommandA
     {
         client->current_state = DISCONNECTED;
         log_error("[%s] Error on publishing OTA ACK due to lost connection. Error code: %d", client->config.client_id, rc);
-        client->retryACK = true;
+        pthread_mutex_lock(&client->lock);
+        if (client->failedACK.ackPayload != NULL) { cJSON_Delete(client->failedACK.ackPayload); }
         client->failedACK.ackPayload = cJSON_Duplicate(Ack_payload, 1);
         client->failedACK.topic = client->commandAckTopic;
+        client->retryACK = true;
+        pthread_mutex_unlock(&client->lock);
     }
     else
     {

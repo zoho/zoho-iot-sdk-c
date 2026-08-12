@@ -90,7 +90,7 @@ int main()
     logConfig->maxRollingLogFile = 2;
     log_initialize(logConfig);
 
-
+   //Limitation: Both client follow same security mode
     rc1 = zclient_init(&client1, MQTT_USER_NAME_1, MQTT_PASSWORD_1, CRT_PARSE_MODE,
                        pRootCACert, pDeviceCert, pDevicePrivateKey, pDeviceCertPassword);
     if (rc1 != ZSUCCESS)

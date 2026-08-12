@@ -90,7 +90,9 @@ void* subscribe_ack_function(void* arg) {
                 free(command_ack_payload);
                 free(data);
             }
-            pthread_detach(thread);
+            else{
+                pthread_detach(thread);
+            }
             cJSON_Delete(commandAckObject);
             if(get_OTA_status(iot_client))
             {
@@ -106,7 +108,11 @@ void* subscribe_ack_function(void* arg) {
                 handle_cloud_logging(iot_client, args->payload);
                 return NULL;
             }
-            iot_client->on_command_message_handler(args->topic, args->payload);
+            if (iot_client->on_command_message_handler != NULL) {
+                iot_client->on_command_message_handler(args->topic, args->payload);
+            } else {
+                log_error("[%s] Command handler not available", iot_client->config.client_id);
+            }
         }
     }
     else if (strcmp(args->topic, iot_client->configTopic) == 0)
@@ -124,10 +130,16 @@ void* subscribe_ack_function(void* arg) {
                 log_error("[%s] Failed to create config publish thread", iot_client->config.client_id);
                 free(config_ack_payload);
                 free(data);
+            } else {
+                pthread_detach(thread);
             }
-            pthread_detach(thread);
             cJSON_Delete(configAckObject);
-            iot_client->on_config_message_handler(args->topic, args->payload);
+            if (iot_client->on_config_message_handler != NULL) {
+                iot_client->on_config_message_handler(args->topic, args->payload);
+            }
+            else{
+                log_error("[%s] Config handler not available", iot_client->config.client_id);
+            }
         }
     }
     free(args->topic);
@@ -188,7 +200,7 @@ void onMessageReceived(MessageData *md)
     }
     *md_copy->message = *md->message;
 
-    md_copy->message->payload = malloc(md->message->payloadlen);
+    md_copy->message->payload = malloc(md->message->payloadlen + 1);
     if (md_copy->message->payload == NULL) {
         log_error("Failed to allocate memory for payload");
         free(md_copy->message);
@@ -196,6 +208,7 @@ void onMessageReceived(MessageData *md)
         return;
     }
     memcpy(md_copy->message->payload, md->message->payload, md->message->payloadlen);
+    ((char *)md_copy->message->payload)[md->message->payloadlen] = '\0';
 
     md_copy->topicName = (MQTTString*)malloc(sizeof(MQTTString));
     if (md_copy->topicName == NULL) {
@@ -235,18 +248,32 @@ void onMessageReceived(MessageData *md)
 void processMessageReceived(MessageData *md)
 {
     MQTTMessage *message = md->message;
-    char payload[message->payloadlen+1];
-    char topic[md->topicName->lenstring.len+1];
-    memset(topic, '\0', sizeof(topic));
-    memset(payload, '\0', sizeof(payload));
-    memcpy(topic, md->topicName->lenstring.data, md->topicName->lenstring.len);
-    topic[md->topicName->lenstring.len] = '\0';
-    memcpy(payload, message->payload, message->payloadlen);
-    payload[message->payloadlen] = '\0';
+
+    size_t plen = message->payloadlen;
+    size_t tlen = md->topicName->lenstring.len;
+
+    char *payload = malloc(plen + 1);
+    if (payload == NULL) {
+        log_error("Failed to allocate payload buffer");
+        return;
+    }
+    memcpy(payload, message->payload, plen);
+    payload[plen] = '\0';
+
+    char *topic = malloc(tlen + 1);
+    if (topic == NULL) {
+        log_error("Failed to allocate topic buffer");
+        free(payload);
+        return;
+    }
+    memcpy(topic, md->topicName->lenstring.data, tlen);
+    topic[tlen] = '\0';
 
     ZohoIOTclient *iot_client = findClientByTopic(topic);
     if (iot_client == NULL) {
         log_error("No registered client found for topic: %s", topic);
+        free(topic);
+        free(payload);
         return;
     }
 
@@ -267,13 +294,18 @@ void processMessageReceived(MessageData *md)
                 free(command_ack_payload);
                 free(data);
             }
-            pthread_detach(thread);
+            else{
+                pthread_detach(thread);
+            }
+            
             cJSON_Delete(commandAckObject);
             if(get_OTA_status(iot_client))
             {
                 //handle OTA
                 log_info("[%s] Received OTA command. Handling OTA...", iot_client->config.client_id);
                 handle_OTA(iot_client,payload);
+                free(topic);
+                free(payload);
                 return;
             }
             if(get_cloud_logging_status(iot_client))
@@ -281,9 +313,15 @@ void processMessageReceived(MessageData *md)
                 //handle Cloud logging
                 log_info("[%s] Received cloud logging command. Handling cloud logging...", iot_client->config.client_id);
                 handle_cloud_logging(iot_client,payload);
+                free(topic);
+                free(payload);
                 return;
             }
-            iot_client->on_command_message_handler(topic, payload);
+            if (iot_client->on_command_message_handler != NULL) {
+                iot_client->on_command_message_handler(topic, payload);
+            } else {
+                log_error("[%s] Command handler not available", iot_client->config.client_id);
+            }
         }
     }
     else if (strcmp(topic, iot_client->configTopic) == 0)
@@ -301,12 +339,20 @@ void processMessageReceived(MessageData *md)
                 log_error("[%s] Failed to create config publish thread", iot_client->config.client_id);
                 free(config_ack_payload);
                 free(data);
+            } else {
+                pthread_detach(thread);
             }
-            pthread_detach(thread);
             cJSON_Delete(configAckObject);
-            iot_client->on_config_message_handler(topic, payload);
+            if (iot_client->on_config_message_handler != NULL) {
+                iot_client->on_config_message_handler(topic, payload);
+            }
+            else{
+                log_error("[%s] Command handler not available", iot_client->config.client_id);
+            }
         }
     }
 
+    free(topic);
+    free(payload);
 }
 #endif
